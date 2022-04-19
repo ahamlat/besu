@@ -14,8 +14,6 @@
  */
 package org.hyperledger.besu.ethereum.mainnet;
 
-import static org.hyperledger.besu.ethereum.mainnet.MainnetProtocolSpecs.powHasher;
-
 import org.hyperledger.besu.config.PowAlgorithm;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.core.TransactionReceipt;
@@ -46,6 +44,8 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+
+import static org.hyperledger.besu.ethereum.mainnet.MainnetProtocolSpecs.powHasher;
 
 public class ClassicProtocolSpecs {
   private static final Wei MAX_BLOCK_REWARD = Wei.fromEth(5);
@@ -199,7 +199,7 @@ public class ClassicProtocolSpecs {
                     true,
                     stackSizeLimit,
                     FeeMarket.legacy(),
-                    CoinbaseFeePriceCalculator.frontier()))
+                    CoinbaseFeePriceCalculator.frontier(), new ExecutedTransactionsCache()))
         .name("Atlantis");
   }
 

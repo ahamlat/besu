@@ -14,6 +14,9 @@
  */
 package org.hyperledger.besu.ethereum.mainnet;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.io.Resources;
+import io.vertx.core.json.JsonArray;
 import org.hyperledger.besu.config.GenesisConfigOptions;
 import org.hyperledger.besu.config.PowAlgorithm;
 import org.hyperledger.besu.datatypes.Address;
@@ -67,10 +70,6 @@ import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import com.google.common.collect.ImmutableSet;
-import com.google.common.io.Resources;
-import io.vertx.core.json.JsonArray;
 
 /** Provides the various {@link ProtocolSpec}s on mainnet hard forks. */
 public abstract class MainnetProtocolSpecs {
@@ -136,7 +135,7 @@ public abstract class MainnetProtocolSpecs {
                     false,
                     stackSizeLimit,
                     FeeMarket.legacy(),
-                    CoinbaseFeePriceCalculator.frontier()))
+                    CoinbaseFeePriceCalculator.frontier(), new ExecutedTransactionsCache()))
         .privateTransactionProcessorBuilder(
             (gasCalculator,
                 transactionValidator,
@@ -328,7 +327,7 @@ public abstract class MainnetProtocolSpecs {
                     true,
                     stackSizeLimit,
                     FeeMarket.legacy(),
-                    CoinbaseFeePriceCalculator.frontier()))
+                    CoinbaseFeePriceCalculator.frontier(), new ExecutedTransactionsCache()))
         .name("SpuriousDragon");
   }
 
@@ -544,7 +543,7 @@ public abstract class MainnetProtocolSpecs {
                     true,
                     stackSizeLimit,
                     londonFeeMarket,
-                    CoinbaseFeePriceCalculator.eip1559()))
+                    CoinbaseFeePriceCalculator.eip1559(), new ExecutedTransactionsCache()))
         .contractCreationProcessorBuilder(
             (gasCalculator, evm) ->
                 new ContractCreationProcessor(

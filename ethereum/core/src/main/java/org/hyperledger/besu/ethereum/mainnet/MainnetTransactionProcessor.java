@@ -14,11 +14,11 @@
  */
 package org.hyperledger.besu.ethereum.mainnet;
 
-import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_IS_PERSISTING_PRIVATE_STATE;
-import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_PRIVATE_METADATA_UPDATER;
-import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_TRANSACTION;
-import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_TRANSACTION_HASH;
-
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Multimap;
+import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
@@ -42,6 +42,8 @@ import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.processor.AbstractMessageProcessor;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -51,13 +53,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimap;
-import org.apache.tuweni.bytes.Bytes;
-import org.apache.tuweni.bytes.Bytes32;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_IS_PERSISTING_PRIVATE_STATE;
+import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_PRIVATE_METADATA_UPDATER;
+import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_TRANSACTION;
+import static org.hyperledger.besu.ethereum.mainnet.PrivateStateUtils.KEY_TRANSACTION_HASH;
 
 public class MainnetTransactionProcessor {
 
@@ -77,6 +76,9 @@ public class MainnetTransactionProcessor {
 
   protected final FeeMarket feeMarket;
   protected final CoinbaseFeePriceCalculator coinbaseFeePriceCalculator;
+
+  private final ExecutedTransactionsCache executedTransactionsCache;
+
 
   /**
    * Applies a transaction to the current system state.
@@ -215,28 +217,33 @@ public class MainnetTransactionProcessor {
       final BlockHashLookup blockHashLookup,
       final Boolean isPersistingPrivateState,
       final TransactionValidationParams transactionValidationParams) {
-    return processTransaction(
-        blockchain,
-        worldState,
-        blockHeader,
-        transaction,
-        miningBeneficiary,
-        operationTracer,
-        blockHashLookup,
-        isPersistingPrivateState,
-        transactionValidationParams,
-        null);
+    TransactionProcessingResult result = executedTransactionsCache.getIfPresent(transaction.getHash());
+    if (result == null) {
+      result = processTransaction(
+              blockchain,
+              worldState,
+              blockHeader,
+              transaction,
+              miningBeneficiary,
+              operationTracer,
+              blockHashLookup,
+              isPersistingPrivateState,
+              transactionValidationParams,
+              null);;
+      executedTransactionsCache.put(transaction.getHash(), result);
+    }
+    return result;
   }
 
   public MainnetTransactionProcessor(
-      final GasCalculator gasCalculator,
-      final MainnetTransactionValidator transactionValidator,
-      final AbstractMessageProcessor contractCreationProcessor,
-      final AbstractMessageProcessor messageCallProcessor,
-      final boolean clearEmptyAccounts,
-      final int maxStackSize,
-      final FeeMarket feeMarket,
-      final CoinbaseFeePriceCalculator coinbaseFeePriceCalculator) {
+          final GasCalculator gasCalculator,
+          final MainnetTransactionValidator transactionValidator,
+          final AbstractMessageProcessor contractCreationProcessor,
+          final AbstractMessageProcessor messageCallProcessor,
+          final boolean clearEmptyAccounts,
+          final int maxStackSize,
+          final FeeMarket feeMarket,
+          final CoinbaseFeePriceCalculator coinbaseFeePriceCalculator, final ExecutedTransactionsCache executedTransactionsCache) {
     this.gasCalculator = gasCalculator;
     this.transactionValidator = transactionValidator;
     this.contractCreationProcessor = contractCreationProcessor;
@@ -245,6 +252,7 @@ public class MainnetTransactionProcessor {
     this.maxStackSize = maxStackSize;
     this.feeMarket = feeMarket;
     this.coinbaseFeePriceCalculator = coinbaseFeePriceCalculator;
+    this.executedTransactionsCache = executedTransactionsCache;
   }
 
   public TransactionProcessingResult processTransaction(

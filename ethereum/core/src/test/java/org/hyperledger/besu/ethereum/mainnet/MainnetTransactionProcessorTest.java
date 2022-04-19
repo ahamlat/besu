@@ -14,10 +14,6 @@
  */
 package org.hyperledger.besu.ethereum.mainnet;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
@@ -29,13 +25,16 @@ import org.hyperledger.besu.ethereum.vm.BlockHashLookup;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.processor.AbstractMessageProcessor;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class MainnetTransactionProcessorTest {
@@ -66,7 +65,7 @@ public class MainnetTransactionProcessorTest {
             false,
             MAX_STACK_SIZE,
             FeeMarket.legacy(),
-            CoinbaseFeePriceCalculator.frontier());
+            CoinbaseFeePriceCalculator.frontier(), new ExecutedTransactionsCache());
   }
 
   @Test

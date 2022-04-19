@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.ethereum.goquorum;
 
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.enclave.EnclaveClientException;
@@ -41,15 +42,13 @@ import org.hyperledger.besu.evm.account.EvmAccount;
 import org.hyperledger.besu.evm.log.LogsBloomFilter;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
-import org.apache.tuweni.bytes.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class GoQuorumBlockProcessor extends MainnetBlockProcessor {
 
@@ -133,7 +132,7 @@ public class GoQuorumBlockProcessor extends MainnetBlockProcessor {
         effectiveTransaction = transaction;
       }
 
-      if (effectiveTransaction != null) { // public tx, or private tx that we are party to
+      if (effectiveTransaction != null ) { // public tx, or private tx that we are party to
         final TransactionProcessingResult result =
             transactionProcessor.processTransaction(
                 blockchain,

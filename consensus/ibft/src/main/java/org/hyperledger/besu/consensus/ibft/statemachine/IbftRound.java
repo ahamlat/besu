@@ -41,11 +41,10 @@ import org.hyperledger.besu.ethereum.core.BlockImporter;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.hyperledger.besu.util.Subscribers;
-
-import java.util.Optional;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
 
 public class IbftRound {
 
@@ -124,7 +123,7 @@ public class IbftRound {
   }
 
   private void updateStateWithProposalAndTransmit(
-      final Block block, final Optional<RoundChangeCertificate> roundChangeCertificate) {
+          final Block block, final Optional<RoundChangeCertificate> roundChangeCertificate) {
     final Proposal proposal;
     try {
       proposal = messageFactory.createProposal(getRoundIdentifier(), block, roundChangeCertificate);
