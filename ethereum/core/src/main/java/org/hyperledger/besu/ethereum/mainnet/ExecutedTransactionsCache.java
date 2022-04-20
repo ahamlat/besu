@@ -11,7 +11,7 @@ import java.time.Duration;
 
 
 public class ExecutedTransactionsCache {
-    private static final Logger LOG = LoggerFactory.getLogger(MainnetTransactionProcessor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ExecutedTransactionsCache.class);
 
     private final Cache<Hash, TransactionProcessingResult> cache;
 
