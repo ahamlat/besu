@@ -150,7 +150,7 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
       if (!hasAvailableBlockBudget(blockHeader, transaction, currentGasUsed)) {
         return AbstractBlockProcessor.Result.failed();
       }
-
+      LOG.info("Transaction hash "+transaction.getHash());
       final WorldUpdater worldStateUpdater = worldState.updater();
       final BlockHashLookup blockHashLookup = new BlockHashLookup(blockHeader, blockchain);
       final Address miningBeneficiary =
