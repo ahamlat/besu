@@ -90,6 +90,7 @@ public class MainnetTransactionProcessor {
    * @param miningBeneficiary The address which is to receive the transaction fee
    * @param blockHashLookup The {@link BlockHashLookup} to use for BLOCKHASH operations
    * @param isPersistingPrivateState Whether the resulting private state will be persisted
+   * @param caching true if caching is enabled, false otherwise
    * @param transactionValidationParams Validation parameters that will be used by the {@link
    *     MainnetTransactionValidator}
    * @return the transaction result
@@ -97,29 +98,46 @@ public class MainnetTransactionProcessor {
    * @see TransactionValidationParams
    */
   public TransactionProcessingResult processTransaction(
-      final Blockchain blockchain,
-      final WorldUpdater worldState,
-      final ProcessableBlockHeader blockHeader,
-      final Transaction transaction,
-      final Address miningBeneficiary,
-      final BlockHashLookup blockHashLookup,
-      final Boolean isPersistingPrivateState,
-      final TransactionValidationParams transactionValidationParams) {
-    TransactionProcessingResult result = executedTransactionsCache.getIfPresent(transaction.getHash());
-    if (result == null) {
+          final Blockchain blockchain,
+          final WorldUpdater worldState,
+          final ProcessableBlockHeader blockHeader,
+          final Transaction transaction,
+          final Address miningBeneficiary,
+          final BlockHashLookup blockHashLookup,
+          final Boolean isPersistingPrivateState,
+          final boolean caching,
+          final TransactionValidationParams transactionValidationParams) {
+    TransactionProcessingResult result;
+    if (caching) {
+      result = executedTransactionsCache.getIfPresent(transaction.getHash());
+      if (result == null) {
+        result = processTransaction(
+                blockchain,
+                worldState,
+                blockHeader,
+                transaction,
+                miningBeneficiary,
+                OperationTracer.NO_TRACING,
+                blockHashLookup,
+                isPersistingPrivateState,
+                transactionValidationParams,
+                null);
+        executedTransactionsCache.put(transaction.getHash(), result);
+      }
+    } else {
       result = processTransaction(
-        blockchain,
-        worldState,
-        blockHeader,
-        transaction,
-        miningBeneficiary,
-        OperationTracer.NO_TRACING,
-        blockHashLookup,
-        isPersistingPrivateState,
-        transactionValidationParams,
-        null);
-      executedTransactionsCache.put(transaction.getHash(), result);
+              blockchain,
+              worldState,
+              blockHeader,
+              transaction,
+              miningBeneficiary,
+              OperationTracer.NO_TRACING,
+              blockHashLookup,
+              isPersistingPrivateState,
+              transactionValidationParams,
+              null);
     }
+
     return result;
 
   }

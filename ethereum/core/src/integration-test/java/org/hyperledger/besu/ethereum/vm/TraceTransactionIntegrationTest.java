@@ -103,7 +103,7 @@ public class TraceTransactionIntegrationTest {
             genesisBlockHeader.getCoinbase(),
             blockHashLookup,
             false,
-            TransactionValidationParams.blockReplay());
+                false, TransactionValidationParams.blockReplay());
     assertThat(result.isSuccessful()).isTrue();
     final Account createdContract =
         createTransactionUpdater.getTouchedAccounts().stream()

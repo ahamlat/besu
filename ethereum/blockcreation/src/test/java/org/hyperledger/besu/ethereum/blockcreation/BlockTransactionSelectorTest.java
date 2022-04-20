@@ -162,7 +162,7 @@ public class BlockTransactionSelectorTest {
     pendingTransactions.addRemoteTransaction(transaction);
 
     when(transactionProcessor.processTransaction(
-            any(), any(), any(), eq(transaction), any(), any(), anyBoolean(), any()))
+            any(), any(), any(), eq(transaction), any(), any(), anyBoolean(), false, any()))
         .thenReturn(
             TransactionProcessingResult.failed(0, 5, ValidationResult.valid(), Optional.empty()));
 
@@ -204,7 +204,7 @@ public class BlockTransactionSelectorTest {
     }
 
     when(transactionProcessor.processTransaction(
-            any(), any(), any(), any(), any(), any(), anyBoolean(), any()))
+            any(), any(), any(), any(), any(), any(), anyBoolean(), false, any()))
         .thenReturn(
             TransactionProcessingResult.successful(
                 new ArrayList<>(), 0, 0, Bytes.EMPTY, ValidationResult.valid()));
@@ -216,7 +216,7 @@ public class BlockTransactionSelectorTest {
             any(),
             any(),
             anyBoolean(),
-            any()))
+            false, any()))
         .thenReturn(
             TransactionProcessingResult.invalid(
                 ValidationResult.invalid(TransactionInvalidReason.NONCE_TOO_LOW)));
@@ -260,7 +260,7 @@ public class BlockTransactionSelectorTest {
     }
 
     when(transactionProcessor.processTransaction(
-            any(), any(), any(), any(), any(), any(), anyBoolean(), any()))
+            any(), any(), any(), any(), any(), any(), anyBoolean(), false, any()))
         .thenReturn(
             TransactionProcessingResult.successful(
                 new ArrayList<>(), 0, 0, Bytes.EMPTY, ValidationResult.valid()));
@@ -387,7 +387,7 @@ public class BlockTransactionSelectorTest {
             .signAndBuild(keyPair);
 
     when(transactionProcessor.processTransaction(
-            any(), any(), any(), any(), any(), any(), anyBoolean(), any()))
+            any(), any(), any(), any(), any(), any(), anyBoolean(), false, any()))
         .thenReturn(
             TransactionProcessingResult.successful(
                 new ArrayList<>(), 0, 0, Bytes.EMPTY, ValidationResult.valid()));
@@ -405,7 +405,7 @@ public class BlockTransactionSelectorTest {
     final ProcessableBlockHeader blockHeader = createBlockWithGasLimit(300);
 
     when(transactionProcessor.processTransaction(
-            any(), any(), any(), any(), any(), any(), anyBoolean(), any()))
+            any(), any(), any(), any(), any(), any(), anyBoolean(), false, any()))
         .thenReturn(
             TransactionProcessingResult.successful(
                 new ArrayList<>(), 0, 0, Bytes.EMPTY, ValidationResult.valid()));
@@ -461,7 +461,7 @@ public class BlockTransactionSelectorTest {
 
     // TransactionProcessor mock assumes all gas in the transaction was used (i.e. gasLimit).
     when(transactionProcessor.processTransaction(
-            any(), any(), any(), any(), any(), any(), anyBoolean(), any()))
+            any(), any(), any(), any(), any(), any(), anyBoolean(), false, any()))
         .thenReturn(
             TransactionProcessingResult.successful(
                 new ArrayList<>(), 0, 0, Bytes.EMPTY, ValidationResult.valid()));
@@ -558,7 +558,7 @@ public class BlockTransactionSelectorTest {
             any(),
             any(),
             anyBoolean(),
-            any()))
+            false, any()))
         .thenReturn(
             TransactionProcessingResult.successful(
                 new ArrayList<>(), 2000, 10000, Bytes.EMPTY, ValidationResult.valid()));
@@ -570,7 +570,7 @@ public class BlockTransactionSelectorTest {
             any(),
             any(),
             anyBoolean(),
-            any()))
+            false, any()))
         .thenReturn(
             TransactionProcessingResult.invalid(
                 ValidationResult.invalid(TransactionInvalidReason.EXCEEDS_BLOCK_GAS_LIMIT)));
@@ -601,7 +601,7 @@ public class BlockTransactionSelectorTest {
             any(),
             any(),
             anyBoolean(),
-            any()))
+            false, any()))
         .thenReturn(
             TransactionProcessingResult.invalid(
                 ValidationResult.invalid(TransactionInvalidReason.INCORRECT_NONCE)));

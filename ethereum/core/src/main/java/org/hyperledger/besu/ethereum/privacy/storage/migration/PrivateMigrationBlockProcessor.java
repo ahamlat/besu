@@ -106,7 +106,7 @@ public class PrivateMigrationBlockProcessor {
               miningBeneficiary,
               blockHashLookup,
               true,
-              TransactionValidationParams.processingBlock());
+                  false, TransactionValidationParams.processingBlock());
       if (result.isInvalid()) {
         return AbstractBlockProcessor.Result.failed();
       }

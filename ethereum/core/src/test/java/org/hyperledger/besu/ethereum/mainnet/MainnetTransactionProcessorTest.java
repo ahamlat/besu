@@ -84,7 +84,7 @@ public class MainnetTransactionProcessorTest {
         Address.fromHexString("1"),
         blockHashLookup,
         false,
-        ImmutableTransactionValidationParams.builder().build());
+            false, ImmutableTransactionValidationParams.builder().build());
 
     assertThat(txValidationParamCaptor.getValue())
         .usingRecursiveComparison()
