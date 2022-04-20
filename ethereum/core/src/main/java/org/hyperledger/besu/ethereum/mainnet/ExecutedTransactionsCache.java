@@ -13,7 +13,7 @@ import java.time.Duration;
 public class ExecutedTransactionsCache {
     private static final Logger LOG = LoggerFactory.getLogger(ExecutedTransactionsCache.class);
 
-    private final Cache<Hash, TransactionProcessingResult> cache;
+    private final Cache<String, TransactionProcessingResult> cache;
 
     public ExecutedTransactionsCache() {
         this.cache = Caffeine.newBuilder().maximumSize(1000).expireAfterWrite(Duration.ofMinutes(5)).build();
@@ -22,12 +22,12 @@ public class ExecutedTransactionsCache {
         this.cache.cleanUp();
     }
 
-    public TransactionProcessingResult getIfPresent(final Hash codeHash) {
+    public TransactionProcessingResult getIfPresent(final String codeHash) {
         LOG.info("getting "+codeHash+" from the cache");
         return cache.getIfPresent(codeHash);
     }
 
-    public void put(final Hash key, final TransactionProcessingResult value) {
+    public void put(final String key, final TransactionProcessingResult value) {
         LOG.info("putting "+key+" in the cache");
         cache.put(key, value);
 

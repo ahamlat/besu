@@ -23,6 +23,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
+import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.feemarket.CoinbaseFeePriceCalculator;
@@ -109,7 +110,7 @@ public class MainnetTransactionProcessor {
           final TransactionValidationParams transactionValidationParams) {
     TransactionProcessingResult result;
     if (caching) {
-      result = executedTransactionsCache.getIfPresent(transaction.getHash());
+      result = executedTransactionsCache.getIfPresent(transaction.getHash()+"-"+((BlockHeader)blockHeader).getBlockHash());
       if (result == null) {
         result = processTransaction(
                 blockchain,
@@ -122,7 +123,7 @@ public class MainnetTransactionProcessor {
                 isPersistingPrivateState,
                 transactionValidationParams,
                 null);
-        executedTransactionsCache.put(transaction.getHash(), result);
+        executedTransactionsCache.put(transaction.getHash()+"-"+((BlockHeader)blockHeader).getBlockHash(), result);
       }
     } else {
       result = processTransaction(
@@ -241,7 +242,7 @@ public class MainnetTransactionProcessor {
       final BlockHashLookup blockHashLookup,
       final Boolean isPersistingPrivateState,
       final TransactionValidationParams transactionValidationParams) {
-    TransactionProcessingResult result = executedTransactionsCache.getIfPresent(transaction.getHash());
+    TransactionProcessingResult result = executedTransactionsCache.getIfPresent(transaction.getHash()+"-"+((BlockHeader)blockHeader).getBlockHash());
     if (result == null) {
       result = processTransaction(
               blockchain,
@@ -254,7 +255,7 @@ public class MainnetTransactionProcessor {
               isPersistingPrivateState,
               transactionValidationParams,
               null);;
-      executedTransactionsCache.put(transaction.getHash(), result);
+      executedTransactionsCache.put(transaction.getHash()+"-"+((BlockHeader)blockHeader).getBlockHash(), result);
     }
     return result;
   }
