@@ -146,11 +146,13 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
       final PrivateMetadataUpdater privateMetadataUpdater) {
     final List<TransactionReceipt> receipts = new ArrayList<>();
     long currentGasUsed = 0;
+    int counter = 0 ;
     for (final Transaction transaction : transactions) {
+      counter++;
       if (!hasAvailableBlockBudget(blockHeader, transaction, currentGasUsed)) {
         return AbstractBlockProcessor.Result.failed();
       }
-      LOG.info("Transaction hash "+transaction.getHash());
+      LOG.info("Transaction num "+ counter +", hash = "+transaction.getHash()+", block = "+blockHeader.getBlockHash());
       final WorldUpdater worldStateUpdater = worldState.updater();
       final BlockHashLookup blockHashLookup = new BlockHashLookup(blockHeader, blockchain);
       final Address miningBeneficiary =
