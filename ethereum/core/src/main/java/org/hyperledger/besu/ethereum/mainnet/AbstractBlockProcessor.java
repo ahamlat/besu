@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.ethereum.mainnet;
 
+import com.google.common.collect.ImmutableList;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.bonsai.BonsaiPersistedWorldState;
@@ -30,14 +31,12 @@ import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.evm.worldstate.WorldState;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 import org.hyperledger.besu.plugin.data.TransactionType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import com.google.common.collect.ImmutableList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class AbstractBlockProcessor implements BlockProcessor {
 
@@ -156,20 +155,24 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
       final BlockHashLookup blockHashLookup = new BlockHashLookup(blockHeader, blockchain);
       final Address miningBeneficiary =
           miningBeneficiaryCalculator.calculateBeneficiary(blockHeader);
+      TransactionProcessingResult result = transactionProcessor.getExecutedTransactionsCache().getIfPresent(transaction.getHash());
+      if (result == null) {
+        result =
+                transactionProcessor.processTransaction(
+                        blockchain,
+                        worldStateUpdater,
+                        blockHeader,
+                        transaction,
+                        miningBeneficiary,
+                        OperationTracer.NO_TRACING,
+                        blockHashLookup,
+                        true,
+                        TransactionValidationParams.processingBlock(),
+                        privateMetadataUpdater);
+        transactionProcessor.getExecutedTransactionsCache().put(transaction.getHash(), result);
+      }
 
-      final TransactionProcessingResult result =
-          transactionProcessor.processTransaction(
-              blockchain,
-              worldStateUpdater,
-              blockHeader,
-              transaction,
-              miningBeneficiary,
-              OperationTracer.NO_TRACING,
-              blockHashLookup,
-              true,
-              TransactionValidationParams.processingBlock(),
-              privateMetadataUpdater);
-      if (result.isInvalid()) {
+        if (result.isInvalid()) {
         LOG.info(
             "Block processing error: transaction invalid '{}'. Block {} Transaction {}",
             result.getValidationResult().getInvalidReason(),

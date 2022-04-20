@@ -482,6 +482,10 @@ public class MainnetTransactionProcessor {
     return transactionValidator;
   }
 
+  public ExecutedTransactionsCache getExecutedTransactionsCache() {
+    return executedTransactionsCache;
+  }
+
   protected static void clearEmptyAccounts(final WorldUpdater worldState) {
     new ArrayList<>(worldState.getTouchedAccounts())
         .stream().filter(Account::isEmpty).forEach(a -> worldState.deleteAccount(a.getAddress()));

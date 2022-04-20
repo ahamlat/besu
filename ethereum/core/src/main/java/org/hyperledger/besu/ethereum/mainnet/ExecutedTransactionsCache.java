@@ -5,13 +5,16 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.processing.TransactionProcessingResult;
 
+import java.time.Duration;
+
 
 public class ExecutedTransactionsCache {
 
     private final Cache<Hash, TransactionProcessingResult> cache;
 
     public ExecutedTransactionsCache() {
-        this.cache = Caffeine.newBuilder().maximumSize(100).build();
+        this.cache = Caffeine.newBuilder().maximumSize(1000).expireAfterWrite(Duration.ofMinutes(5))
+                .refreshAfterWrite(Duration.ofMinutes(1)).build();
     }
     public void cleanUp() {
         this.cache.cleanUp();
