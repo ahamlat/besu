@@ -4,11 +4,14 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.processing.TransactionProcessingResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 
 
 public class ExecutedTransactionsCache {
+    private static final Logger LOG = LoggerFactory.getLogger(MainnetTransactionProcessor.class);
 
     private final Cache<Hash, TransactionProcessingResult> cache;
 
@@ -20,11 +23,14 @@ public class ExecutedTransactionsCache {
     }
 
     public TransactionProcessingResult getIfPresent(final Hash codeHash) {
+        LOG.info("getting "+codeHash+" from the cache");
         return cache.getIfPresent(codeHash);
     }
 
     public void put(final Hash key, final TransactionProcessingResult value) {
+        LOG.info("putting "+key+" in the cache");
         cache.put(key, value);
+
     }
 
     public long size() {
