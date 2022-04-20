@@ -105,7 +105,9 @@ public class MainnetTransactionProcessor {
       final BlockHashLookup blockHashLookup,
       final Boolean isPersistingPrivateState,
       final TransactionValidationParams transactionValidationParams) {
-    return processTransaction(
+    TransactionProcessingResult result = executedTransactionsCache.getIfPresent(transaction.getHash());
+    if (result == null) {
+      result = processTransaction(
         blockchain,
         worldState,
         blockHeader,
@@ -116,6 +118,10 @@ public class MainnetTransactionProcessor {
         isPersistingPrivateState,
         transactionValidationParams,
         null);
+      executedTransactionsCache.put(transaction.getHash(), result);
+    }
+    return result;
+
   }
 
   /**
