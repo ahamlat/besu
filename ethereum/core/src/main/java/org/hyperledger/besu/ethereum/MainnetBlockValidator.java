@@ -24,14 +24,13 @@ import org.hyperledger.besu.ethereum.mainnet.BlockBodyValidator;
 import org.hyperledger.besu.ethereum.mainnet.BlockHeaderValidator;
 import org.hyperledger.besu.ethereum.mainnet.BlockProcessor;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MainnetBlockValidator implements BlockValidator {
 
@@ -40,6 +39,7 @@ public class MainnetBlockValidator implements BlockValidator {
   protected final BlockBodyValidator blockBodyValidator;
   protected final BlockProcessor blockProcessor;
   protected final BadBlockManager badBlockManager;
+  protected final BlockProcessorResultCache blockProcessorResultCache = new BlockProcessorResultCache();
 
   public MainnetBlockValidator(
       final BlockHeaderValidator blockHeaderValidator,
@@ -97,7 +97,12 @@ public class MainnetBlockValidator implements BlockValidator {
     }
     final MutableWorldState worldState = maybeWorldState.get();
 
-    final BlockProcessor.Result result = processBlock(context, worldState, block);
+    BlockProcessor.Result result = blockProcessorResultCache.getIfPresent(block.getHash());
+    if (result == null) {
+      result = processBlock(context, worldState, block);
+      blockProcessorResultCache.put(block.getHash(), result);
+    }
+
     if (result.isFailed()) {
       return handleAndReportFailure(block, "Error processing block");
     }

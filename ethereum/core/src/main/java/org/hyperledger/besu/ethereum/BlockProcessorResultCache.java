@@ -1,34 +1,35 @@
-package org.hyperledger.besu.ethereum.mainnet;
+package org.hyperledger.besu.ethereum;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.hyperledger.besu.datatypes.Hash;
-import org.hyperledger.besu.ethereum.processing.TransactionProcessingResult;
+import org.hyperledger.besu.ethereum.mainnet.BlockProcessor;
+import org.hyperledger.besu.ethereum.mainnet.ExecutedTransactionsCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 
+public class BlockProcessorResultCache {
 
-public class ExecutedTransactionsCache {
     private static final Logger LOG = LoggerFactory.getLogger(ExecutedTransactionsCache.class);
 
-    private final Cache<Hash, TransactionProcessingResult> cache;
+    private final Cache<Hash, BlockProcessor.Result> cache;
 
-    public ExecutedTransactionsCache() {
+    public BlockProcessorResultCache() {
         this.cache = Caffeine.newBuilder().maximumSize(1000).expireAfterWrite(Duration.ofMinutes(5)).build();
     }
     public void cleanUp() {
         this.cache.cleanUp();
     }
 
-    public TransactionProcessingResult getIfPresent(final Hash codeHash) {
-        LOG.info("ExecutedTransactionsCache - getting "+codeHash+" from the cache");
+    public BlockProcessor.Result getIfPresent(final Hash codeHash) {
+        LOG.info("BlockProcessorResultCache - getting "+codeHash+" from the cache");
         return cache.getIfPresent(codeHash);
     }
 
-    public void put(final Hash key, final TransactionProcessingResult value) {
-        LOG.info("ExecutedTransactionsCache - putting "+key+" in the cache");
+    public void put(final Hash key, final BlockProcessor.Result value) {
+        LOG.info("BlockProcessorResultCache - putting "+key+" in the cache");
         cache.put(key, value);
 
     }
@@ -37,6 +38,5 @@ public class ExecutedTransactionsCache {
         cache.cleanUp();
         return cache.estimatedSize();
     }
-
 
 }
