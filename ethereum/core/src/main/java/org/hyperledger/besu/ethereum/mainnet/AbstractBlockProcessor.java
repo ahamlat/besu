@@ -157,7 +157,7 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
       final BlockHashLookup blockHashLookup = new BlockHashLookup(blockHeader, blockchain);
       final Address miningBeneficiary =
           miningBeneficiaryCalculator.calculateBeneficiary(blockHeader);
-      TransactionProcessingResult result = transactionProcessor.getExecutedTransactionsCache().getIfPresent(transaction.getHash()+"-"+blockHeader.getBlockHash());
+      TransactionProcessingResult result = transactionProcessor.getExecutedTransactionsCache().getIfPresent(transaction.getHash());
       if (result == null) {
         result =
                 transactionProcessor.processTransaction(
@@ -171,7 +171,7 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
                         true,
                         TransactionValidationParams.processingBlock(),
                         privateMetadataUpdater);
-        transactionProcessor.getExecutedTransactionsCache().put(transaction.getHash()+"-"+blockHeader.getBlockHash(), result);
+        transactionProcessor.getExecutedTransactionsCache().put(transaction.getHash(), result);
       }
 
         if (result.isInvalid()) {

@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.ethereum.mainnet;
 
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.core.Block;
@@ -21,14 +22,12 @@ import org.hyperledger.besu.ethereum.core.BlockBody;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.evm.log.LogsBloomFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import org.apache.tuweni.bytes.Bytes32;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MainnetBlockBodyValidator implements BlockBodyValidator {
 
@@ -55,13 +54,13 @@ public class MainnetBlockBodyValidator implements BlockBodyValidator {
       return false;
     }
 
-    if (!validateStateRoot(block.getHeader().getStateRoot(), worldStateRootHash)) {
+/*    if (!validateStateRoot(block.getHeader().getStateRoot(), worldStateRootHash)) {
       LOG.warn("Invalid block RLP : {}", block.toRlp().toHexString());
       receipts.forEach(
           receipt ->
               LOG.warn("Transaction receipt found in the invalid block {}", receipt.toString()));
       return false;
-    }
+    }*/
 
     return true;
   }
@@ -141,14 +140,14 @@ public class MainnetBlockBodyValidator implements BlockBodyValidator {
     return true;
   }
 
-  private static boolean validateStateRoot(final Bytes32 expected, final Bytes32 actual) {
+  /*private static boolean validateStateRoot(final Bytes32 expected, final Bytes32 actual) {
     if (!expected.equals(actual)) {
       LOG.warn("Invalid block: state root mismatch (expected={}, actual={})", expected, actual);
       return false;
     }
 
     return true;
-  }
+  }*/
 
   private boolean validateEthHash(
       final ProtocolContext context,
