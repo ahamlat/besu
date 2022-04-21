@@ -54,13 +54,13 @@ public class MainnetBlockBodyValidator implements BlockBodyValidator {
       return false;
     }
 
-/*    if (!validateStateRoot(block.getHeader().getStateRoot(), worldStateRootHash)) {
+    if (!validateStateRoot(block.getHeader().getStateRoot(), worldStateRootHash)) {
       LOG.warn("Invalid block RLP : {}", block.toRlp().toHexString());
       receipts.forEach(
           receipt ->
               LOG.warn("Transaction receipt found in the invalid block {}", receipt.toString()));
       return false;
-    }*/
+    }
 
     return true;
   }
@@ -140,14 +140,14 @@ public class MainnetBlockBodyValidator implements BlockBodyValidator {
     return true;
   }
 
-  /*private static boolean validateStateRoot(final Bytes32 expected, final Bytes32 actual) {
+  private static boolean validateStateRoot(final Bytes32 expected, final Bytes32 actual) {
     if (!expected.equals(actual)) {
       LOG.warn("Invalid block: state root mismatch (expected={}, actual={})", expected, actual);
       return false;
     }
 
     return true;
-  }*/
+  }
 
   private boolean validateEthHash(
       final ProtocolContext context,

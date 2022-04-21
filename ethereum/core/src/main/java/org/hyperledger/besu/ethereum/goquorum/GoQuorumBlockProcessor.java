@@ -143,6 +143,7 @@ public class GoQuorumBlockProcessor extends MainnetBlockProcessor {
                 OperationTracer.NO_TRACING,
                 blockHashLookup,
                 true,
+                false,
                 TransactionValidationParams.processingBlock(),
                 null);
 

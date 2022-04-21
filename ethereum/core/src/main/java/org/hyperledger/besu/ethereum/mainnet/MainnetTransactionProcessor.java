@@ -109,9 +109,8 @@ public class MainnetTransactionProcessor {
           final TransactionValidationParams transactionValidationParams) {
     TransactionProcessingResult result;
     if (caching) {
-      result = executedTransactionsCache.getIfPresent(transaction.getHash());
-      if (result == null) {
-        result = processTransaction(
+      TransactionProcessingResult resultFromCache = executedTransactionsCache.getIfPresent(transaction.getHash());
+      result = processTransaction(
                 blockchain,
                 worldState,
                 blockHeader,
@@ -120,8 +119,10 @@ public class MainnetTransactionProcessor {
                 OperationTracer.NO_TRACING,
                 blockHashLookup,
                 isPersistingPrivateState,
+                true,
                 transactionValidationParams,
                 null);
+      if (resultFromCache == null) {
         executedTransactionsCache.put(transaction.getHash(), result);
       }
     } else {
@@ -134,6 +135,7 @@ public class MainnetTransactionProcessor {
               OperationTracer.NO_TRACING,
               blockHashLookup,
               isPersistingPrivateState,
+              false,
               transactionValidationParams,
               null);
     }
@@ -178,6 +180,7 @@ public class MainnetTransactionProcessor {
         operationTracer,
         blockHashLookup,
         isPersistingPrivateState,
+        true,
         transactionValidationParams,
         null);
   }
@@ -213,6 +216,7 @@ public class MainnetTransactionProcessor {
         operationTracer,
         blockHashLookup,
         isPersistingPrivateState,
+        true,
         ImmutableTransactionValidationParams.builder().build(),
         null);
   }
@@ -241,19 +245,20 @@ public class MainnetTransactionProcessor {
       final BlockHashLookup blockHashLookup,
       final Boolean isPersistingPrivateState,
       final TransactionValidationParams transactionValidationParams) {
-    TransactionProcessingResult result = executedTransactionsCache.getIfPresent(transaction.getHash());
-    if (result == null) {
-      result = processTransaction(
-              blockchain,
-              worldState,
-              blockHeader,
-              transaction,
-              miningBeneficiary,
-              operationTracer,
-              blockHashLookup,
-              isPersistingPrivateState,
-              transactionValidationParams,
-              null);;
+    TransactionProcessingResult resultFromCache = executedTransactionsCache.getIfPresent(transaction.getHash());
+    TransactionProcessingResult result = processTransaction(
+            blockchain,
+            worldState,
+            blockHeader,
+            transaction,
+            miningBeneficiary,
+            operationTracer,
+            blockHashLookup,
+            isPersistingPrivateState,
+            true,
+            transactionValidationParams,
+            null);;
+    if (resultFromCache == null) {
       executedTransactionsCache.put(transaction.getHash(), result);
     }
     return result;
@@ -288,6 +293,7 @@ public class MainnetTransactionProcessor {
       final OperationTracer operationTracer,
       final BlockHashLookup blockHashLookup,
       final Boolean isPersistingPrivateState,
+      final Boolean caching,
       final TransactionValidationParams transactionValidationParams,
       final PrivateMetadataUpdater privateMetadataUpdater) {
     try {
@@ -425,8 +431,10 @@ public class MainnetTransactionProcessor {
 
       messageFrameStack.addFirst(initialFrame);
 
-      while (!messageFrameStack.isEmpty()) {
-        process(messageFrameStack.peekFirst(), operationTracer);
+      if (getExecutedTransactionsCache().getIfPresent(transaction.getHash()) == null || !caching) {
+        while (!messageFrameStack.isEmpty()) {
+          process(messageFrameStack.peekFirst(), operationTracer);
+        }
       }
 
       if (initialFrame.getState() == MessageFrame.State.COMPLETED_SUCCESS) {
