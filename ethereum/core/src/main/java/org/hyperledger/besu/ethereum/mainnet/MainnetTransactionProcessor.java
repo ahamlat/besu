@@ -431,11 +431,11 @@ public class MainnetTransactionProcessor {
 
       messageFrameStack.addFirst(initialFrame);
 
-      if (getExecutedTransactionsCache().getIfPresent(transaction.getHash()) == null || !caching) {
+     // if (getExecutedTransactionsCache().getIfPresent(transaction.getHash()) == null || !caching) {
         while (!messageFrameStack.isEmpty()) {
           process(messageFrameStack.peekFirst(), operationTracer);
         }
-      }
+    //  }
 
       if (initialFrame.getState() == MessageFrame.State.COMPLETED_SUCCESS) {
         worldUpdater.commit();
