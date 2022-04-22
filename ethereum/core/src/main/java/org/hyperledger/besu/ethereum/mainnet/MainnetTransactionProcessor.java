@@ -109,8 +109,9 @@ public class MainnetTransactionProcessor {
           final TransactionValidationParams transactionValidationParams) {
     TransactionProcessingResult result;
     if (caching) {
-      TransactionProcessingResult resultFromCache = executedTransactionsCache.getIfPresent(transaction.getHash());
-      result = processTransaction(
+      result = executedTransactionsCache.getIfPresent(transaction.getHash());
+      if (result == null) {
+        result = processTransaction(
                 blockchain,
                 worldState,
                 blockHeader,
@@ -122,9 +123,9 @@ public class MainnetTransactionProcessor {
                 true,
                 transactionValidationParams,
                 null);
-      if (resultFromCache == null) {
         executedTransactionsCache.put(transaction.getHash(), result);
       }
+
     } else {
       result = processTransaction(
               blockchain,
@@ -245,8 +246,9 @@ public class MainnetTransactionProcessor {
       final BlockHashLookup blockHashLookup,
       final Boolean isPersistingPrivateState,
       final TransactionValidationParams transactionValidationParams) {
-    TransactionProcessingResult resultFromCache = executedTransactionsCache.getIfPresent(transaction.getHash());
-    TransactionProcessingResult result = processTransaction(
+    TransactionProcessingResult result = executedTransactionsCache.getIfPresent(transaction.getHash());
+    if (result == null) {
+      result = processTransaction(
             blockchain,
             worldState,
             blockHeader,
@@ -258,7 +260,6 @@ public class MainnetTransactionProcessor {
             true,
             transactionValidationParams,
             null);;
-    if (resultFromCache == null) {
       executedTransactionsCache.put(transaction.getHash(), result);
     }
     return result;
