@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainnetBlockValidator implements BlockValidator {
 
@@ -40,6 +41,7 @@ public class MainnetBlockValidator implements BlockValidator {
   protected final BlockProcessor blockProcessor;
   protected final BadBlockManager badBlockManager;
   protected final ReceiptsCache receiptsCache = new ReceiptsCache();
+  protected final AtomicInteger counter = new AtomicInteger(0);
 
   public MainnetBlockValidator(
       final BlockHeaderValidator blockHeaderValidator,
@@ -68,7 +70,7 @@ public class MainnetBlockValidator implements BlockValidator {
       final Block block,
       final HeaderValidationMode headerValidationMode,
       final HeaderValidationMode ommerValidationMode) {
-
+    System.out.println("iteration "+counter.incrementAndGet());
     final BlockHeader header = block.getHeader();
 
     final MutableBlockchain blockchain = context.getBlockchain();
@@ -89,6 +91,7 @@ public class MainnetBlockValidator implements BlockValidator {
                     .getWorldStateArchive()
                     .getMutable(block.getHeader().getStateRoot(), block.getHeader().getHash());
     if(maybeWorldState.isEmpty()){
+      System.out.println("maybeWorldState not found in database");
       maybeWorldState =
               context
                       .getWorldStateArchive()
