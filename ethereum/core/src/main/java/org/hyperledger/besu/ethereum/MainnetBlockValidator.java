@@ -39,7 +39,7 @@ public class MainnetBlockValidator implements BlockValidator {
   protected final BlockBodyValidator blockBodyValidator;
   protected final BlockProcessor blockProcessor;
   protected final BadBlockManager badBlockManager;
-  protected final BlockProcessorResultCache blockProcessorResultCache = new BlockProcessorResultCache();
+  protected final ReceiptsCache receiptsCache = new ReceiptsCache();
 
   public MainnetBlockValidator(
       final BlockHeaderValidator blockHeaderValidator,
@@ -84,10 +84,17 @@ public class MainnetBlockValidator implements BlockValidator {
       return handleAndReportFailure(block, "Invalid block header");
     }
 
-    final Optional<MutableWorldState> maybeWorldState =
-        context
-            .getWorldStateArchive()
-            .getMutable(parentHeader.getStateRoot(), parentHeader.getHash());
+    Optional<MutableWorldState> maybeWorldState =
+            context
+                    .getWorldStateArchive()
+                    .getMutable(block.getHeader().getStateRoot(), block.getHeader().getHash());
+    if(maybeWorldState.isEmpty()){
+      maybeWorldState =
+              context
+                      .getWorldStateArchive()
+                      .getMutable(parentHeader.getStateRoot(), parentHeader.getHash());
+    }
+
     if (maybeWorldState.isEmpty()) {
       return handleAndReportFailure(
           block,
@@ -97,13 +104,20 @@ public class MainnetBlockValidator implements BlockValidator {
     }
     final MutableWorldState worldState = maybeWorldState.get();
 
-    BlockProcessor.Result result = processBlock(context, worldState, block);
+    BlockProcessor.Result result = null;
+    if(!maybeWorldState.get().rootHash().equals(block.getHeader().getStateRoot())) {
+      result = processBlock(context, worldState, block);
 
-    if (result.isFailed()) {
-      return handleAndReportFailure(block, "Error processing block");
+      if (result.isFailed()) {
+        return handleAndReportFailure(block, "Error processing block");
+      }
+    }
+    List<TransactionReceipt> receipts = receiptsCache.getIfPresent(block.getHeader().getReceiptsRoot());
+    if (receipts == null) {
+      receipts = result.getReceipts();
+      receiptsCache.put(block.getHeader().getReceiptsRoot(), receipts);
     }
 
-    List<TransactionReceipt> receipts = result.getReceipts();
     if (!blockBodyValidator.validateBody(
         context, block, receipts, worldState.rootHash(), ommerValidationMode)) {
       return handleAndReportFailure(block, "Block body not valid");
