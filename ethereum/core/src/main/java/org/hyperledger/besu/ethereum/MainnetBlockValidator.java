@@ -110,7 +110,7 @@ public class MainnetBlockValidator implements BlockValidator {
     BlockProcessor.Result result = null;
     System.out.println("maybeWorldState.get().rootHash() : "+maybeWorldState.get().rootHash());
     System.out.println("block.getHeader().getStateRoot() : "+ block.getHeader().getStateRoot());
-    if(!maybeWorldState.get().rootHash().equals(block.getHeader().getStateRoot())) {
+    if(!maybeWorldState.get().rootHash().equals(block.getHeader().getStateRoot()) || receiptsCache.getIfPresent(block.getHeader().getReceiptsRoot()) == null) {
       result = processBlock(context, worldState, block);
 
       if (result.isFailed()) {
