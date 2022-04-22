@@ -105,6 +105,8 @@ public class MainnetBlockValidator implements BlockValidator {
     final MutableWorldState worldState = maybeWorldState.get();
 
     BlockProcessor.Result result = null;
+    System.out.println("maybeWorldState.get().rootHash() : "+maybeWorldState.get().rootHash());
+    System.out.println("block.getHeader().getStateRoot() : "+ block.getHeader().getStateRoot());
     if(!maybeWorldState.get().rootHash().equals(block.getHeader().getStateRoot())) {
       result = processBlock(context, worldState, block);
 
