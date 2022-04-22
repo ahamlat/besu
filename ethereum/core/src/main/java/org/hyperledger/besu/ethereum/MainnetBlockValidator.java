@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainnetBlockValidator implements BlockValidator {
 
@@ -40,18 +39,19 @@ public class MainnetBlockValidator implements BlockValidator {
   protected final BlockBodyValidator blockBodyValidator;
   protected final BlockProcessor blockProcessor;
   protected final BadBlockManager badBlockManager;
-  protected final ReceiptsCache receiptsCache = new ReceiptsCache();
-  protected final AtomicInteger counter = new AtomicInteger(0);
+  protected final ReceiptsCache receiptsCache;
 
   public MainnetBlockValidator(
       final BlockHeaderValidator blockHeaderValidator,
       final BlockBodyValidator blockBodyValidator,
       final BlockProcessor blockProcessor,
-      final BadBlockManager badBlockManager) {
+      final BadBlockManager badBlockManager,
+      final ReceiptsCache receiptsCache) {
     this.blockHeaderValidator = blockHeaderValidator;
     this.blockBodyValidator = blockBodyValidator;
     this.blockProcessor = blockProcessor;
     this.badBlockManager = badBlockManager;
+    this.receiptsCache = receiptsCache;
   }
 
   /**
@@ -70,7 +70,6 @@ public class MainnetBlockValidator implements BlockValidator {
       final Block block,
       final HeaderValidationMode headerValidationMode,
       final HeaderValidationMode ommerValidationMode) {
-    System.out.println("iteration "+counter.incrementAndGet());
     final BlockHeader header = block.getHeader();
 
     final MutableBlockchain blockchain = context.getBlockchain();
@@ -91,25 +90,22 @@ public class MainnetBlockValidator implements BlockValidator {
                     .getWorldStateArchive()
                     .getMutable(block.getHeader().getStateRoot(), block.getHeader().getHash());
     if(maybeWorldState.isEmpty()){
-      System.out.println("maybeWorldState not found in database");
       maybeWorldState =
               context
                       .getWorldStateArchive()
                       .getMutable(parentHeader.getStateRoot(), parentHeader.getHash());
+      if (maybeWorldState.isEmpty()) {
+        return handleAndReportFailure(
+                block,
+                "Unable to process block because parent world state "
+                        + parentHeader.getStateRoot()
+                        + " is not available");
+      }
     }
 
-    if (maybeWorldState.isEmpty()) {
-      return handleAndReportFailure(
-          block,
-          "Unable to process block because parent world state "
-              + parentHeader.getStateRoot()
-              + " is not available");
-    }
     final MutableWorldState worldState = maybeWorldState.get();
 
     BlockProcessor.Result result = null;
-    System.out.println("maybeWorldState.get().rootHash() : "+maybeWorldState.get().rootHash());
-    System.out.println("block.getHeader().getStateRoot() : "+ block.getHeader().getStateRoot());
     if(!maybeWorldState.get().rootHash().equals(block.getHeader().getStateRoot()) || receiptsCache.getIfPresent(block.getHeader().getReceiptsRoot()) == null) {
       result = processBlock(context, worldState, block);
 

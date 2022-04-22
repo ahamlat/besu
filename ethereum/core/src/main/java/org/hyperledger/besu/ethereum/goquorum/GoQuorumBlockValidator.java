@@ -14,10 +14,9 @@
  */
 package org.hyperledger.besu.ethereum.goquorum;
 
-import static org.hyperledger.besu.ethereum.goquorum.GoQuorumPrivateStateUtil.getPrivateWorldState;
-
 import org.hyperledger.besu.ethereum.MainnetBlockValidator;
 import org.hyperledger.besu.ethereum.ProtocolContext;
+import org.hyperledger.besu.ethereum.ReceiptsCache;
 import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.GoQuorumPrivacyParameters;
@@ -27,6 +26,8 @@ import org.hyperledger.besu.ethereum.mainnet.BlockHeaderValidator;
 import org.hyperledger.besu.ethereum.mainnet.BlockProcessor;
 
 import java.util.Optional;
+
+import static org.hyperledger.besu.ethereum.goquorum.GoQuorumPrivateStateUtil.getPrivateWorldState;
 
 public class GoQuorumBlockValidator extends MainnetBlockValidator {
 
@@ -38,7 +39,7 @@ public class GoQuorumBlockValidator extends MainnetBlockValidator {
       final BlockProcessor blockProcessor,
       final BadBlockManager badBlockManager,
       final Optional<GoQuorumPrivacyParameters> goQuorumPrivacyParameters) {
-    super(blockHeaderValidator, blockBodyValidator, blockProcessor, badBlockManager);
+    super(blockHeaderValidator, blockBodyValidator, blockProcessor, badBlockManager, new ReceiptsCache());
 
     this.goQuorumPrivacyParameters = goQuorumPrivacyParameters;
 

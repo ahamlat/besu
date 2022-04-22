@@ -22,6 +22,7 @@ import org.hyperledger.besu.config.PowAlgorithm;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.MainnetBlockValidator;
+import org.hyperledger.besu.ethereum.ReceiptsCache;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
@@ -192,7 +193,7 @@ public abstract class MainnetProtocolSpecs {
           badBlockManager,
           goQuorumPrivacyParameters) ->
           new MainnetBlockValidator(
-              blockHeaderValidator, blockBodyValidator, blockProcessor, badBlockManager);
+              blockHeaderValidator, blockBodyValidator, blockProcessor, badBlockManager, new ReceiptsCache());
     }
   }
 

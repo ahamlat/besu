@@ -53,6 +53,8 @@ public class MainnetBlockValidatorTest {
   protected final MutableBlockchain blockchain = mock(MutableBlockchain.class);
   protected final WorldStateArchive worldStateArchive = mock(WorldStateArchive.class);
   private final BadBlockManager badBlockManager = new BadBlockManager();
+  private final BadBlockManager receiptsCache = new BadBlockManager();
+
 
   private MainnetBlockValidator mainnetBlockValidator;
   private Block badBlock;
@@ -63,7 +65,7 @@ public class MainnetBlockValidatorTest {
     when(protocolContext.getWorldStateArchive()).thenReturn(worldStateArchive);
     mainnetBlockValidator =
         new MainnetBlockValidator(
-            blockHeaderValidator, blockBodyValidator, blockProcessor, badBlockManager);
+            blockHeaderValidator, blockBodyValidator, blockProcessor, badBlockManager, receiptsCache);
     badBlock =
         new BlockDataGenerator()
             .block(
