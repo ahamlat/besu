@@ -69,6 +69,7 @@ public class ProtocolScheduleBuilder {
   private final boolean isRevertReasonEnabled;
   private final BadBlockManager badBlockManager = new BadBlockManager();
   private final boolean quorumCompatibilityMode;
+  private final boolean isIbft;
   private final EvmConfiguration evmConfiguration;
 
   public ProtocolScheduleBuilder(
@@ -78,6 +79,7 @@ public class ProtocolScheduleBuilder {
       final PrivacyParameters privacyParameters,
       final boolean isRevertReasonEnabled,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     this(
         config,
@@ -86,6 +88,7 @@ public class ProtocolScheduleBuilder {
         privacyParameters,
         isRevertReasonEnabled,
         quorumCompatibilityMode,
+        isIbft,
         evmConfiguration);
   }
 
@@ -105,6 +108,7 @@ public class ProtocolScheduleBuilder {
       final PrivacyParameters privacyParameters,
       final boolean isRevertReasonEnabled,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     this(
         config,
@@ -113,6 +117,7 @@ public class ProtocolScheduleBuilder {
         privacyParameters,
         isRevertReasonEnabled,
         quorumCompatibilityMode,
+        isIbft,
         evmConfiguration);
   }
 
@@ -123,6 +128,7 @@ public class ProtocolScheduleBuilder {
       final PrivacyParameters privacyParameters,
       final boolean isRevertReasonEnabled,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     this.config = config;
     this.defaultChainId = defaultChainId;
@@ -130,6 +136,7 @@ public class ProtocolScheduleBuilder {
     this.privacyParameters = privacyParameters;
     this.isRevertReasonEnabled = isRevertReasonEnabled;
     this.quorumCompatibilityMode = quorumCompatibilityMode;
+    this.isIbft = isIbft;
     this.evmConfiguration = evmConfiguration;
   }
 
@@ -145,7 +152,8 @@ public class ProtocolScheduleBuilder {
             config.getEvmStackSize(),
             isRevertReasonEnabled,
             quorumCompatibilityMode,
-            config.getEcip1017EraRounds(),
+
+                isIbft, config.getEcip1017EraRounds(),
             evmConfiguration);
 
     validateForkOrdering();
@@ -205,6 +213,7 @@ public class ProtocolScheduleBuilder {
                       config.getContractSizeLimit(),
                       config.getEvmStackSize(),
                       quorumCompatibilityMode,
+                      isIbft,
                       evmConfiguration));
               protocolSchedule.putMilestone(classicBlockNumber + 1, originalProtocolSpec);
             });

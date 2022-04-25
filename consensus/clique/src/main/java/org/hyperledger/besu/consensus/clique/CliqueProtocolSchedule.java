@@ -70,10 +70,12 @@ public class CliqueProtocolSchedule {
                         cliqueConfig.getBlockPeriodSeconds(),
                         localNodeAddress,
                         builder,
-                        privacyParameters.getGoQuorumPrivacyParameters().isPresent())),
+                        privacyParameters.getGoQuorumPrivacyParameters().isPresent(),
+                        config.isConsensusMigration())),
             privacyParameters,
             isRevertReasonEnabled,
             config.isQuorum(),
+            config.isConsensusMigration(),
             evmConfiguration)
         .createProtocolSchedule();
   }
@@ -88,11 +90,12 @@ public class CliqueProtocolSchedule {
   }
 
   private static ProtocolSpecBuilder applyCliqueSpecificModifications(
-      final EpochManager epochManager,
-      final long secondsBetweenBlocks,
-      final Address localNodeAddress,
-      final ProtocolSpecBuilder specBuilder,
-      final boolean goQuorumMode) {
+          final EpochManager epochManager,
+          final long secondsBetweenBlocks,
+          final Address localNodeAddress,
+          final ProtocolSpecBuilder specBuilder,
+          final boolean goQuorumMode,
+          final boolean isIbft) {
 
     return specBuilder
         .blockHeaderValidatorBuilder(
@@ -102,7 +105,7 @@ public class CliqueProtocolSchedule {
             baseFeeMarket ->
                 getBlockHeaderValidator(epochManager, secondsBetweenBlocks, baseFeeMarket))
         .blockBodyValidatorBuilder(MainnetBlockBodyValidator::new)
-        .blockValidatorBuilder(MainnetProtocolSpecs.blockValidatorBuilder(goQuorumMode))
+        .blockValidatorBuilder(MainnetProtocolSpecs.blockValidatorBuilder(goQuorumMode, isIbft))
         .blockImporterBuilder(MainnetBlockImporter::new)
         .difficultyCalculator(new CliqueDifficultyCalculator(localNodeAddress))
         .blockReward(Wei.ZERO)

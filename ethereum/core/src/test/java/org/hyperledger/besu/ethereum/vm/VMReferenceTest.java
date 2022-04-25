@@ -99,7 +99,7 @@ public class VMReferenceTest extends AbstractRetryingTest {
 
     final ProtocolSpec protocolSpec =
         MainnetProtocolSpecs.frontierDefinition(
-                OptionalInt.empty(), OptionalInt.empty(), false, EvmConfiguration.DEFAULT)
+                OptionalInt.empty(), OptionalInt.empty(), false, false, EvmConfiguration.DEFAULT)
             .privacyParameters(PrivacyParameters.DEFAULT)
             .privateTransactionValidatorBuilder(() -> new PrivateTransactionValidator(CHAIN_ID))
             .badBlocksManager(new BadBlockManager())

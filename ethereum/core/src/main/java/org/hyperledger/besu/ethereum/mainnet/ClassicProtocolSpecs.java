@@ -54,9 +54,10 @@ public class ClassicProtocolSpecs {
       final OptionalInt contractSizeLimit,
       final OptionalInt configStackSizeLimit,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return MainnetProtocolSpecs.homesteadDefinition(
-            contractSizeLimit, configStackSizeLimit, quorumCompatibilityMode, evmConfiguration)
+            contractSizeLimit, configStackSizeLimit, quorumCompatibilityMode, isIbft, evmConfiguration)
         .blockHeaderValidatorBuilder(
             feeMarket -> MainnetBlockHeaderValidator.createClassicValidator())
         .name("ClassicRecoveryInit");
@@ -67,9 +68,10 @@ public class ClassicProtocolSpecs {
       final OptionalInt contractSizeLimit,
       final OptionalInt configStackSizeLimit,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return MainnetProtocolSpecs.homesteadDefinition(
-            contractSizeLimit, configStackSizeLimit, quorumCompatibilityMode, evmConfiguration)
+            contractSizeLimit, configStackSizeLimit, quorumCompatibilityMode, isIbft, evmConfiguration)
         .gasCalculator(TangerineWhistleGasCalculator::new)
         .transactionValidatorBuilder(
             gasCalculator ->
@@ -83,12 +85,14 @@ public class ClassicProtocolSpecs {
       final OptionalInt configContractSizeLimit,
       final OptionalInt configStackSizeLimit,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return tangerineWhistleDefinition(
             chainId,
             OptionalInt.empty(),
             configStackSizeLimit,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .gasCalculator(DieHardGasCalculator::new)
         .difficultyCalculator(ClassicDifficultyCalculators.DIFFICULTY_BOMB_PAUSED)
@@ -101,12 +105,14 @@ public class ClassicProtocolSpecs {
       final OptionalInt configStackSizeLimit,
       final OptionalLong ecip1017EraRounds,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return dieHardDefinition(
             chainId,
             contractSizeLimit,
             configStackSizeLimit,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .blockReward(MAX_BLOCK_REWARD)
         .difficultyCalculator(ClassicDifficultyCalculators.DIFFICULTY_BOMB_DELAYED)
@@ -133,6 +139,7 @@ public class ClassicProtocolSpecs {
       final OptionalInt configStackSizeLimit,
       final OptionalLong ecip1017EraRounds,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return gothamDefinition(
             chainId,
@@ -140,6 +147,7 @@ public class ClassicProtocolSpecs {
             configStackSizeLimit,
             ecip1017EraRounds,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .difficultyCalculator(ClassicDifficultyCalculators.DIFFICULTY_BOMB_REMOVED)
         .transactionValidatorBuilder(
@@ -156,6 +164,7 @@ public class ClassicProtocolSpecs {
       final boolean enableRevertReason,
       final OptionalLong ecip1017EraRounds,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     final int contractSizeLimit =
         configContractSizeLimit.orElse(MainnetProtocolSpecs.SPURIOUS_DRAGON_CONTRACT_SIZE_LIMIT);
@@ -166,6 +175,7 @@ public class ClassicProtocolSpecs {
             configStackSizeLimit,
             ecip1017EraRounds,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .evmBuilder(MainnetEVMs::byzantium)
         .evmConfiguration(evmConfiguration)
@@ -210,6 +220,7 @@ public class ClassicProtocolSpecs {
       final boolean enableRevertReason,
       final OptionalLong ecip1017EraRounds,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return atlantisDefinition(
             chainId,
@@ -218,6 +229,7 @@ public class ClassicProtocolSpecs {
             enableRevertReason,
             ecip1017EraRounds,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .evmBuilder(MainnetEVMs::constantinople)
         .gasCalculator(PetersburgGasCalculator::new)
@@ -233,6 +245,7 @@ public class ClassicProtocolSpecs {
       final boolean enableRevertReason,
       final OptionalLong ecip1017EraRounds,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return aghartaDefinition(
             chainId,
@@ -241,6 +254,7 @@ public class ClassicProtocolSpecs {
             enableRevertReason,
             ecip1017EraRounds,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .gasCalculator(IstanbulGasCalculator::new)
         .evmBuilder(
@@ -258,6 +272,7 @@ public class ClassicProtocolSpecs {
       final boolean enableRevertReason,
       final OptionalLong ecip1017EraRounds,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return phoenixDefinition(
             chainId,
@@ -266,6 +281,7 @@ public class ClassicProtocolSpecs {
             enableRevertReason,
             ecip1017EraRounds,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .blockHeaderValidatorBuilder(
             feeMarket ->
@@ -305,6 +321,7 @@ public class ClassicProtocolSpecs {
       final boolean enableRevertReason,
       final OptionalLong ecip1017EraRounds,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return thanosDefinition(
             chainId,
@@ -313,6 +330,7 @@ public class ClassicProtocolSpecs {
             enableRevertReason,
             ecip1017EraRounds,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .blockHeaderValidatorBuilder(
             feeMarket ->
@@ -335,6 +353,7 @@ public class ClassicProtocolSpecs {
       final boolean enableRevertReason,
       final OptionalLong ecip1017EraRounds,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     return thanosDefinition(
             chainId,
@@ -343,6 +362,7 @@ public class ClassicProtocolSpecs {
             enableRevertReason,
             ecip1017EraRounds,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .gasCalculator(BerlinGasCalculator::new)
         .transactionValidatorBuilder(
@@ -367,6 +387,7 @@ public class ClassicProtocolSpecs {
       final boolean enableRevertReason,
       final OptionalLong ecip1017EraRounds,
       final boolean quorumCompatibilityMode,
+      final boolean isIbft,
       final EvmConfiguration evmConfiguration) {
     final int contractSizeLimit =
         configContractSizeLimit.orElse(MainnetProtocolSpecs.SPURIOUS_DRAGON_CONTRACT_SIZE_LIMIT);
@@ -377,6 +398,7 @@ public class ClassicProtocolSpecs {
             enableRevertReason,
             ecip1017EraRounds,
             quorumCompatibilityMode,
+            isIbft,
             evmConfiguration)
         .gasCalculator(LondonGasCalculator::new)
         .contractCreationProcessorBuilder(

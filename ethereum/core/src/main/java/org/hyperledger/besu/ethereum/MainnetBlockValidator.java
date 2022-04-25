@@ -126,7 +126,7 @@ public class MainnetBlockValidator implements BlockValidator {
     return new Result(new BlockProcessingOutputs(worldState, receipts));
   }
 
-  private Result handleAndReportFailure(final Block invalidBlock, final String reason) {
+  protected Result handleAndReportFailure(final Block invalidBlock, final String reason) {
     badBlockManager.addBadBlock(invalidBlock);
     LOG.error("{}. Block {}", reason, invalidBlock.toLogString());
     return new Result(reason);

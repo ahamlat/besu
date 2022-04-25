@@ -88,6 +88,7 @@ public class ReferenceTestProtocolSchedules {
             PrivacyParameters.DEFAULT,
             false,
             options.isQuorum(),
+            options.isConsensusMigration(),
             EvmConfiguration.DEFAULT)
         .createProtocolSchedule();
   }

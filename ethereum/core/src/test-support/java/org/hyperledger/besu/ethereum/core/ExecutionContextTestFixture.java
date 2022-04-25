@@ -122,6 +122,7 @@ public class ExecutionContextTestFixture {
                     new PrivacyParameters(),
                     false,
                     genesisConfigFile.getConfigOptions().isQuorum(),
+                    genesisConfigFile.getConfigOptions().isConsensusMigration(),
                     EvmConfiguration.DEFAULT)
                 .createProtocolSchedule();
       }

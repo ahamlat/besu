@@ -57,7 +57,7 @@ public abstract class BaseBftProtocolSchedule {
                     forkSpec.getBlock(),
                     builder ->
                         applyBftChanges(
-                            builder, forkSpec.getValue(), config.isQuorum(), bftExtraDataCodec)));
+                            builder, forkSpec.getValue(), config.isQuorum(), bftExtraDataCodec, config.isConsensusMigration())));
 
     final ProtocolSpecAdapters specAdapters = new ProtocolSpecAdapters(specMap);
 
@@ -68,6 +68,7 @@ public abstract class BaseBftProtocolSchedule {
             privacyParameters,
             isRevertReasonEnabled,
             config.isQuorum(),
+            config.isConsensusMigration(),
             evmConfiguration)
         .createProtocolSchedule();
   }
@@ -76,10 +77,11 @@ public abstract class BaseBftProtocolSchedule {
       final BftConfigOptions config, final FeeMarket feeMarket);
 
   private ProtocolSpecBuilder applyBftChanges(
-      final ProtocolSpecBuilder builder,
-      final BftConfigOptions configOptions,
-      final boolean goQuorumMode,
-      final BftExtraDataCodec bftExtraDataCodec) {
+          final ProtocolSpecBuilder builder,
+          final BftConfigOptions configOptions,
+          final boolean goQuorumMode,
+          final BftExtraDataCodec bftExtraDataCodec,
+          final boolean isIbft) {
     if (configOptions.getEpochLength() <= 0) {
       throw new IllegalArgumentException("Epoch length in config must be greater than zero");
     }
@@ -93,7 +95,7 @@ public abstract class BaseBftProtocolSchedule {
         .ommerHeaderValidatorBuilder(
             feeMarket -> createBlockHeaderRuleset(configOptions, feeMarket))
         .blockBodyValidatorBuilder(MainnetBlockBodyValidator::new)
-        .blockValidatorBuilder(MainnetProtocolSpecs.blockValidatorBuilder(goQuorumMode))
+        .blockValidatorBuilder(MainnetProtocolSpecs.blockValidatorBuilder(goQuorumMode, isIbft))
         .blockImporterBuilder(MainnetBlockImporter::new)
         .difficultyCalculator((time, parent, protocolContext) -> BigInteger.ONE)
         .skipZeroBlockRewards(true)

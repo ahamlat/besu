@@ -38,6 +38,7 @@ public class FixedDifficultyProtocolSchedule {
             privacyParameters,
             isRevertReasonEnabled,
             config.isQuorum(),
+            config.isConsensusMigration(),
             evmConfiguration)
         .createProtocolSchedule();
   }

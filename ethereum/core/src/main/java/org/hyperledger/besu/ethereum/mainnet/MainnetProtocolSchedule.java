@@ -54,6 +54,7 @@ public class MainnetProtocolSchedule {
             privacyParameters,
             isRevertReasonEnabled,
             config.isQuorum(),
+            config.isConsensusMigration(),
             evmConfiguration)
         .createProtocolSchedule();
   }
