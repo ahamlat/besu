@@ -54,7 +54,7 @@ public class MergeProtocolSchedule {
             privacyParameters,
             isRevertReasonEnabled,
             config.isQuorum(),
-            config.isConsensusMigration(),
+            config.isIbft2(),
             EvmConfiguration.DEFAULT)
         .createProtocolSchedule();
   }

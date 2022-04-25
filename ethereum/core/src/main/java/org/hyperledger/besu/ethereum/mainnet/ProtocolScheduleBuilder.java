@@ -152,8 +152,8 @@ public class ProtocolScheduleBuilder {
             config.getEvmStackSize(),
             isRevertReasonEnabled,
             quorumCompatibilityMode,
-
-                isIbft, config.getEcip1017EraRounds(),
+            isIbft,
+            config.getEcip1017EraRounds(),
             evmConfiguration);
 
     validateForkOrdering();

@@ -57,7 +57,7 @@ public abstract class BaseBftProtocolSchedule {
                     forkSpec.getBlock(),
                     builder ->
                         applyBftChanges(
-                            builder, forkSpec.getValue(), config.isQuorum(), bftExtraDataCodec, config.isConsensusMigration())));
+                            builder, forkSpec.getValue(), config.isQuorum(), bftExtraDataCodec, config.isIbft2())));
 
     final ProtocolSpecAdapters specAdapters = new ProtocolSpecAdapters(specMap);
 
@@ -68,7 +68,7 @@ public abstract class BaseBftProtocolSchedule {
             privacyParameters,
             isRevertReasonEnabled,
             config.isQuorum(),
-            config.isConsensusMigration(),
+            config.isIbft2(),
             evmConfiguration)
         .createProtocolSchedule();
   }

@@ -71,11 +71,11 @@ public class CliqueProtocolSchedule {
                         localNodeAddress,
                         builder,
                         privacyParameters.getGoQuorumPrivacyParameters().isPresent(),
-                        config.isConsensusMigration())),
+                        config.isIbft2())),
             privacyParameters,
             isRevertReasonEnabled,
             config.isQuorum(),
-            config.isConsensusMigration(),
+            config.isIbft2(),
             evmConfiguration)
         .createProtocolSchedule();
   }

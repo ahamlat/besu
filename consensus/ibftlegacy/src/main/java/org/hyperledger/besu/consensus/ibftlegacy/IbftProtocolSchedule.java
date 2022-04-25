@@ -51,11 +51,11 @@ public class IbftProtocolSchedule {
                 0,
                 builder ->
                     applyIbftChanges(
-                        blockPeriod, builder, config.isQuorum(), config.isConsensusMigration(), ibftConfig.getCeil2Nby3Block())),
+                        blockPeriod, builder, config.isQuorum(), config.isIbft2(), ibftConfig.getCeil2Nby3Block())),
             privacyParameters,
             isRevertReasonEnabled,
             config.isQuorum(),
-            config.isConsensusMigration(),
+            config.isIbft2(),
             evmConfiguration)
         .createProtocolSchedule();
   }
