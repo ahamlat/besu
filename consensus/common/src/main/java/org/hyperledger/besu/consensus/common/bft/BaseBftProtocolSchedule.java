@@ -81,7 +81,7 @@ public abstract class BaseBftProtocolSchedule {
           final BftConfigOptions configOptions,
           final boolean goQuorumMode,
           final BftExtraDataCodec bftExtraDataCodec,
-          final boolean isIbft) {
+          final boolean isIbft2) {
     if (configOptions.getEpochLength() <= 0) {
       throw new IllegalArgumentException("Epoch length in config must be greater than zero");
     }
@@ -95,7 +95,7 @@ public abstract class BaseBftProtocolSchedule {
         .ommerHeaderValidatorBuilder(
             feeMarket -> createBlockHeaderRuleset(configOptions, feeMarket))
         .blockBodyValidatorBuilder(MainnetBlockBodyValidator::new)
-        .blockValidatorBuilder(MainnetProtocolSpecs.blockValidatorBuilder(goQuorumMode, isIbft))
+        .blockValidatorBuilder(MainnetProtocolSpecs.blockValidatorBuilder(goQuorumMode, isIbft2))
         .blockImporterBuilder(MainnetBlockImporter::new)
         .difficultyCalculator((time, parent, protocolContext) -> BigInteger.ONE)
         .skipZeroBlockRewards(true)

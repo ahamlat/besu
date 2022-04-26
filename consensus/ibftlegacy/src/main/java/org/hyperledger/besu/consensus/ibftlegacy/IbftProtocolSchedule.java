@@ -71,7 +71,7 @@ public class IbftProtocolSchedule {
           final long secondsBetweenBlocks,
           final ProtocolSpecBuilder builder,
           final boolean goQuorumMode,
-          final boolean isIbft,
+          final boolean isIbft2,
           final long ceil2nBy3Block) {
     return builder
         .blockHeaderValidatorBuilder(
@@ -79,7 +79,7 @@ public class IbftProtocolSchedule {
         .ommerHeaderValidatorBuilder(
             feeMarket -> ibftBlockHeaderValidator(secondsBetweenBlocks, ceil2nBy3Block))
         .blockBodyValidatorBuilder(MainnetBlockBodyValidator::new)
-        .blockValidatorBuilder(MainnetProtocolSpecs.blockValidatorBuilder(goQuorumMode, isIbft))
+        .blockValidatorBuilder(MainnetProtocolSpecs.blockValidatorBuilder(goQuorumMode, isIbft2))
         .blockImporterBuilder(MainnetBlockImporter::new)
         .difficultyCalculator((time, parent, protocolContext) -> BigInteger.ONE)
         .blockReward(Wei.ZERO)
