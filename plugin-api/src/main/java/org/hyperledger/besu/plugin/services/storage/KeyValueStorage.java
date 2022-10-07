@@ -14,12 +14,15 @@
  */
 package org.hyperledger.besu.plugin.services.storage;
 
+import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.plugin.Unstable;
 import org.hyperledger.besu.plugin.services.exception.StorageException;
 
 import java.io.Closeable;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -79,6 +82,10 @@ public interface KeyValueStorage extends Closeable {
    *     otherwise
    */
   boolean tryDelete(byte[] key) throws StorageException;
+
+  default TreeMap<Bytes32, Bytes> getInRange(final byte[] startKeyHash, final byte[] endKeyHash) {
+    throw new UnsupportedOperationException("test");
+  }
 
   /**
    * Performs an evaluation against each key in the store, returning the set of entries that pass.

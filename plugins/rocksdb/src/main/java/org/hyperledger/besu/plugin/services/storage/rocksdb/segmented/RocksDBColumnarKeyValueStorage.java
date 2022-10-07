@@ -17,6 +17,7 @@ package org.hyperledger.besu.plugin.services.storage.rocksdb.segmented;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.exception.StorageException;
 import org.hyperledger.besu.plugin.services.metrics.OperationTimer;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -226,6 +228,29 @@ public class RocksDBColumnarKeyValueStorage
     final RocksIterator rocksIterator = db.newIterator(segmentHandle.get());
     rocksIterator.seekToFirst();
     return RocksDbKeyIterator.create(rocksIterator).toStream();
+  }
+
+  @Override
+  public TreeMap<Bytes32, Bytes> getInRange(
+          final byte[] startKeyHash,
+          final byte[] endKeyHash,
+          final RocksDbSegmentIdentifier segmentHandle) {
+    final RocksIterator rocksIterator = db.newIterator(segmentHandle.get());
+    rocksIterator.seekForPrev(startKeyHash);
+    RocksDbKeyIterator rocksDbKeyIterator = RocksDbKeyIterator.create(rocksIterator);
+    TreeMap<Bytes32, Bytes> res = new TreeMap<>();
+    Bytes limitHash = Bytes.of(endKeyHash);
+    System.out.println("found next " + rocksDbKeyIterator.hasNext());
+    while (rocksDbKeyIterator.hasNext()) {
+      Map.Entry<byte[], byte[]> entry = rocksDbKeyIterator.nextEntry();
+      Bytes32 key = Bytes32.wrap(entry.getKey());
+      System.out.println("found next " + key);
+      if (key.compareTo(limitHash) >= 0) {
+        return res;
+      }
+      res.put(key, Bytes.wrap(entry.getValue()));
+    }
+    return res;
   }
 
   @Override

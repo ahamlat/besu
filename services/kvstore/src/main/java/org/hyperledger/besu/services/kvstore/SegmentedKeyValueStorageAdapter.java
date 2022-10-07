@@ -14,6 +14,8 @@
  */
 package org.hyperledger.besu.services.kvstore;
 
+import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.plugin.services.exception.StorageException;
 import org.hyperledger.besu.plugin.services.storage.KeyValueStorage;
 import org.hyperledger.besu.plugin.services.storage.KeyValueStorageTransaction;
@@ -22,6 +24,7 @@ import org.hyperledger.besu.plugin.services.storage.SegmentIdentifier;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -63,6 +66,11 @@ public class SegmentedKeyValueStorageAdapter<S> implements KeyValueStorage {
   @Override
   public boolean tryDelete(final byte[] key) {
     return storage.tryDelete(segmentHandle, key);
+  }
+
+  @Override
+  public TreeMap<Bytes32, Bytes> getInRange(final byte[] startKeyHash, final byte[] endKeyHash) {
+    return storage.getInRange(startKeyHash, endKeyHash, segmentHandle);
   }
 
   @Override
