@@ -75,8 +75,8 @@ public class RocksDbKeyIterator implements Iterator<byte[]>, AutoCloseable {
       rocksIterator.status();
     } catch (final RocksDBException e) {
       LOG.error(
-              String.format("%s encountered a problem while iterating.", getClass().getSimpleName()),
-              e);
+          String.format("%s encountered a problem while iterating.", getClass().getSimpleName()),
+          e);
     }
     if (!hasNext()) {
       throw new NoSuchElementException();

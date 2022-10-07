@@ -52,8 +52,14 @@ public class StorageTrieNodeDataRequest extends TrieNodeDataRequest {
 
   @Override
   public Optional<Bytes> getExistingData(final WorldStateStorage worldStateStorage) {
-    return worldStateStorage.getAccountStorageTrieNode(
-        getAccountHash(), getLocation(), getNodeHash());
+    final Optional<Bytes> bytes =
+        worldStateStorage.getAccountStorageTrieNode(getAccountHash(), getLocation(), getNodeHash());
+    if (bytes.isPresent() && !Hash.hash(bytes.get()).equals(getNodeHash())) {
+      System.out.println("found invalid storage node ");
+      originalData = bytes.get();
+      return Optional.empty();
+    }
+    return bytes;
   }
 
   @Override

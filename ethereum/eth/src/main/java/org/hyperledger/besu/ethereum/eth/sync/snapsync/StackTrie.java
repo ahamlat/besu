@@ -79,7 +79,7 @@ public class StackTrie {
     return elementsCount;
   }
 
-  public void commit(final NodeUpdater nodeUpdater) {
+  public void commit(final NodeUpdater nodeUpdater, final FlatDatabaseUpdater flatDatabaseUpdater) {
 
     if (nbSegments.decrementAndGet() <= 0 && !elements.isEmpty()) {
 
@@ -113,8 +113,8 @@ public class StackTrie {
               snapStoredNodeFactory,
               proofs.isEmpty() ? MerklePatriciaTrie.EMPTY_TRIE_NODE_HASH : rootHash);
 
-      for (Map.Entry<Bytes32, Bytes> account : keys.entrySet()) {
-        trie.put(account.getKey(), new SnapPutVisitor<>(snapStoredNodeFactory, account.getValue()));
+      for (Map.Entry<Bytes32, Bytes> key : keys.entrySet()) {
+        trie.put(key.getKey(), new SnapPutVisitor<>(snapStoredNodeFactory, key.getValue()));
       }
       trie.commit(
           nodeUpdater,
@@ -126,6 +126,8 @@ public class StackTrie {
               }
             }
           }));
+
+      keys.forEach(flatDatabaseUpdater::store);
     }
   }
 
@@ -150,5 +152,9 @@ public class StackTrie {
     public TreeMap<Bytes32, Bytes> keys() {
       return new TreeMap<>();
     }
+  }
+
+  public interface FlatDatabaseUpdater {
+    void store(final Bytes32 key, final Bytes value);
   }
 }

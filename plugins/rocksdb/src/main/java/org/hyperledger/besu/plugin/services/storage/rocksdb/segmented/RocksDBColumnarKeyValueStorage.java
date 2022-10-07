@@ -17,7 +17,6 @@ package org.hyperledger.besu.plugin.services.storage.rocksdb.segmented;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
-import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.exception.StorageException;
 import org.hyperledger.besu.plugin.services.metrics.OperationTimer;
@@ -45,6 +44,7 @@ import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -232,9 +232,9 @@ public class RocksDBColumnarKeyValueStorage
 
   @Override
   public TreeMap<Bytes32, Bytes> getInRange(
-          final byte[] startKeyHash,
-          final byte[] endKeyHash,
-          final RocksDbSegmentIdentifier segmentHandle) {
+      final byte[] startKeyHash,
+      final byte[] endKeyHash,
+      final RocksDbSegmentIdentifier segmentHandle) {
     final RocksIterator rocksIterator = db.newIterator(segmentHandle.get());
     rocksIterator.seekForPrev(startKeyHash);
     RocksDbKeyIterator rocksDbKeyIterator = RocksDbKeyIterator.create(rocksIterator);

@@ -21,6 +21,7 @@ import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.eth.sync.snapsync.SnapSyncState;
 import org.hyperledger.besu.ethereum.eth.sync.snapsync.SnapWorldDownloadState;
 import org.hyperledger.besu.ethereum.trie.Node;
+import org.hyperledger.besu.ethereum.trie.NullNode;
 import org.hyperledger.besu.ethereum.trie.TrieNodeDecoder;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateStorage;
 import org.hyperledger.besu.services.tasks.TasksPriorityProvider;
@@ -41,6 +42,7 @@ public abstract class TrieNodeDataRequest extends SnapDataRequest implements Tas
   protected Bytes data;
 
   protected boolean requiresPersisting = true;
+  protected Bytes originalData = Bytes.EMPTY;
 
   protected TrieNodeDataRequest(final Hash nodeHash, final Hash rootHash, final Bytes location) {
     super(TRIE_NODE, rootHash);
@@ -83,8 +85,17 @@ public abstract class TrieNodeDataRequest extends SnapDataRequest implements Tas
       return Stream.empty();
     }
 
-    final List<Node<Bytes>> nodes = TrieNodeDecoder.decodeNodes(location, data);
-    return nodes.stream()
+    List<Node<Bytes>> oldNodes = new ArrayList<>();
+    if (!originalData.isEmpty()) {
+      oldNodes = TrieNodeDecoder.decodeNodes(location, originalData);
+    }
+    final List<Node<Bytes>> newNodes = TrieNodeDecoder.decodeNodes(location, data);
+    for (int i = 0; i < oldNodes.size(); i++) {
+      if (!(oldNodes.get(i) instanceof NullNode) && newNodes.get(i) instanceof NullNode) {
+        System.out.println("need to delete " + getLocation() + " child " + i);
+      }
+    }
+    return newNodes.stream()
         .flatMap(
             node -> {
               if (nodeIsHashReferencedDescendant(node)) {

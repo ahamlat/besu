@@ -109,6 +109,10 @@ public class WorldStateProofProvider {
         b -> b);
   }
 
+  public WorldStateStorage getWorldStateStorage() {
+    return worldStateStorage;
+  }
+
   public boolean isValidRangeProof(
       final Bytes32 startKeyHash,
       final Bytes32 endKeyHash,
