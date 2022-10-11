@@ -112,8 +112,6 @@ public class StorageRangeDataRequest extends SnapDataRequest {
     bonsaiWorldStateUpdater.commit();
     nodeUpdaterTmp.get().commit();
 
-    updater.commit();
-
     downloadState.getMetricsManager().notifySlotsDownloaded(stackTrie.getElementsCount().get());
 
     return nbNodesSaved.get();
