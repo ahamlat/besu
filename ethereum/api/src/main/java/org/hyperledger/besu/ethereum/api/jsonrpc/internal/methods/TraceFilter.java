@@ -66,7 +66,6 @@ import org.slf4j.LoggerFactory;
 public class TraceFilter extends TraceBlock {
 
   private static final Logger LOG = LoggerFactory.getLogger(TraceFilter.class);
-  private final EthScheduler ethScheduler = new EthScheduler(4, 4, 4, 4, new NoOpMetricsSystem());
 
   public TraceFilter(
       final Supplier<BlockTracer> blockTracerSupplier,
@@ -169,7 +168,12 @@ public class TraceFilter extends TraceBlock {
                   "buildArrayNode", traceStream -> traceStream.forEachOrdered(buildArrayNodeStep));
 
       try {
-        ethScheduler.startPipeline(traceBlockPipeline).get();
+        if (getBlockchainQueries().getEthScheduler().isPresent()) {
+          getBlockchainQueries().getEthScheduler().get().startPipeline(traceBlockPipeline).get() ;
+        } else {
+          EthScheduler ethScheduler = new EthScheduler(1, 1, 1, 1, new NoOpMetricsSystem());
+          ethScheduler.startPipeline(traceBlockPipeline).get();
+        }
       } catch (InterruptedException | ExecutionException e) {
         throw new RuntimeException(e);
       }
