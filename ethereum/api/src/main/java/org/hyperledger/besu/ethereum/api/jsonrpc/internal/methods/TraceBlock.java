@@ -42,6 +42,7 @@ import org.hyperledger.besu.metrics.prometheus.PrometheusMetricsSystem;
 import org.hyperledger.besu.plugin.services.metrics.Counter;
 import org.hyperledger.besu.plugin.services.metrics.LabelledMetric;
 import org.hyperledger.besu.services.pipeline.Pipeline;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.processor.Tracer;
 
 import java.util.List;
 import java.util.Optional;
