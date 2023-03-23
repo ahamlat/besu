@@ -74,6 +74,9 @@ public class JsonRpcExecutorHandler {
       try {
         response = response.putHeader("Content-Type", APPLICATION_JSON);
         if (isJsonObjectRequest(ctx)) {
+          JsonObject jsonObject = ctx.get(ContextKey.REQUEST_BODY_AS_JSON_OBJECT.name());
+          JsonRpcRequest request = jsonObject.mapTo(JsonRpcRequest.class);
+          response = response.putHeader("Method-Name", request.getMethod());
           final JsonRpcResponse jsonRpcResponse =
               executeJsonObjectRequest(jsonRpcExecutor, tracer, ctx);
           handleJsonObjectResponse(response, jsonRpcResponse, ctx);
