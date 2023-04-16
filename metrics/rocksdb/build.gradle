@@ -41,5 +41,5 @@ dependencies {
 
   implementation 'com.google.guava:guava'
   implementation 'io.prometheus:simpleclient'
-  implementation 'org.rocksdb:rocksdbjni'
+  implementation 'io.github.speedb-io:speedbjni'
 }
