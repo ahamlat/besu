@@ -52,6 +52,7 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompressionType;
 import org.rocksdb.DBOptions;
 import org.rocksdb.Env;
+import org.rocksdb.Filter;
 import org.rocksdb.LRUCache;
 import org.rocksdb.Options;
 import org.rocksdb.ReadOptions;
@@ -223,26 +224,40 @@ public abstract class RocksDBColumnarKeyValueStorage
   }
 
   private BlockBasedTableConfig createBlockBasedTableConfigHighSpec() {
+    Filter bloomFilter;
     final LRUCache cache = new LRUCache(ROCKSDB_BLOCKCACHE_SIZE_HIGH_SPEC);
+    try {
+      bloomFilter = Filter.createFromString("speedb.PairedBloomFilter:10");
+    } catch (RocksDBException e) {
+      LOG.error("Error when creating speedb bloom filter, error details : "+e.getMessage() );
+      bloomFilter = new BloomFilter(10, false);
+    }
     return new BlockBasedTableConfig()
-        .setFormatVersion(ROCKSDB_FORMAT_VERSION)
-        .setBlockCache(cache)
-        .setFilterPolicy(new BloomFilter(10, false))
-        .setPartitionFilters(true)
-        .setCacheIndexAndFilterBlocks(false)
-        .setBlockSize(ROCKSDB_BLOCK_SIZE);
+            .setFormatVersion(ROCKSDB_FORMAT_VERSION)
+            .setBlockCache(cache)
+            .setFilterPolicy(bloomFilter)
+            .setPartitionFilters(true)
+            .setCacheIndexAndFilterBlocks(false)
+            .setBlockSize(ROCKSDB_BLOCK_SIZE);
   }
 
   private BlockBasedTableConfig createBlockBasedTableConfigDefault(
       final RocksDBConfiguration config) {
+    Filter bloomFilter;
     final LRUCache cache = new LRUCache(config.getCacheCapacity());
+    try {
+      bloomFilter = Filter.createFromString("speedb.PairedBloomFilter:10");
+    } catch (RocksDBException e) {
+      LOG.error("Error when creating speedb bloom filter, error details : "+e.getMessage() );
+      bloomFilter = new BloomFilter(10, false);
+    }
     return new BlockBasedTableConfig()
-        .setFormatVersion(ROCKSDB_FORMAT_VERSION)
-        .setBlockCache(cache)
-        .setFilterPolicy(new BloomFilter(10, false))
-        .setPartitionFilters(true)
-        .setCacheIndexAndFilterBlocks(false)
-        .setBlockSize(ROCKSDB_BLOCK_SIZE);
+            .setFormatVersion(ROCKSDB_FORMAT_VERSION)
+            .setBlockCache(cache)
+            .setFilterPolicy(bloomFilter)
+            .setPartitionFilters(true)
+            .setCacheIndexAndFilterBlocks(false)
+            .setBlockSize(ROCKSDB_BLOCK_SIZE);
   }
 
   @Override
