@@ -95,9 +95,9 @@ public class MainnetBlockValidator implements BlockValidator {
 
     final BlockHeader header = block.getHeader();
     final BlockHeader parentHeader;
-
+    final MutableBlockchain blockchain;
     try {
-      final MutableBlockchain blockchain = context.getBlockchain();
+      blockchain = context.getBlockchain();
       final Optional<BlockHeader> maybeParentHeader =
           blockchain.getBlockHeader(header.getParentHash());
       if (maybeParentHeader.isEmpty()) {
@@ -145,6 +145,7 @@ public class MainnetBlockValidator implements BlockValidator {
           return new BlockProcessingResult("failed to validate output of imported block");
         }
 
+        if (shouldPersist)  blockchain.cacheBock(block);
         return new BlockProcessingResult(
             Optional.of(new BlockProcessingOutputs(worldState, receipts)));
       }

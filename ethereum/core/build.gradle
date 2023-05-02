@@ -43,7 +43,6 @@ dependencies {
   implementation project(':plugin-api')
   implementation project(':services:kvstore')
 
-
   implementation 'com.fasterxml.jackson.core:jackson-databind'
   implementation 'com.google.guava:guava'
   implementation 'com.google.dagger:dagger'
@@ -58,6 +57,7 @@ dependencies {
   implementation 'org.apache.tuweni:tuweni-rlp'
   implementation 'org.hyperledger.besu:bls12-381'
   implementation 'org.immutables:value-annotations'
+  implementation 'com.github.ben-manes.caffeine:caffeine'
 
   implementation 'io.prometheus:simpleclient_guava'
 

@@ -97,4 +97,11 @@ public interface MutableBlockchain extends Blockchain {
    * @param blockHash The hash of the last safe block.
    */
   void setSafeBlock(final Hash blockHash);
+
+  /**
+   * Add the block to the LRU cache
+   *
+   * @param block the block to add the cache
+   */
+  void cacheBock(Block block);
 }

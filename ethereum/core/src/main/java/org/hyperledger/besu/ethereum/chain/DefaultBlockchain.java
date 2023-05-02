@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 public class DefaultBlockchain implements MutableBlockchain {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultBlockchain.class);
+  private static final int MAX_LRU_BLOCK_CACHE = 128;
 
   private final Comparator<BlockHeader> heaviestChainBlockChoiceRule =
       Comparator.comparing(this::calculateTotalDifficulty);
@@ -72,6 +73,9 @@ public class DefaultBlockchain implements MutableBlockchain {
   private volatile int chainHeadOmmerCount;
 
   private Comparator<BlockHeader> blockChoiceRule;
+
+  private final BlockLRUCache<Hash, Block> blockLRUCache;
+
 
   private DefaultBlockchain(
       final Optional<Block> genesisBlock,
@@ -144,6 +148,7 @@ public class DefaultBlockchain implements MutableBlockchain {
 
     this.reorgLoggingThreshold = reorgLoggingThreshold;
     this.blockChoiceRule = heaviestChainBlockChoiceRule;
+    this.blockLRUCache = new BlockLRUCache<Hash, Block>(MAX_LRU_BLOCK_CACHE);
   }
 
   public static MutableBlockchain createMutable(
@@ -227,17 +232,17 @@ public class DefaultBlockchain implements MutableBlockchain {
 
   @Override
   public Optional<BlockHeader> getBlockHeader(final long blockNumber) {
-    return blockchainStorage.getBlockHash(blockNumber).flatMap(blockchainStorage::getBlockHeader);
+    return Optional.ofNullable(blockLRUCache.get(blockNumber)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHash(blockNumber).flatMap(blockchainStorage::getBlockHeader));
   }
 
   @Override
   public Optional<BlockHeader> getBlockHeader(final Hash blockHeaderHash) {
-    return blockchainStorage.getBlockHeader(blockHeaderHash);
+    return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHeader(blockHeaderHash));
   }
 
   @Override
   public Optional<BlockBody> getBlockBody(final Hash blockHeaderHash) {
-    return blockchainStorage.getBlockBody(blockHeaderHash);
+    return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getBody).or(() -> blockchainStorage.getBlockBody(blockHeaderHash));
   }
 
   @Override
@@ -247,7 +252,7 @@ public class DefaultBlockchain implements MutableBlockchain {
 
   @Override
   public Optional<Hash> getBlockHashByNumber(final long number) {
-    return blockchainStorage.getBlockHash(number);
+    return Optional.of(blockLRUCache.get(number)).map(block -> block.getHeader().getBlockHash()).or(() ->  blockchainStorage.getBlockHash(number));
   }
 
   @Override
@@ -261,8 +266,7 @@ public class DefaultBlockchain implements MutableBlockchain {
         .getTransactionLocation(transactionHash)
         .flatMap(
             l ->
-                blockchainStorage
-                    .getBlockBody(l.getBlockHash())
+                this.getBlockBody(l.getBlockHash())
                     .map(b -> b.getTransactions().get(l.getTransactionIndex())));
   }
 
@@ -565,14 +569,15 @@ public class DefaultBlockchain implements MutableBlockchain {
 
   @Override
   public boolean rewindToBlock(final long blockNumber) {
-    return blockchainStorage.getBlockHash(blockNumber).map(this::rewindToBlock).orElse(false);
+    Optional<Hash> blockHash =  Optional.ofNullable(blockLRUCache.get(blockNumber)).map(Block::getHash);
+    return blockHash.or(() -> blockchainStorage.getBlockHash(blockNumber)).map(this::rewindToBlock).orElse(false);
   }
 
   @Override
   public boolean rewindToBlock(final Hash blockHash) {
     final BlockchainStorage.Updater updater = blockchainStorage.updater();
     try {
-      final BlockHeader oldBlockHeader = blockchainStorage.getBlockHeader(blockHash).get();
+      final BlockHeader oldBlockHeader = this.getBlockHeader(blockHash).get();
       final BlockWithReceipts blockWithReceipts = getBlockWithReceipts(oldBlockHeader).get();
       final Block block = blockWithReceipts.getBlock();
 
@@ -627,6 +632,11 @@ public class DefaultBlockchain implements MutableBlockchain {
     final var updater = blockchainStorage.updater();
     updater.setSafeBlock(blockHash);
     updater.commit();
+  }
+
+  @Override
+  public void cacheBock(final Block block) {
+    this.blockLRUCache.put(block.getHeader().getNumber(), block.getHash(), block);
   }
 
   private void updateCacheForNewCanonicalHead(final Block block, final Difficulty uInt256) {
@@ -732,8 +742,7 @@ public class DefaultBlockchain implements MutableBlockchain {
   }
 
   private BlockWithReceipts getParentBlockWithReceipts(final BlockWithReceipts blockWithReceipts) {
-    return blockchainStorage
-        .getBlockHeader(blockWithReceipts.getHeader().getParentHash())
+    return this.getBlockHeader(blockWithReceipts.getHeader().getParentHash())
         .flatMap(this::getBlockWithReceipts)
         .get();
   }
