@@ -265,7 +265,7 @@ public class DefaultBlockchain implements MutableBlockchain {
 
   @Override
   public Optional<Hash> getBlockHashByNumber(final long number) {
-    return Optional.of(blockLRUCache.get(number)).map(block -> block.getHeader().getBlockHash()).or(() ->  blockchainStorage.getBlockHash(number));
+    return Optional.ofNullable(blockLRUCache.get(number)).map(block -> block.getHeader().getBlockHash()).or(() ->  blockchainStorage.getBlockHash(number));
   }
 
   @Override
