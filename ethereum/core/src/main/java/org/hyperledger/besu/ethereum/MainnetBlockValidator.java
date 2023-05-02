@@ -165,6 +165,7 @@ public class MainnetBlockValidator implements BlockValidator {
       handleAndLogImportFailure(block, retval, shouldRecordBadBlock);
       return retval;
     } catch (Exception ex) {
+      System.out.println(ex);
       throw new RuntimeException(ex);
     }
   }
