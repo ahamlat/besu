@@ -649,7 +649,11 @@ public class DefaultBlockchain implements MutableBlockchain {
 
   @Override
   public void cacheBock(final Block block) {
-    this.blockLRUCache.put(block.getHeader().getNumber(), block.getHash(), block);
+    try {
+      this.blockLRUCache.put(block.getHeader().getNumber(), block.getHash(), block);
+    } catch (Exception ex) {
+      System.out.println(ex);
+    }
   }
 
   private void updateCacheForNewCanonicalHead(final Block block, final Difficulty uInt256) {
