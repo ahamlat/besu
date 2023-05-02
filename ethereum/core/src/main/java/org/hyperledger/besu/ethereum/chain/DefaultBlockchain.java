@@ -230,17 +230,32 @@ public class DefaultBlockchain implements MutableBlockchain {
 
   @Override
   public Optional<BlockHeader> getBlockHeader(final long blockNumber) {
-    return Optional.ofNullable(blockLRUCache.get(blockNumber)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHash(blockNumber).flatMap(blockchainStorage::getBlockHeader));
+    try {
+      return Optional.ofNullable(blockLRUCache.get(blockNumber)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHash(blockNumber).flatMap(blockchainStorage::getBlockHeader));
+    } catch (Exception ex) {
+      System.out.println(ex);
+      return null;
+    }
   }
 
   @Override
   public Optional<BlockHeader> getBlockHeader(final Hash blockHeaderHash) {
-    return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHeader(blockHeaderHash));
+    try {
+      return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHeader(blockHeaderHash));
+    } catch (Exception ex) {
+      System.out.println(ex);
+      return null;
+    }
   }
 
   @Override
   public Optional<BlockBody> getBlockBody(final Hash blockHeaderHash) {
-    return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getBody).or(() -> blockchainStorage.getBlockBody(blockHeaderHash));
+    try {
+      return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getBody).or(() -> blockchainStorage.getBlockBody(blockHeaderHash));
+    } catch (Exception ex) {
+      System.out.println(ex);
+      return null;
+    }
   }
 
   @Override
