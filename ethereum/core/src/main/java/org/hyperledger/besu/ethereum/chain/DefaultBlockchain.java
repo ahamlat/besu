@@ -74,8 +74,7 @@ public class DefaultBlockchain implements MutableBlockchain {
 
   private Comparator<BlockHeader> blockChoiceRule;
 
-  private final BlockLRUCache<Hash, Block> blockLRUCache;
-
+  private final BlockLRUCache<Hash, Block> blockLRUCache = new BlockLRUCache<Hash, Block>(MAX_LRU_BLOCK_CACHE);
 
   private DefaultBlockchain(
       final Optional<Block> genesisBlock,
@@ -148,7 +147,6 @@ public class DefaultBlockchain implements MutableBlockchain {
 
     this.reorgLoggingThreshold = reorgLoggingThreshold;
     this.blockChoiceRule = heaviestChainBlockChoiceRule;
-    this.blockLRUCache = new BlockLRUCache<Hash, Block>(MAX_LRU_BLOCK_CACHE);
   }
 
   public static MutableBlockchain createMutable(
