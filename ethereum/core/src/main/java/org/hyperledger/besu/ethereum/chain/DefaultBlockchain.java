@@ -230,32 +230,17 @@ public class DefaultBlockchain implements MutableBlockchain {
 
   @Override
   public Optional<BlockHeader> getBlockHeader(final long blockNumber) {
-    try {
-      return Optional.ofNullable(blockLRUCache.get(blockNumber)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHash(blockNumber).flatMap(blockchainStorage::getBlockHeader));
-    } catch (Exception ex) {
-      System.out.println(ex);
-      return null;
-    }
+    return Optional.ofNullable(blockLRUCache.get(blockNumber)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHash(blockNumber).flatMap(blockchainStorage::getBlockHeader));
   }
 
   @Override
   public Optional<BlockHeader> getBlockHeader(final Hash blockHeaderHash) {
-    try {
-      return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHeader(blockHeaderHash));
-    } catch (Exception ex) {
-      System.out.println(ex);
-      return null;
-    }
+    return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getHeader).or(() -> blockchainStorage.getBlockHeader(blockHeaderHash));
   }
 
   @Override
   public Optional<BlockBody> getBlockBody(final Hash blockHeaderHash) {
-    try {
-      return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getBody).or(() -> blockchainStorage.getBlockBody(blockHeaderHash));
-    } catch (Exception ex) {
-      System.out.println(ex);
-      return null;
-    }
+    return Optional.ofNullable(blockLRUCache.get(blockHeaderHash)).map(Block::getBody).or(() -> blockchainStorage.getBlockBody(blockHeaderHash));
   }
 
   @Override
@@ -649,11 +634,7 @@ public class DefaultBlockchain implements MutableBlockchain {
 
   @Override
   public void cacheBock(final Block block) {
-    try {
-      this.blockLRUCache.put(block.getHeader().getNumber(), block.getHash(), block);
-    } catch (Exception ex) {
-      System.out.println(ex);
-    }
+    this.blockLRUCache.put(block.getHeader().getNumber(), block.getHash(), block);
   }
 
   private void updateCacheForNewCanonicalHead(final Block block, final Difficulty uInt256) {

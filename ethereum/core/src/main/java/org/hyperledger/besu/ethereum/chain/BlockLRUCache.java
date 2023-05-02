@@ -17,33 +17,18 @@ public class BlockLRUCache<Hash, Block> {
     }
 
     public void put(final Long hashKey, final Hash key, final Block value) {
-        try {
-            keyCache.put(hashKey, key);
-            cache.put(key, value);
-        } catch (Exception ex) {
-            System.out.println(ex);
-        }
+        keyCache.put(hashKey, key);
+        cache.put(key, value);
     }
 
     public Block get(final Hash key) {
-        try {
-            return cache.getIfPresent(key);
-        } catch (Exception ex) {
-            System.out.println(ex);
-            return null;
-        }
+        return cache.getIfPresent(key);
     }
 
     public Block get(final Long hashKey) {
-        try {
-            Hash key = keyCache.getIfPresent(hashKey);
-            if (key != null) return cache.getIfPresent(key);
-            else return null;
-        } catch (Exception ex) {
-            System.out.println(ex);
-            return null;
-        }
-
+        Hash key = keyCache.getIfPresent(hashKey);
+        if (key != null) return cache.getIfPresent(key);
+        else return null;
     }
 
 }
