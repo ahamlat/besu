@@ -153,7 +153,7 @@ public abstract class RocksDBColumnarKeyValueStorage
                       new ColumnFamilyDescriptor(
                           segment.getId(),
                           new ColumnFamilyOptions()
-                              .setTtl(0)
+                              .setTtl(0).setDisableAutoCompactions(true)
                               .setCompressionType(CompressionType.LZ4_COMPRESSION)
                               .setTableFormatConfig(createBlockBasedTableConfig(configuration))))
               .collect(Collectors.toList());
@@ -162,6 +162,7 @@ public abstract class RocksDBColumnarKeyValueStorage
               DEFAULT_COLUMN.getBytes(StandardCharsets.UTF_8),
               columnFamilyOptions
                   .setTtl(0)
+                      .setDisableAutoCompactions(true)
                   .setCompressionType(CompressionType.LZ4_COMPRESSION)
                   .setTableFormatConfig(createBlockBasedTableConfig(configuration))));
 
