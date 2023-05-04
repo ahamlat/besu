@@ -17,6 +17,7 @@ package org.hyperledger.besu.plugin.services.storage.rocksdb.segmented;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
+import org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.exception.StorageException;
 import org.hyperledger.besu.plugin.services.metrics.OperationTimer;
@@ -34,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -152,17 +154,25 @@ public abstract class RocksDBColumnarKeyValueStorage
                   segment ->
                       new ColumnFamilyDescriptor(
                           segment.getId(),
-                          new ColumnFamilyOptions()
-                              .setTtl(0).setDisableAutoCompactions(true)
-                              .setCompressionType(CompressionType.LZ4_COMPRESSION)
-                              .setTableFormatConfig(createBlockBasedTableConfig(configuration))))
+                          Objects.equals(
+                                  segment.getName(), KeyValueSegmentIdentifier.BLOCKCHAIN.getName())
+                              ? new ColumnFamilyOptions()
+                                  .setTtl(0)
+                                  .setDisableAutoCompactions(true)
+                                  .setCompressionType(CompressionType.LZ4_COMPRESSION)
+                                  .setTableFormatConfig(createBlockBasedTableConfig(configuration))
+                              : new ColumnFamilyOptions()
+                                  .setCompressionType(CompressionType.LZ4_COMPRESSION)
+                                  .setTableFormatConfig(
+                                      createBlockBasedTableConfig(configuration))))
               .collect(Collectors.toList());
+
       columnDescriptors.add(
           new ColumnFamilyDescriptor(
               DEFAULT_COLUMN.getBytes(StandardCharsets.UTF_8),
               columnFamilyOptions
                   .setTtl(0)
-                      .setDisableAutoCompactions(true)
+                  .setDisableAutoCompactions(true)
                   .setCompressionType(CompressionType.LZ4_COMPRESSION)
                   .setTableFormatConfig(createBlockBasedTableConfig(configuration))));
 
