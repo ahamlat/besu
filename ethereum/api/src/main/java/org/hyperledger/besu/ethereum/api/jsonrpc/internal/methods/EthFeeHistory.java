@@ -142,6 +142,7 @@ public class EthFeeHistory implements JsonRpcMethod {
         maybeRewardPercentiles.map(
             rewardPercentiles ->
                 LongStream.range(oldestBlock, lastBlock)
+                    .parallel()
                     .mapToObj(blockchain::getBlockByNumber)
                     .flatMap(Optional::stream)
                     .map(

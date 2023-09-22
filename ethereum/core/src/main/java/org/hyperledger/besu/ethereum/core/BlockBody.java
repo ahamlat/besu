@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class BlockBody implements org.hyperledger.besu.plugin.data.BlockBody {
 
@@ -156,14 +157,15 @@ public class BlockBody implements org.hyperledger.besu.plugin.data.BlockBody {
   public static BlockBody readFrom(
       final RLPInput input, final BlockHeaderFunctions blockHeaderFunctions) {
     return new BlockBody(
-        input.readList(Transaction::readFrom),
-        input.readList(rlp -> BlockHeader.readFrom(rlp, blockHeaderFunctions)),
-        input.isEndOfCurrentList()
-            ? Optional.empty()
-            : Optional.of(input.readList(Withdrawal::readFrom)),
-        input.isEndOfCurrentList()
-            ? Optional.empty()
-            : Optional.of(input.readList(Deposit::readFrom)));
+            input.readList(RLPInput::readAsRlp).parallelStream().map(Transaction::readFrom).collect(Collectors.toList()),
+            input.readList(RLPInput::readAsRlp).parallelStream().map(rlp -> BlockHeader.readFrom(rlp, blockHeaderFunctions)).collect(Collectors.toList()),
+            input.isEndOfCurrentList()
+                    ? Optional.empty()
+                    : Optional.of(
+                    input.readList(Withdrawal::readFrom)),
+            input.isEndOfCurrentList()
+                    ? Optional.empty()
+                    : Optional.of(input.readList(Deposit::readFrom)));
   }
 
   @Override
