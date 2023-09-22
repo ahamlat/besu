@@ -148,7 +148,6 @@ public class EthFeeHistory implements JsonRpcMethod {
         maybeRewardPercentiles.map(
             rewardPercentiles ->
                 LongStream.range(oldestBlock, lastBlock)
-                    .parallel()
                     .mapToObj(
                         blockNumber -> {
                           RewardCacheKey key = new RewardCacheKey(blockNumber, rewardPercentiles);
