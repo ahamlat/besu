@@ -36,12 +36,10 @@ import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.feemarket.BaseFeeMarket;
 import org.hyperledger.besu.ethereum.mainnet.feemarket.FeeMarket;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
@@ -188,13 +186,21 @@ public class EthFeeHistory implements JsonRpcMethod {
               : transactionReceipt.getCumulativeGasUsed()
                   - transactionsGasUsed.get(transactionsGasUsed.size() - 1));
     }
-    final List<Map.Entry<Transaction, Long>> transactionsAndGasUsedAscendingEffectiveGasFee =
+
+    record TransactionInfo(Transaction transaction, Long gasUsed, Wei effectivePriorityFeePerGas) {}
+
+    List<TransactionInfo> transactionsInfo =
         Streams.zip(
-                transactions.stream(), transactionsGasUsed.stream(), AbstractMap.SimpleEntry::new)
-            .sorted(
-                Comparator.comparing(
-                    transactionAndGasUsed ->
-                        transactionAndGasUsed.getKey().getEffectivePriorityFeePerGas(baseFee)))
+                transactions.stream(),
+                transactionsGasUsed.stream(),
+                (transaction, gasUsed) ->
+                    new TransactionInfo(
+                        transaction, gasUsed, transaction.getEffectivePriorityFeePerGas(baseFee)))
+            .collect(toUnmodifiableList());
+
+    List<TransactionInfo> transactionsAndGasUsedAscendingEffectiveGasFee =
+        transactionsInfo.stream()
+            .sorted(Comparator.comparing(TransactionInfo::effectivePriorityFeePerGas))
             .collect(toUnmodifiableList());
 
     // We need to weight the percentile of rewards by the gas used in the transaction.
@@ -203,15 +209,15 @@ public class EthFeeHistory implements JsonRpcMethod {
     final ArrayList<Wei> rewards = new ArrayList<>();
     int rewardPercentileIndex = 0;
     long gasUsed = 0;
-    for (final Map.Entry<Transaction, Long> transactionAndGasUsed :
+    for (final TransactionInfo transactionAndGasUsed :
         transactionsAndGasUsedAscendingEffectiveGasFee) {
 
-      gasUsed += transactionAndGasUsed.getValue();
+      gasUsed += transactionAndGasUsed.gasUsed();
 
       while (rewardPercentileIndex < rewardPercentiles.size()
           && 100.0 * gasUsed / block.getHeader().getGasUsed()
               >= rewardPercentiles.get(rewardPercentileIndex)) {
-        rewards.add(transactionAndGasUsed.getKey().getEffectivePriorityFeePerGas(baseFee));
+        rewards.add(transactionAndGasUsed.effectivePriorityFeePerGas);
         rewardPercentileIndex++;
       }
     }
