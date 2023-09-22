@@ -131,7 +131,9 @@ public class KeyValueStoragePrefixedKeyBlockchainStorage implements BlockchainSt
   }
 
   private List<TransactionReceipt> rlpDecodeTransactionReceipts(final Bytes bytes) {
-    return RLP.input(bytes).readList(RLPInput::readAsRlp).parallelStream().map(TransactionReceipt::readFrom).collect(Collectors.toList());
+    return RLP.input(bytes).readList(RLPInput::readAsRlp).parallelStream()
+        .map(TransactionReceipt::readFrom)
+        .collect(Collectors.toList());
   }
 
   private Hash bytesToHash(final Bytes bytes) {

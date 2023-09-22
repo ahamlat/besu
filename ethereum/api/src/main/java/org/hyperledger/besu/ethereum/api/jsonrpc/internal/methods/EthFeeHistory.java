@@ -44,15 +44,21 @@ import java.util.Optional;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Streams;
 
 public class EthFeeHistory implements JsonRpcMethod {
   private final ProtocolSchedule protocolSchedule;
   private final Blockchain blockchain;
+  private final Cache<RewardCacheKey, List<Wei>> cache;
+
+  record RewardCacheKey(Long blockNumber, List<Double> rewardPercentiles) {}
 
   public EthFeeHistory(final ProtocolSchedule protocolSchedule, final Blockchain blockchain) {
     this.protocolSchedule = protocolSchedule;
     this.blockchain = blockchain;
+    this.cache = Caffeine.newBuilder().maximumSize(100_000).build();
   }
 
   @Override
@@ -143,13 +149,28 @@ public class EthFeeHistory implements JsonRpcMethod {
             rewardPercentiles ->
                 LongStream.range(oldestBlock, lastBlock)
                     .parallel()
-                    .mapToObj(blockchain::getBlockByNumber)
+                    .mapToObj(
+                        blockNumber -> {
+                          RewardCacheKey key = new RewardCacheKey(blockNumber, rewardPercentiles);
+                          return Optional.ofNullable(cache.getIfPresent(key))
+                              .or(
+                                  () -> {
+                                    Optional<Block> block =
+                                        blockchain.getBlockByNumber(blockNumber);
+                                    return block.map(
+                                        b -> {
+                                          List<Wei> rewards =
+                                              computeRewards(
+                                                  rewardPercentiles.stream()
+                                                      .sorted()
+                                                      .collect(toUnmodifiableList()),
+                                                  b);
+                                          cache.put(key, rewards);
+                                          return rewards;
+                                        });
+                                  });
+                        })
                     .flatMap(Optional::stream)
-                    .map(
-                        block ->
-                            computeRewards(
-                                rewardPercentiles.stream().sorted().collect(toUnmodifiableList()),
-                                block))
                     .collect(toUnmodifiableList()));
 
     return new JsonRpcSuccessResponse(
@@ -222,6 +243,10 @@ public class EthFeeHistory implements JsonRpcMethod {
         rewardPercentileIndex++;
       }
     }
+    // Put the computed rewards in the cache
+    RewardCacheKey key = new RewardCacheKey(block.getHeader().getNumber(), rewardPercentiles);
+    cache.put(key, rewards);
+
     return rewards;
   }
 }
