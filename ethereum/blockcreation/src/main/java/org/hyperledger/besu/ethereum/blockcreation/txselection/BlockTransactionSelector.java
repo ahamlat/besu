@@ -50,6 +50,8 @@ import org.hyperledger.besu.plugin.services.tracer.BlockAwareOperationTracer;
 import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelector;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -227,7 +229,9 @@ public class BlockTransactionSelector {
   private TransactionSelectionResult evaluateTransaction(
       final PendingTransaction pendingTransaction) {
     checkCancellation();
-    System.out.println(LocalDate.now() +" : *** Evaluating Transaction **** : "+pendingTransaction.getTransaction().getHash().toShortHexString());
+    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+    LocalDateTime now = LocalDateTime.now();
+    System.out.println(dtf.format(now) +" : *** Evaluating Transaction **** : "+pendingTransaction.getTransaction().getHash().toShortHexString());
     final long evaluationStartedAt = System.currentTimeMillis();
 
     TransactionSelectionResult selectionResult = evaluatePreProcessing(pendingTransaction);
