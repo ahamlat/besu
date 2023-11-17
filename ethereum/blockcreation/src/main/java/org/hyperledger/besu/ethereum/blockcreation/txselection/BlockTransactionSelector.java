@@ -226,7 +226,7 @@ public class BlockTransactionSelector {
   private TransactionSelectionResult evaluateTransaction(
       final PendingTransaction pendingTransaction) {
     checkCancellation();
-
+    System.out.println("*** Evaluating Transaction **** : "+pendingTransaction.getTransaction().getHash().toShortHexString());
     final long evaluationStartedAt = System.currentTimeMillis();
 
     TransactionSelectionResult selectionResult = evaluatePreProcessing(pendingTransaction);
