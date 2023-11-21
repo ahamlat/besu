@@ -230,19 +230,20 @@ public class BlockTransactionSelector {
   private TransactionSelectionResult evaluateTransaction(
       final PendingTransaction pendingTransaction) {
     checkCancellation();
-    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");
     LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
-    System.out.println(dtf.format(now) +" : *** Evaluating Transaction **** : "+pendingTransaction.getTransaction().getHash().toShortHexString());
     final long evaluationStartedAt = System.currentTimeMillis();
-
     TransactionSelectionResult selectionResult = evaluatePreProcessing(pendingTransaction);
     if (!selectionResult.selected()) {
       return handleTransactionNotSelected(pendingTransaction, selectionResult, evaluationStartedAt);
     }
 
     final WorldUpdater txWorldStateUpdater = blockWorldStateUpdater.updater();
+    final long startExecutionTime = System.nanoTime();
     final TransactionProcessingResult processingResult =
         processTransaction(pendingTransaction, txWorldStateUpdater);
+    System.out.println(dtf.format(now) +" : *** Transaction processing : "+pendingTransaction.getTransaction().getHash().toHexString()+ " in "+(System.nanoTime() - startExecutionTime)/1_000_000 + " ms, Gas used "+processingResult.getEstimateGasUsedByTransaction());
+
 
     var postProcessingSelectionResult =
         evaluatePostProcessing(pendingTransaction, processingResult);
