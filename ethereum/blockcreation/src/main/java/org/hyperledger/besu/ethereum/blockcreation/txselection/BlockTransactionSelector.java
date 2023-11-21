@@ -242,7 +242,7 @@ public class BlockTransactionSelector {
     final long startExecutionTime = System.nanoTime();
     final TransactionProcessingResult processingResult =
         processTransaction(pendingTransaction, txWorldStateUpdater);
-    System.out.println(dtf.format(now) +" : *** Transaction processing : "+pendingTransaction.getTransaction().getHash().toHexString()+ " in "+(System.nanoTime() - startExecutionTime)/1_000_000 + " ms, Gas used "+processingResult.getEstimateGasUsedByTransaction());
+    System.out.println(dtf.format(now) +" : *** Transaction processing : "+pendingTransaction.getTransaction().getHash().toHexString()+ " in "+(System.nanoTime() - startExecutionTime)/1_000 + "  µs, Gas used "+processingResult.getEstimateGasUsedByTransaction());
 
 
     var postProcessingSelectionResult =
