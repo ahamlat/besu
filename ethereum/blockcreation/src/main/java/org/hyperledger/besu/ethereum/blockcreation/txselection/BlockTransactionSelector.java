@@ -49,10 +49,6 @@ import org.hyperledger.besu.plugin.data.TransactionSelectionResult;
 import org.hyperledger.besu.plugin.services.tracer.BlockAwareOperationTracer;
 import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelector;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -61,6 +57,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
+import com.google.common.base.Stopwatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -230,33 +227,27 @@ public class BlockTransactionSelector {
   private TransactionSelectionResult evaluateTransaction(
       final PendingTransaction pendingTransaction) {
     checkCancellation();
-    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");
-    LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
-    final long evaluationStartedAt = System.currentTimeMillis();
+
+    final Stopwatch evaluationTimer = Stopwatch.createStarted();
+
     TransactionSelectionResult selectionResult = evaluatePreProcessing(pendingTransaction);
     if (!selectionResult.selected()) {
-      return handleTransactionNotSelected(pendingTransaction, selectionResult, evaluationStartedAt);
+      return handleTransactionNotSelected(pendingTransaction, selectionResult, evaluationTimer);
     }
 
     final WorldUpdater txWorldStateUpdater = blockWorldStateUpdater.updater();
-    final long startExecutionTime = System.nanoTime();
     final TransactionProcessingResult processingResult =
         processTransaction(pendingTransaction, txWorldStateUpdater);
-    System.out.println(dtf.format(now) +" : *** Transaction processing : "+pendingTransaction.getTransaction().getHash().toHexString()+ " in "+(System.nanoTime() - startExecutionTime)/1_000 + "  µs, Gas used "+processingResult.getEstimateGasUsedByTransaction());
-
 
     var postProcessingSelectionResult =
         evaluatePostProcessing(pendingTransaction, processingResult);
 
     if (postProcessingSelectionResult.selected()) {
       return handleTransactionSelected(
-          pendingTransaction, processingResult, txWorldStateUpdater, evaluationStartedAt);
+          pendingTransaction, processingResult, txWorldStateUpdater, evaluationTimer);
     }
     return handleTransactionNotSelected(
-        pendingTransaction,
-        postProcessingSelectionResult,
-        txWorldStateUpdater,
-        evaluationStartedAt);
+        pendingTransaction, postProcessingSelectionResult, txWorldStateUpdater, evaluationTimer);
   }
 
   /**
@@ -340,14 +331,14 @@ public class BlockTransactionSelector {
    * @param pendingTransaction The pending transaction.
    * @param processingResult The result of the transaction processing.
    * @param txWorldStateUpdater The world state updater.
-   * @param evaluationStartedAt when the evaluation of this tx started
+   * @param evaluationTimer tracks the evaluation elapsed time
    * @return The result of the transaction selection process.
    */
   private TransactionSelectionResult handleTransactionSelected(
       final PendingTransaction pendingTransaction,
       final TransactionProcessingResult processingResult,
       final WorldUpdater txWorldStateUpdater,
-      final long evaluationStartedAt) {
+      final Stopwatch evaluationTimer) {
     final Transaction transaction = pendingTransaction.getTransaction();
 
     final long gasUsedByTransaction =
@@ -376,20 +367,19 @@ public class BlockTransactionSelector {
       }
     }
 
-    final long evaluationTime = System.currentTimeMillis() - evaluationStartedAt;
     if (tooLate) {
       // even if this tx passed all the checks, it is too late to include it in this block,
       // so we need to treat it as not selected
 
       // check if this tx took too much to evaluate, and in case remove it from the pool
       final TransactionSelectionResult timeoutSelectionResult;
-      if (evaluationTime > blockTxsSelectionMaxTime) {
+      if (evaluationTimer.elapsed(TimeUnit.MILLISECONDS) > blockTxsSelectionMaxTime) {
         LOG.atWarn()
             .setMessage(
-                "Transaction {} is too late for inclusion, evaluated in {}ms that is over the max limit of {}"
+                "Transaction {} is too late for inclusion, evaluated in {} that is over the max limit of {}ms"
                     + ", removing it from the pool")
             .addArgument(transaction::toTraceLog)
-            .addArgument(evaluationTime)
+            .addArgument(evaluationTimer)
             .addArgument(blockTxsSelectionMaxTime)
             .log();
         timeoutSelectionResult = TX_EVALUATION_TOO_LONG;
@@ -397,7 +387,7 @@ public class BlockTransactionSelector {
         LOG.atTrace()
             .setMessage("Transaction {} is too late for inclusion")
             .addArgument(transaction::toTraceLog)
-            .addArgument(evaluationTime)
+            .addArgument(evaluationTimer)
             .log();
         timeoutSelectionResult = BLOCK_SELECTION_TIMEOUT;
       }
@@ -405,15 +395,15 @@ public class BlockTransactionSelector {
       // do not rely on the presence of this result, since by the time it is added, the code
       // reading it could have been already executed by another thread
       return handleTransactionNotSelected(
-          pendingTransaction, timeoutSelectionResult, txWorldStateUpdater, evaluationStartedAt);
+          pendingTransaction, timeoutSelectionResult, txWorldStateUpdater, evaluationTimer);
     }
 
     pluginTransactionSelector.onTransactionSelected(pendingTransaction, processingResult);
     blockWorldStateUpdater = worldState.updater();
     LOG.atTrace()
-        .setMessage("Selected {} for block creation, evaluated in {}ms")
+        .setMessage("Selected {} for block creation, evaluated in {}")
         .addArgument(transaction::toTraceLog)
-        .addArgument(evaluationTime)
+        .addArgument(evaluationTimer)
         .log();
     return SELECTED;
   }
@@ -425,22 +415,22 @@ public class BlockTransactionSelector {
    *
    * @param pendingTransaction The unselected pending transaction.
    * @param selectionResult The result of the transaction selection process.
-   * @param evaluationStartedAt when the evaluation of this tx started
+   * @param evaluationTimer tracks the evaluation elapsed time
    * @return The result of the transaction selection process.
    */
   private TransactionSelectionResult handleTransactionNotSelected(
       final PendingTransaction pendingTransaction,
       final TransactionSelectionResult selectionResult,
-      final long evaluationStartedAt) {
+      final Stopwatch evaluationTimer) {
 
     transactionSelectionResults.updateNotSelected(
         pendingTransaction.getTransaction(), selectionResult);
     pluginTransactionSelector.onTransactionNotSelected(pendingTransaction, selectionResult);
     LOG.atTrace()
-        .setMessage("Not selected {} for block creation with result {}, evaluated in {}ms")
+        .setMessage("Not selected {} for block creation with result {}, evaluated in {}")
         .addArgument(pendingTransaction::toTraceLog)
         .addArgument(selectionResult)
-        .addArgument(() -> System.currentTimeMillis() - evaluationStartedAt)
+        .addArgument(evaluationTimer)
         .log();
 
     return selectionResult;
@@ -450,9 +440,9 @@ public class BlockTransactionSelector {
       final PendingTransaction pendingTransaction,
       final TransactionSelectionResult selectionResult,
       final WorldUpdater txWorldStateUpdater,
-      final long evaluationStartedAt) {
+      final Stopwatch evaluationTimer) {
     txWorldStateUpdater.revert();
-    return handleTransactionNotSelected(pendingTransaction, selectionResult, evaluationStartedAt);
+    return handleTransactionNotSelected(pendingTransaction, selectionResult, evaluationTimer);
   }
 
   private void checkCancellation() {

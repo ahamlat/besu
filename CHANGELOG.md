@@ -9,6 +9,14 @@
 ### Additions and Improvements
 - Implement debug_traceCall [#5885](https://github.com/hyperledger/besu/pull/5885)
 - Transactions that takes too long to evaluate, during block creation, are dropped from the txpool [#6163](https://github.com/hyperledger/besu/pull/6163)
+- New option `tx-pool-min-gas-price` to set a lower bound when accepting txs to the pool [#6098](https://github.com/hyperledger/besu/pull/6098)
+- Update OpenJDK latest Docker image to use Java 21 [#6189](https://github.com/hyperledger/besu/pull/6189)
+- Allow a transaction selection plugin to specify custom selection results [#6190](https://github.com/hyperledger/besu/pull/6190)
+- Add `rpc-gas-cap` to allow users to set gas limit to the RPC methods used to simulate transactions[#6156](https://github.com/hyperledger/besu/pull/6156)
+- Fix the unavailability of `address` field when returning an `Account` entity on GraphQL in case of unreachable world state [#6198](https://github.com/hyperledger/besu/pull/6198)
+
+### Bug fixes
+- Fix Docker image name clash between Besu and evmtool [#6194](https://github.com/hyperledger/besu/pull/6194)
 
 ## 23.10.2
 
@@ -41,6 +49,9 @@
 ---
 
 ### Download Links
+https://hyperledger.jfrog.io/artifactory/besu-binaries/besu/23.10.2/besu-23.10.2.zip / sha256: 597ab71898d379180106baf24878239ed49acefea5772344fd359b0ff13fe19f
+
+https://hyperledger.jfrog.io/artifactory/besu-binaries/besu/23.10.2/besu-23.10.2.tar.gz / sha256: 255818a5c6067a38aa8b565d8f32a49a172a7536a1d370673bbb75f548263c2c
 
 ## 23.10.1
 

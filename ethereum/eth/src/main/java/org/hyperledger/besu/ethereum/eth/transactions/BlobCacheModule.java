@@ -1,5 +1,5 @@
 /*
- * Copyright Hyperledger Besu Contributors
+ * Copyright Hyperledger Besu contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,16 +12,20 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.ethereum.api.graphql;
 
-/** Internal GraphQL Context */
-public enum GraphQLContextType {
-  BLOCKCHAIN_QUERIES,
-  PROTOCOL_SCHEDULE,
-  TRANSACTION_POOL,
-  MINING_COORDINATOR,
-  SYNCHRONIZER,
-  IS_ALIVE_HANDLER,
-  CHAIN_ID,
-  GAS_CAP
+package org.hyperledger.besu.ethereum.eth.transactions;
+
+import javax.inject.Singleton;
+
+import dagger.Module;
+import dagger.Provides;
+
+@Module
+public class BlobCacheModule {
+
+  @Provides
+  @Singleton
+  public BlobCache provideBlobCache() {
+    return new BlobCache();
+  }
 }
