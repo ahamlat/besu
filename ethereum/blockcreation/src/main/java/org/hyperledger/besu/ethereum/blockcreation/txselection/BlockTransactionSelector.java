@@ -49,6 +49,9 @@ import org.hyperledger.besu.plugin.data.TransactionSelectionResult;
 import org.hyperledger.besu.plugin.services.tracer.BlockAwareOperationTracer;
 import org.hyperledger.besu.plugin.services.txselection.PluginTransactionSelector;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -229,6 +232,8 @@ public class BlockTransactionSelector {
     checkCancellation();
 
     final Stopwatch evaluationTimer = Stopwatch.createStarted();
+    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");
+    LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
 
     TransactionSelectionResult selectionResult = evaluatePreProcessing(pendingTransaction);
     if (!selectionResult.selected()) {
@@ -236,9 +241,10 @@ public class BlockTransactionSelector {
     }
 
     final WorldUpdater txWorldStateUpdater = blockWorldStateUpdater.updater();
+    final long startExecutionTime = System.nanoTime();
     final TransactionProcessingResult processingResult =
         processTransaction(pendingTransaction, txWorldStateUpdater);
-
+    System.out.println(dtf.format(now) +" : *** Transaction processing : "+pendingTransaction.getTransaction().getHash().toHexString()+ " in "+(System.nanoTime() - startExecutionTime)/1_000 + " µs, Gas used "+processingResult.getEstimateGasUsedByTransaction());
     var postProcessingSelectionResult =
         evaluatePostProcessing(pendingTransaction, processingResult);
 
