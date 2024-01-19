@@ -28,6 +28,8 @@ import org.hyperledger.besu.metrics.prometheus.PrometheusMetricsSystem;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -47,6 +49,8 @@ public class CachedMerkleTrieLoader
   private final Cache<Bytes, Bytes> storageNodes =
       CacheBuilder.newBuilder().recordStats().maximumSize(STORAGE_CACHE_SIZE).build();
 
+  private final ExecutorService executor = Executors.newCachedThreadPool();
+
   public CachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem) {
 
     CacheMetricsCollector cacheMetrics = new CacheMetricsCollector();
@@ -60,8 +64,9 @@ public class CachedMerkleTrieLoader
       final BonsaiWorldStateKeyValueStorage worldStateStorage,
       final Hash worldStateRootHash,
       final Address account) {
+
     CompletableFuture.runAsync(
-        () -> cacheAccountNodes(worldStateStorage, worldStateRootHash, account));
+        () -> cacheAccountNodes(worldStateStorage, worldStateRootHash, account), executor);
   }
 
   @VisibleForTesting
@@ -93,7 +98,7 @@ public class CachedMerkleTrieLoader
       final BonsaiWorldStateKeyValueStorage worldStateStorage,
       final Address account,
       final StorageSlotKey slotKey) {
-    CompletableFuture.runAsync(() -> cacheStorageNodes(worldStateStorage, account, slotKey));
+    CompletableFuture.runAsync(() -> cacheStorageNodes(worldStateStorage, account, slotKey), executor);
   }
 
   @VisibleForTesting
