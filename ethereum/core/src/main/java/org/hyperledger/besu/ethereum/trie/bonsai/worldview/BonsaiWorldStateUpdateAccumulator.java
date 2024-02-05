@@ -290,7 +290,7 @@ public class BonsaiWorldStateUpdateAccumulator
       accountValue.setUpdated(null);
     }
 
-    for (UpdateTrackingAccount<BonsaiAccount> tracked : getUpdatedAccounts()) {
+    for (final UpdateTrackingAccount<BonsaiAccount> tracked : getUpdatedAccounts()) {
       final Address updatedAddress = tracked.getAddress();
       final BonsaiAccount updatedAccount;
       final BonsaiValue<BonsaiAccount> updatedAccountValue = accountsToUpdate.get(updatedAddress);
@@ -350,7 +350,7 @@ public class BonsaiWorldStateUpdateAccumulator
       // This is especially to avoid unnecessary computation for withdrawals and
       // self-destruct beneficiaries
       if (updatedAccount.getUpdatedStorage().isEmpty()) {
-        return;
+        continue;
       }
 
       final TreeSet<Map.Entry<UInt256, UInt256>> entries =
