@@ -87,7 +87,7 @@ public class LayeredKeyValueStorage extends SegmentedInMemoryKeyValueStorage
       Bytes wrapKey = Bytes.wrap(key);
       final Optional<byte[]> foundKey =
           hashValueStore.computeIfAbsent(segmentId, __ -> new ConcurrentHashMap<>()).get(wrapKey);
-      if (foundKey.isEmpty()) {
+      if (foundKey == null) {
         Optional<byte[]> parentValue = parent.get(segmentId, key);
         if(isFirstLayer){
           hashValueStore.get(segmentId).put(wrapKey, parentValue);
