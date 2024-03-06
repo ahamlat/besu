@@ -28,6 +28,6 @@ public class LayeredKeyValueStorageTest extends AbstractSegmentedKeyValueStorage
 
   @Override
   public SegmentedKeyValueStorage createSegmentedStore() {
-    return new LayeredKeyValueStorage(new SegmentedInMemoryKeyValueStorage());
+    return new LayeredKeyValueStorage(new SegmentedInMemoryKeyValueStorage(), true);
   }
 }

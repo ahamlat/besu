@@ -24,9 +24,9 @@ import org.hyperledger.besu.services.kvstore.LayeredKeyValueStorage;
 public class BonsaiWorldStateLayerStorage extends BonsaiSnapshotWorldStateKeyValueStorage
     implements BonsaiStorageSubscriber {
 
-  public BonsaiWorldStateLayerStorage(final BonsaiWorldStateKeyValueStorage parent) {
+  public BonsaiWorldStateLayerStorage(final BonsaiWorldStateKeyValueStorage parent, final boolean isFirstLayer) {
     this(
-        new LayeredKeyValueStorage(parent.composedWorldStateStorage),
+        new LayeredKeyValueStorage(parent.composedWorldStateStorage, isFirstLayer),
         parent.trieLogStorage,
         parent);
   }

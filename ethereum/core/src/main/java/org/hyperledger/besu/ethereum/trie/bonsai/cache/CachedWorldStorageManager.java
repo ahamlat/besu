@@ -130,7 +130,7 @@ public class CachedWorldStorageManager
               cached ->
                   new BonsaiWorldState(
                       archive,
-                      new BonsaiWorldStateLayerStorage(cached.getWorldStateStorage()),
+                      new BonsaiWorldStateLayerStorage(cached.getWorldStateStorage(), true),
                       evmConfiguration));
     }
     LOG.atDebug()
@@ -170,7 +170,7 @@ public class CachedWorldStorageManager
         .map(
             storage ->
                 new BonsaiWorldState( // wrap the state in a layered worldstate
-                    archive, new BonsaiWorldStateLayerStorage(storage), evmConfiguration));
+                    archive, new BonsaiWorldStateLayerStorage(storage, true), evmConfiguration));
   }
 
   public Optional<BonsaiWorldState> getHeadWorldState(

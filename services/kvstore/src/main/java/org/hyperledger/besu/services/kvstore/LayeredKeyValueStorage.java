@@ -44,13 +44,17 @@ public class LayeredKeyValueStorage extends SegmentedInMemoryKeyValueStorage
 
   private final SegmentedKeyValueStorage parent;
 
+  private boolean isFirstLayer = false;
+
+
   /**
    * Instantiates a new Layered key value storage.
    *
    * @param parent the parent key value storage for this layered storage.
    */
-  public LayeredKeyValueStorage(final SegmentedKeyValueStorage parent) {
+  public LayeredKeyValueStorage(final SegmentedKeyValueStorage parent, final boolean isFirstLayer) {
     this(new ConcurrentHashMap<>(), parent);
+    this.isFirstLayer = isFirstLayer;
   }
 
   /**
@@ -82,9 +86,13 @@ public class LayeredKeyValueStorage extends SegmentedInMemoryKeyValueStorage
     try {
       Bytes wrapKey = Bytes.wrap(key);
       final Optional<byte[]> foundKey =
-          hashValueStore.computeIfAbsent(segmentId, __ -> new HashMap<>()).get(wrapKey);
-      if (foundKey == null) {
-        return parent.get(segmentId, key);
+          hashValueStore.computeIfAbsent(segmentId, __ -> new ConcurrentHashMap<>()).get(wrapKey);
+      if (foundKey.isEmpty()) {
+        Optional<byte[]> parentValue = parent.get(segmentId, key);
+        if(isFirstLayer){
+          hashValueStore.get(segmentId).put(wrapKey, parentValue);
+        }
+        return parentValue;
       } else {
         return foundKey;
       }

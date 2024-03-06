@@ -631,7 +631,7 @@ public class BonsaiWorldState
   @Override
   public MutableWorldState freeze() {
     this.isFrozen = true;
-    this.worldStateStorage = new BonsaiWorldStateLayerStorage(worldStateStorage);
+    this.worldStateStorage = new BonsaiWorldStateLayerStorage(worldStateStorage, true);
     return this;
   }
 

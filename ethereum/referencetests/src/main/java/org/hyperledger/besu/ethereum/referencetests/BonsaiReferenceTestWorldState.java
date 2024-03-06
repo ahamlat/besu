@@ -186,7 +186,7 @@ public class BonsaiReferenceTestWorldState extends BonsaiWorldState
   private BonsaiWorldState createBonsaiWorldState(final boolean isFrozen) {
     BonsaiWorldState bonsaiWorldState =
         new BonsaiWorldState(
-            new BonsaiWorldStateLayerStorage(worldStateStorage),
+            new BonsaiWorldStateLayerStorage(worldStateStorage, true),
             cachedMerkleTrieLoader,
             cachedWorldStorageManager,
             trieLogManager,

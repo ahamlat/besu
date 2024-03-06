@@ -40,7 +40,7 @@ public class BonsaiReferenceTestWorldStateStorage extends BonsaiWorldStateLayerS
 
   public BonsaiReferenceTestWorldStateStorage(
       final BonsaiWorldStateKeyValueStorage parent, final BonsaiPreImageProxy preImageProxy) {
-    super(parent);
+    super(parent, true);
     this.preImageProxy = preImageProxy;
   }
 
