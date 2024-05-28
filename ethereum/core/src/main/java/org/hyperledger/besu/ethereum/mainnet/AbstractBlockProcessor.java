@@ -107,13 +107,12 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
     final ProtocolSpec protocolSpec = protocolSchedule.getByBlockHeader(blockHeader);
 
     protocolSpec.getBlockHashProcessor().processBlockHashes(blockchain, worldState, blockHeader);
+    final WorldUpdater worldStateUpdater = worldState.updater();
 
     for (final Transaction transaction : transactions) {
       if (!hasAvailableBlockBudget(blockHeader, transaction, currentGasUsed)) {
         return new BlockProcessingResult(Optional.empty(), "provided gas insufficient");
       }
-
-      final WorldUpdater worldStateUpdater = worldState.updater();
 
       final BlockHashLookup blockHashLookup = new CachingBlockHashLookup(blockHeader, blockchain);
       final Address miningBeneficiary =
@@ -157,7 +156,6 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
         }
         return new BlockProcessingResult(Optional.empty(), errorMessage);
       }
-      worldStateUpdater.commit();
 
       currentGasUsed += transaction.getGasLimit() - result.getGasRemaining();
       if (transaction.getVersionedHashes().isPresent()) {
@@ -170,6 +168,9 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
               transaction.getType(), result, worldState, currentGasUsed);
       receipts.add(transactionReceipt);
     }
+
+    worldStateUpdater.commit();
+
     if (blockHeader.getBlobGasUsed().isPresent()
         && currentBlobGasUsed != blockHeader.getBlobGasUsed().get()) {
       String errorMessage =
