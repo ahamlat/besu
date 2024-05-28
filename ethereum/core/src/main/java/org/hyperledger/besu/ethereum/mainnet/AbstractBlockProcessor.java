@@ -170,6 +170,7 @@ public abstract class AbstractBlockProcessor implements BlockProcessor {
     }
 
     worldStateUpdater.commit();
+    System.out.println("worldStateUpdater.commit() / class name : "+worldStateUpdater.getClass().getName());
 
     if (blockHeader.getBlobGasUsed().isPresent()
         && currentBlobGasUsed != blockHeader.getBlobGasUsed().get()) {
