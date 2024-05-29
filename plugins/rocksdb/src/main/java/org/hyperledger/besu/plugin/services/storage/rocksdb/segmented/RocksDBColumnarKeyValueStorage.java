@@ -224,9 +224,9 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
                 : config.getCacheCapacity());
     long rocksDBBlockSize = ROCKSDB_BLOCK_SIZE;
     if (Arrays.equals(segment.getId(), KeyValueSegmentIdentifier.ACCOUNT_INFO_STATE.getId())) {
-      rocksDBBlockSize = 100;
+      rocksDBBlockSize = 1000;
     } else if (Arrays.equals(segment.getId(), KeyValueSegmentIdentifier.ACCOUNT_STORAGE_STORAGE.getId())) {
-      rocksDBBlockSize = 320;
+      rocksDBBlockSize = 1000;
     }
     return new BlockBasedTableConfig()
         .setFormatVersion(ROCKSDB_FORMAT_VERSION)
