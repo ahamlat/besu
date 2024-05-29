@@ -217,18 +217,20 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
    */
   private BlockBasedTableConfig createBlockBasedTableConfig(
       final SegmentIdentifier segment, final RocksDBConfiguration config) {
+    BlockBasedTableConfig basedTableConfig = new BlockBasedTableConfig();
     final LRUCache cache =
         new LRUCache(
             config.isHighSpec() && segment.isEligibleToHighSpecFlag()
                 ? ROCKSDB_BLOCKCACHE_SIZE_HIGH_SPEC
                 : config.getCacheCapacity());
     long rocksDBBlockSize = ROCKSDB_BLOCK_SIZE;
-    if (Arrays.equals(segment.getId(), KeyValueSegmentIdentifier.ACCOUNT_INFO_STATE.getId())) {
+    if (Arrays.equals(segment.getId(), KeyValueSegmentIdentifier.ACCOUNT_INFO_STATE.getId()) || Arrays.equals(segment.getId(), KeyValueSegmentIdentifier.ACCOUNT_STORAGE_STORAGE.getId())) {
       rocksDBBlockSize = 1000;
-    } else if (Arrays.equals(segment.getId(), KeyValueSegmentIdentifier.ACCOUNT_STORAGE_STORAGE.getId())) {
-      rocksDBBlockSize = 1000;
+      basedTableConfig.setCacheIndexAndFilterBlocks(true);
+      basedTableConfig.setCacheIndexAndFilterBlocksWithHighPriority(true);
     }
-    return new BlockBasedTableConfig()
+
+    return basedTableConfig
         .setFormatVersion(ROCKSDB_FORMAT_VERSION)
         .setBlockCache(cache)
         .setFilterPolicy(new BloomFilter(10, false))
