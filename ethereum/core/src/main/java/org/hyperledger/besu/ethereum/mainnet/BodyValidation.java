@@ -16,6 +16,9 @@ package org.hyperledger.besu.ethereum.mainnet;
 
 import static org.hyperledger.besu.crypto.Hash.keccak256;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import static org.hyperledger.besu.crypto.Hash.blake2bf;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.Request;
@@ -40,6 +43,22 @@ import org.apache.tuweni.units.bigints.UInt256;
 /** A utility class for body validation tasks. */
 public final class BodyValidation {
 
+  private static final Cache<List<Transaction>, Hash> transactionsRootCache = CacheBuilder.newBuilder()
+          .maximumSize(100)
+          .build();
+
+  private static final Cache<List<Withdrawal>, Hash> withdrawalsRootCache = CacheBuilder.newBuilder()
+          .maximumSize(100)
+          .build();
+
+  private static final Cache<List<Request>, Hash> requestsRootCache = CacheBuilder.newBuilder()
+          .maximumSize(100)
+          .build();
+
+  private static final Cache<List<TransactionReceipt>, Hash> receiptsRootCache = CacheBuilder.newBuilder()
+          .maximumSize(100)
+          .build();
+
   private BodyValidation() {
     // Utility Class
   }
@@ -59,8 +78,13 @@ public final class BodyValidation {
    * @return the transaction root
    */
   public static Hash transactionsRoot(final List<Transaction> transactions) {
-    final MerkleTrie<Bytes, Bytes> trie = trie();
 
+    Hash cachedResult = transactionsRootCache.getIfPresent(transactions);
+    if (cachedResult != null) {
+      return cachedResult;
+    }
+
+    final MerkleTrie<Bytes, Bytes> trie = trie();
     IntStream.range(0, transactions.size())
         .forEach(
             i ->
@@ -69,7 +93,9 @@ public final class BodyValidation {
                     TransactionEncoder.encodeOpaqueBytes(
                         transactions.get(i), EncodingContext.BLOCK_BODY)));
 
-    return Hash.wrap(trie.getRootHash());
+    Hash result = Hash.wrap(trie.getRootHash());
+    transactionsRootCache.put(transactions, result);
+    return result;
   }
 
   /**
@@ -79,14 +105,20 @@ public final class BodyValidation {
    * @return the transaction root
    */
   public static Hash withdrawalsRoot(final List<Withdrawal> withdrawals) {
+    Hash cachedResult = withdrawalsRootCache.getIfPresent(withdrawals);
+    if (cachedResult != null) {
+      return cachedResult;
+    }
+
     final MerkleTrie<Bytes, Bytes> trie = trie();
+      IntStream.range(0, withdrawals.size())
+          .forEach(
+              i -> trie.put(indexKey(i), WithdrawalEncoder.encodeOpaqueBytes(withdrawals.get(i))));
 
-    IntStream.range(0, withdrawals.size())
-        .forEach(
-            i -> trie.put(indexKey(i), WithdrawalEncoder.encodeOpaqueBytes(withdrawals.get(i))));
-
-    return Hash.wrap(trie.getRootHash());
-  }
+      Hash result = Hash.wrap(trie.getRootHash());
+      withdrawalsRootCache.put(withdrawals, result);
+      return result;
+    }
 
   /**
    * Generates the requests root for a list of requests
@@ -95,10 +127,18 @@ public final class BodyValidation {
    * @return the requests root
    */
   public static Hash requestsRoot(final List<Request> requests) {
+
+    Hash cachedResult = requestsRootCache.getIfPresent(requests);
+    if (cachedResult != null) {
+      return cachedResult;
+    }
+
     final MerkleTrie<Bytes, Bytes> trie = trie();
     IntStream.range(0, requests.size())
         .forEach(i -> trie.put(indexKey(i), RequestEncoder.encodeOpaqueBytes(requests.get(i))));
-    return Hash.wrap(trie.getRootHash());
+    Hash result = Hash.wrap(trie.getRootHash());
+    requestsRootCache.put(requests, result);
+    return result;
   }
 
   /**
@@ -108,8 +148,12 @@ public final class BodyValidation {
    * @return the receipt root
    */
   public static Hash receiptsRoot(final List<TransactionReceipt> receipts) {
-    final MerkleTrie<Bytes, Bytes> trie = trie();
+    Hash cachedResult = receiptsRootCache.getIfPresent(receipts);
+    if (cachedResult != null) {
+      return cachedResult;
+    }
 
+    final MerkleTrie<Bytes, Bytes> trie = trie();
     IntStream.range(0, receipts.size())
         .forEach(
             i ->
@@ -119,8 +163,9 @@ public final class BodyValidation {
                         rlpOutput ->
                             receipts.get(i).writeToForReceiptTrie(rlpOutput, false, false))));
 
-    return Hash.wrap(trie.getRootHash());
-  }
+    Hash result = Hash.wrap(trie.getRootHash());
+    receiptsRootCache.put(receipts, result);
+    return result;  }
 
   /**
    * Generates the ommers hash for a list of ommer block headers
