@@ -18,7 +18,6 @@ import static org.hyperledger.besu.crypto.Hash.keccak256;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import static org.hyperledger.besu.crypto.Hash.blake2bf;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.Request;
