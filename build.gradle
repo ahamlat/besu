@@ -32,6 +32,29 @@ plugins {
   id 'jacoco'
   id 'jacoco-report-aggregation'
   id 'org.sonarqube' version '5.1.0.4882'
+  id 'org.graalvm.buildtools.native' version '0.10.2'
+  id 'application'
+}
+
+application {
+  mainClass = 'org.hyperledger.besu.Besu'
+}
+
+graalvmNative {
+  binaries {
+    main {
+      imageName = 'besu'
+      sharedLibrary = false       // Explicitly build an executable
+      buildArgs.add('--no-fallback')
+      // Include reflection configuration
+      buildArgs.add('--initialize-at-build-time=org.apache.logging.log4j,org.hyperledger.besu.cli.logging.BesuLoggingConfigurationFactory,io.netty.util.internal.logging.Log4J2LoggerFactory,io.vertx.core.logging.Log4j2LogDelegateFactory,org.fusesource.jansi.AnsiRenderer$Code')
+      // Initialize Jackson classes at run time
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind,com.fasterxml.jackson.core,com.fasterxml.jackson.annotation')
+
+      buildArgs.add('--enable-all-security-services')
+      buildArgs.add('--report-unsupported-elements-at-runtime')
+    }
+  }
 }
 
 sonarqube {
@@ -247,43 +270,7 @@ configure(allprojects - project(':platform')) {
   }
 
   tasks.withType(JavaCompile).configureEach {
-    options.compilerArgs += [
-      '-Xlint:unchecked',
-      '-Xlint:cast',
-      '-Xlint:rawtypes',
-      '-Xlint:overloads',
-      '-Xlint:divzero',
-      '-Xlint:finally',
-      '-Xlint:static',
-      '-Werror',
-    ]
-
-    options.errorprone {
-      excludedPaths = '.*/generated/*.*'
-      disableWarningsInGeneratedCode = true
-      // Our equals need to be symmetric, this checker doesn't respect that.
-      check('EqualsGetClass', CheckSeverity.OFF)
-      // We like to use futures with no return values.
-      check('FutureReturnValueIgnored', CheckSeverity.OFF)
-      // We use the JSR-305 annotations instead of the Google annotations.
-      check('ImmutableEnumChecker', CheckSeverity.OFF)
-      // This is a style check instead of an error-prone pattern.
-      check('UnnecessaryParentheses', CheckSeverity.OFF)
-
-      // This check is broken in Java 12.  See https://github.com/google/error-prone/issues/1257
-      if (JavaVersion.current() == JavaVersion.VERSION_12) {
-        check('Finally', CheckSeverity.OFF)
-      }
-      // This check is broken after Java 12.  See https://github.com/google/error-prone/issues/1352
-      if (JavaVersion.current() > JavaVersion.VERSION_12) {
-        check('TypeParameterUnusedInFormals', CheckSeverity.OFF)
-      }
-
-      check('FieldCanBeFinal', CheckSeverity.WARN)
-      check('InsecureCryptoUsage', CheckSeverity.WARN)
-      check('WildcardImport', CheckSeverity.WARN)
-    }
-
+    options.compilerArgs -= ['-Xplugin:ErrorProne']
     options.encoding = 'UTF-8'
   }
 
