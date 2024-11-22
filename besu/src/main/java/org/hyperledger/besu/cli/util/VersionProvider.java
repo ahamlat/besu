@@ -25,6 +25,10 @@ import picocli.CommandLine;
 public class VersionProvider implements CommandLine.IVersionProvider {
   private final PluginVersionsProvider pluginVersionsProvider;
 
+  public VersionProvider() {
+    // No-argument constructor required by Picocli
+      pluginVersionsProvider = null;
+  }
   /**
    * Instantiates a new Version provider.
    *

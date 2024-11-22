@@ -44,15 +44,83 @@ graalvmNative {
   binaries {
     main {
       imageName = 'besu'
-      sharedLibrary = false       // Explicitly build an executable
+      sharedLibrary = false // Explicitly build an executable
       buildArgs.add('--no-fallback')
-      // Include reflection configuration
-      buildArgs.add('--initialize-at-build-time=org.apache.logging.log4j,org.hyperledger.besu.cli.logging.BesuLoggingConfigurationFactory,io.netty.util.internal.logging.Log4J2LoggerFactory,io.vertx.core.logging.Log4j2LogDelegateFactory,org.fusesource.jansi.AnsiRenderer$Code')
-      // Initialize Jackson classes at run time
-      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind,com.fasterxml.jackson.core,com.fasterxml.jackson.annotation')
 
+// Include reflection and runtime initialization configuration
+      buildArgs.add('--initialize-at-build-time=org.apache.logging.log4j,io.netty.util.internal.logging.Log4J2LoggerFactory')
+      buildArgs.add('--initialize-at-build-time=org.fusesource.jansi.AnsiRenderer$Code') // Added here
+      buildArgs.add('--trace-class-initialization=com.fasterxml.jackson.databind.ser.std.NumberSerializers$ShortSerializer')
+// Defer Log4j filter initialization to runtime
+      buildArgs.add('--initialize-at-run-time=org.apache.logging.log4j.core.filter.MutableThreadContextMapFilter')
+
+      // Defer Jackson subsystems to runtime initialization
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ObjectMapper,com.fasterxml.jackson.databind.ser,com.fasterxml.jackson.databind.ser.std,com.fasterxml.jackson.databind')
+      buildArgs.add('--initialize-at-run-time=picocli.CommandLine,org.hyperledger.besu.cli.BesuCommand')
+      // Defer initialization of Jackson classes to runtime
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ser.std.UUIDSerializer')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.deser.BasicDeserializerFactory')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.cfg.BaseSettings')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.introspect.AnnotatedClassResolver')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.cfg.CoercionConfigs')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.type.SimpleType')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.PropertyName')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.core.io.SerializedString')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.util.internal.PrivateMaxEntriesMap')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.annotation.JsonInclude$Value')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ser.std.NumberSerializers$FloatSerializer')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.annotation.JsonSetter$Value')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.util.StdDateFormat')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.SerializationConfig')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.core.Base64Variants')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.MappingJsonFactory')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ser.BeanSerializerFactory')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.core.io.CharTypes')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.core.io.JsonStringEncoder')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ser.std.NumberSerializers$IntLikeSerializer')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.DeserializationConfig')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.cfg.MapperConfig')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.cfg.DatatypeFeatures$DefaultHolder')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ser.BasicSerializerFactory')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.annotation.JsonFormat$Value')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.type.TypeBindings')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.core.util.DefaultIndenter')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ObjectMapper')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.type.TypeBase')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ext.Java7SupportImpl')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ext.Java7Support')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.cfg.CoercionConfig')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.type.TypeFactory')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.cfg.MapperConfigBase')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.util.ClassUtil')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.cfg.ContextAttributes$Impl')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.introspect.VisibilityChecker$Std')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.core.JsonFactory')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.introspect.BasicClassIntrospector')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.core.PrettyPrinter')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.introspect.AnnotatedClass')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.ser.std.NumberSerializers$ShortSerializer')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.deser.BeanDeserializerFactory')
+      buildArgs.add('--initialize-at-run-time=com.fasterxml.jackson.databind.cfg.MutableCoercionConfig')
+      // Enable additional security services
       buildArgs.add('--enable-all-security-services')
       buildArgs.add('--report-unsupported-elements-at-runtime')
+
+      // Unlock experimental options
+      buildArgs.add('-H:+UnlockExperimentalVMOptions')
+
+      // Add configuration files
+      buildArgs.add('-H:ReflectionConfigurationFiles=/data/besu/native-config/reflect-config.json')
+      buildArgs.add('-H:ResourceConfigurationFiles=/data/besu/native-config/resource-config.json')
+      buildArgs.add('-H:JNIConfigurationFiles=/data/besu/native-config/jni-config.json')
+      buildArgs.add('-H:SerializationConfigurationFiles=/data/besu/native-config/serialization-config.json')
+      buildArgs.add('-H:DynamicProxyConfigurationFiles=/data/besu/native-config/proxy-config.json')
+      buildArgs.add('-H:PredefinedClassesConfigurationFiles=/data/besu/native-config/predefined-classes-config.json')
+
+      // Debugging flags
+      buildArgs.add('--verbose')
+      buildArgs.add('-H:+PrintAnalysisCallTree')
     }
   }
 }
@@ -72,7 +140,7 @@ project.tasks["sonar"].dependsOn "testCodeCoverageReport"
 
 if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)) {
   throw new GradleException("Java 21 or later is required to build Besu.\n" +
-  "  Detected version ${JavaVersion.current()}")
+          "  Detected version ${JavaVersion.current()}")
 }
 
 group = 'org.hyperledger.besu'
@@ -80,13 +148,13 @@ group = 'org.hyperledger.besu'
 defaultTasks 'build', 'checkLicense', 'javadoc'
 
 def buildAliases = [
-  'dev': [
-    'spotlessApply',
-    'build',
-    'checkLicense',
-    'javadoc'
-  ],
-  'build': ['spotlessCheck', 'build']
+        'dev': [
+                'spotlessApply',
+                'build',
+                'checkLicense',
+                'javadoc'
+        ],
+        'build': ['spotlessCheck', 'build']
 ]
 
 def expandedTaskList = []
@@ -124,20 +192,20 @@ licenseReport {
   allowedLicensesFile = new File("$rootDir/gradle/allowed-licenses.json")
 
   excludes = [
-    // only used for static analysis, not actually shipped
-    'com.google.errorprone:javac',
-    'org.checkerframework:dataflow-shaded',
-    'org.checkerframework:dataflow-errorprone',
-    // exclude Kotlin multiplatform dependencies container, they have the same license of what they contain
-    'com.squareup.okio:okio',
-    'org.jetbrains.kotlinx:kotlinx-coroutines-core'
+          // only used for static analysis, not actually shipped
+          'com.google.errorprone:javac',
+          'org.checkerframework:dataflow-shaded',
+          'org.checkerframework:dataflow-errorprone',
+          // exclude Kotlin multiplatform dependencies container, they have the same license of what they contain
+          'com.squareup.okio:okio',
+          'org.jetbrains.kotlinx:kotlinx-coroutines-core'
   ]
 
   // If set to true, then all boms will be excluded from the report
   excludeBoms = true
 
   filters = [
-    new LicenseBundleNormalizer(bundlePath: "$rootDir/gradle/license-normalizer-bundle.json")
+          new LicenseBundleNormalizer(bundlePath: "$rootDir/gradle/license-normalizer-bundle.json")
   ]
 }
 
@@ -310,40 +378,40 @@ configure(allprojects - project(':platform')) {
    */
   test {
     jvmArgs += [
-      '-Xmx4g',
-      '-XX:-UseGCOverheadLimit',
-      // Mockito and jackson-databind do some strange reflection during tests.
-      // This suppresses an illegal access warning.
-      '--add-opens',
-      'java.base/java.util=ALL-UNNAMED',
-      '--add-opens',
-      'java.base/java.util.concurrent=ALL-UNNAMED',
-      '--add-opens',
-      'java.base/java.util.concurrent.atomic=ALL-UNNAMED',
-      // errorprone tests need access to the javac compiler
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-      '--add-exports',
-      'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
+            '-Xmx4g',
+            '-XX:-UseGCOverheadLimit',
+            // Mockito and jackson-databind do some strange reflection during tests.
+            // This suppresses an illegal access warning.
+            '--add-opens',
+            'java.base/java.util=ALL-UNNAMED',
+            '--add-opens',
+            'java.base/java.util.concurrent=ALL-UNNAMED',
+            '--add-opens',
+            'java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+            // errorprone tests need access to the javac compiler
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+            '--add-exports',
+            'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
     ]
     Set toImport = [
-      'test.ethereum.include',
-      'test.ethereum.state.eip',
-      'root.log.level',
-      'evm.log.level',
-      'acctests.keepLogsOfPassingTests'
+            'test.ethereum.include',
+            'test.ethereum.state.eip',
+            'root.log.level',
+            'evm.log.level',
+            'acctests.keepLogsOfPassingTests'
     ]
     for (String name : toImport) {
       if (System.getProperty(name) != null) {
@@ -358,63 +426,63 @@ configure(allprojects - project(':platform')) {
     options.addBooleanOption('Xdoclint:all', true)
     // disable doc lint checking for generated code and acceptance tests dsl.
     options.addBooleanOption('Xdoclint/package:-org.hyperledger.besu.privacy.contracts.generated,' +
-      '-org.hyperledger.besu.tests.acceptance.*,' +
-      '-org.hyperledger.besu.tests.web3j.generated,' +
-      // TODO: these are temporary excluded from lint (ethereum sub modules), it should be removed in a future PR.
-      // ethereum api module
-      '-org.hyperledger.besu.ethereum.api.handlers,' +
-      '-org.hyperledger.besu.ethereum.api.jsonrpc,' +
-      '-org.hyperledger.besu.ethereum.api.jsonrpc.*,' +
-      '-org.hyperledger.besu.ethereum.api.query,' +
-      '-org.hyperledger.besu.ethereum.api.query.*,' +
-      '-org.hyperledger.besu.ethereum.api.tls,' +
-      '-org.hyperledger.besu.ethereum.api.util,' +
-      // ethereum blockcreation module
-      '-org.hyperledger.besu.ethereum.blockcreation,' +
-      '-org.hyperledger.besu.ethereum.blockcreation.*,' +
-      // ethereum core module
-      '-org.hyperledger.besu.ethereum.chain,' +
-      '-org.hyperledger.besu.ethereum.core,' +
-      '-org.hyperledger.besu.ethereum.core.*,' +
-      '-org.hyperledger.besu.ethereum.debug,' +
-      '-org.hyperledger.besu.ethereum.difficulty.fixed,' +
-      '-org.hyperledger.besu.ethereum.forkid,' +
-      '-org.hyperledger.besu.ethereum.mainnet,' +
-      '-org.hyperledger.besu.ethereum.mainnet.*,' +
-      '-org.hyperledger.besu.ethereum.privacy,' +
-      '-org.hyperledger.besu.ethereum.privacy.*,' +
-      '-org.hyperledger.besu.ethereum.processing,' +
-      '-org.hyperledger.besu.ethereum.proof,' +
-      '-org.hyperledger.besu.ethereum.storage,' +
-      '-org.hyperledger.besu.ethereum.storage.*,' +
-      '-org.hyperledger.besu.ethereum.transaction,' +
-      '-org.hyperledger.besu.ethereum.trie.*,' +
-      '-org.hyperledger.besu.ethereum.util,' +
-      '-org.hyperledger.besu.ethereum.vm,' +
-      '-org.hyperledger.besu.ethereum.worldstate,' +
-      // ethereum eth module
-      '-org.hyperledger.besu.ethereum.eth.*,' +
-      '-org.hyperledger.besu.ethereum.eth,' +
-      '-org.hyperledger.besu.consensus.merge,' +
-      // p2p module
-      '-org.hyperledger.besu.ethereum.p2p,' +
-      '-org.hyperledger.besu.ethereum.p2p.*,' +
-      // permissioning module
-      '-org.hyperledger.besu.ethereum.permissioning,' +
-      '-org.hyperledger.besu.ethereum.permissioning.*,' +
-      // referencetests module
-      '-org.hyperledger.besu.ethereum.referencetests,' +
-      //rlp module
-      '-org.hyperledger.besu.ethereum.rlp,' +
-      // stratum module
-      '-org.hyperledger.besu.ethereum.stratum,' +
-      // trie module
-      '-org.hyperledger.besu.ethereum.trie.*,' +
-      '-org.hyperledger.besu.ethereum.trie,' +
-      // verkle trie module
-      '-org.hyperledger.besu.ethereum.verkletrie,' +
-      '-org.hyperledger.besu.ethereum.verkletrie.*',
-      true)
+            '-org.hyperledger.besu.tests.acceptance.*,' +
+            '-org.hyperledger.besu.tests.web3j.generated,' +
+            // TODO: these are temporary excluded from lint (ethereum sub modules), it should be removed in a future PR.
+            // ethereum api module
+            '-org.hyperledger.besu.ethereum.api.handlers,' +
+            '-org.hyperledger.besu.ethereum.api.jsonrpc,' +
+            '-org.hyperledger.besu.ethereum.api.jsonrpc.*,' +
+            '-org.hyperledger.besu.ethereum.api.query,' +
+            '-org.hyperledger.besu.ethereum.api.query.*,' +
+            '-org.hyperledger.besu.ethereum.api.tls,' +
+            '-org.hyperledger.besu.ethereum.api.util,' +
+            // ethereum blockcreation module
+            '-org.hyperledger.besu.ethereum.blockcreation,' +
+            '-org.hyperledger.besu.ethereum.blockcreation.*,' +
+            // ethereum core module
+            '-org.hyperledger.besu.ethereum.chain,' +
+            '-org.hyperledger.besu.ethereum.core,' +
+            '-org.hyperledger.besu.ethereum.core.*,' +
+            '-org.hyperledger.besu.ethereum.debug,' +
+            '-org.hyperledger.besu.ethereum.difficulty.fixed,' +
+            '-org.hyperledger.besu.ethereum.forkid,' +
+            '-org.hyperledger.besu.ethereum.mainnet,' +
+            '-org.hyperledger.besu.ethereum.mainnet.*,' +
+            '-org.hyperledger.besu.ethereum.privacy,' +
+            '-org.hyperledger.besu.ethereum.privacy.*,' +
+            '-org.hyperledger.besu.ethereum.processing,' +
+            '-org.hyperledger.besu.ethereum.proof,' +
+            '-org.hyperledger.besu.ethereum.storage,' +
+            '-org.hyperledger.besu.ethereum.storage.*,' +
+            '-org.hyperledger.besu.ethereum.transaction,' +
+            '-org.hyperledger.besu.ethereum.trie.*,' +
+            '-org.hyperledger.besu.ethereum.util,' +
+            '-org.hyperledger.besu.ethereum.vm,' +
+            '-org.hyperledger.besu.ethereum.worldstate,' +
+            // ethereum eth module
+            '-org.hyperledger.besu.ethereum.eth.*,' +
+            '-org.hyperledger.besu.ethereum.eth,' +
+            '-org.hyperledger.besu.consensus.merge,' +
+            // p2p module
+            '-org.hyperledger.besu.ethereum.p2p,' +
+            '-org.hyperledger.besu.ethereum.p2p.*,' +
+            // permissioning module
+            '-org.hyperledger.besu.ethereum.permissioning,' +
+            '-org.hyperledger.besu.ethereum.permissioning.*,' +
+            // referencetests module
+            '-org.hyperledger.besu.ethereum.referencetests,' +
+            //rlp module
+            '-org.hyperledger.besu.ethereum.rlp,' +
+            // stratum module
+            '-org.hyperledger.besu.ethereum.stratum,' +
+            // trie module
+            '-org.hyperledger.besu.ethereum.trie.*,' +
+            '-org.hyperledger.besu.ethereum.trie,' +
+            // verkle trie module
+            '-org.hyperledger.besu.ethereum.verkletrie,' +
+            '-org.hyperledger.besu.ethereum.verkletrie.*',
+            true)
     options.addStringOption('Xmaxerrs','65535')
     options.addStringOption('Xmaxwarns','65535')
     options.addStringOption('Xwerror', '-html5')
@@ -433,8 +501,8 @@ task checkMavenCoordinateCollisions {
           def coordinate = it.publishing?.publications[0].coordinates
           if (coordinate.toString().startsWith("org") && coordinates.containsKey(coordinate)) {
             throw new GradleException("Duplicate maven coordinates detected, ${coordinate} is used by " +
-            "both ${coordinates[coordinate]} and ${it.path}.\n" +
-            "Please add a `publishing` script block to one or both subprojects.")
+                    "both ${coordinates[coordinate]} and ${it.path}.\n" +
+                    "Please add a `publishing` script block to one or both subprojects.")
           }
           coordinates[coordinate] = it.path
         }
@@ -492,10 +560,10 @@ subprojects {
       description = "Runs the Besu integration tests"
 
       jvmArgs = [
-        '--add-opens',
-        'java.base/java.util=ALL-UNNAMED',
-        '--add-opens',
-        'java.base/java.util.concurrent=ALL-UNNAMED'
+              '--add-opens',
+              'java.base/java.util=ALL-UNNAMED',
+              '--add-opens',
+              'java.base/java.util.concurrent=ALL-UNNAMED'
       ]
       testClassesDirs = sourceSets.integrationTest.output.classesDirs
       classpath = sourceSets.integrationTest.runtimeClasspath
@@ -632,29 +700,29 @@ jar { enabled = false }
 apply plugin: 'application'
 mainClassName = 'org.hyperledger.besu.Besu'
 applicationDefaultJvmArgs = [
-  '-Dvertx.disableFileCPResolving=true',
-  // BESU_HOME is replaced by a doFirst block in the run task.
-  '-Dbesu.home=BESU_HOME',
-  // We shutdown log4j ourselves, as otherwise this shutdown hook runs before our own and whatever
-  // happens during shutdown is not logged.
-  '-Dlog4j.shutdownHookEnabled=false',
-  // Disable JNI lookups in log4j messages to improve security
-  '-Dlog4j2.formatMsgNoLookups=true',
-  // Redirect java.util.logging loggers to use log4j2.
-  '-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager',
-  // Suppress Java JPMS warnings.  Document the reason for each suppression.
-  // Bouncy Castle needs access to sun.security.provider, which is not open by default.
-  '--add-opens',
-  'java.base/sun.security.provider=ALL-UNNAMED',
-  // Jackson likes to access java.util.OptionalLong's constructor
-  '--add-opens',
-  'java.base/java.util=ALL-UNNAMED',
-  // suppress netty specific module warnings in debug
-  "-Dio.netty.tryReflectionSetAccessible=true",
-  "--add-exports",
-  "java.base/jdk.internal.misc=ALL-UNNAMED",
-  "--add-opens",
-  "java.base/java.nio=ALL-UNNAMED"
+        '-Dvertx.disableFileCPResolving=true',
+        // BESU_HOME is replaced by a doFirst block in the run task.
+        '-Dbesu.home=BESU_HOME',
+        // We shutdown log4j ourselves, as otherwise this shutdown hook runs before our own and whatever
+        // happens during shutdown is not logged.
+        '-Dlog4j.shutdownHookEnabled=false',
+        // Disable JNI lookups in log4j messages to improve security
+        '-Dlog4j2.formatMsgNoLookups=true',
+        // Redirect java.util.logging loggers to use log4j2.
+        '-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager',
+        // Suppress Java JPMS warnings.  Document the reason for each suppression.
+        // Bouncy Castle needs access to sun.security.provider, which is not open by default.
+        '--add-opens',
+        'java.base/sun.security.provider=ALL-UNNAMED',
+        // Jackson likes to access java.util.OptionalLong's constructor
+        '--add-opens',
+        'java.base/java.util=ALL-UNNAMED',
+        // suppress netty specific module warnings in debug
+        "-Dio.netty.tryReflectionSetAccessible=true",
+        "--add-exports",
+        "java.base/jdk.internal.misc=ALL-UNNAMED",
+        "--add-opens",
+        "java.base/java.nio=ALL-UNNAMED"
 ]
 
 run {
@@ -676,19 +744,19 @@ def tweakStartScript(createScriptTask) {
 
   // Prevent the error originating from the 8191 chars limit on Windows
   createScriptTask.windowsScript.text =
-    createScriptTask.windowsScript
-    .readLines()
-    .collect(shortenWindowsClasspath)
-    .join('\r\n')
+          createScriptTask.windowsScript
+                  .readLines()
+                  .collect(shortenWindowsClasspath)
+                  .join('\r\n')
 }
 
 startScripts {
   defaultJvmOpts = applicationDefaultJvmArgs + [
-    "-XX:G1ConcRefinementThreads=2",
-    "-XX:G1HeapWastePercent=15",
-    "-XX:MaxGCPauseMillis=100",
-    "-XX:StartFlightRecording,settings=default.jfc",
-    "-Xlog:jfr*=off"
+          "-XX:G1ConcRefinementThreads=2",
+          "-XX:G1HeapWastePercent=15",
+          "-XX:MaxGCPauseMillis=100",
+          "-XX:StartFlightRecording,settings=default.jfc",
+          "-Xlog:jfr*=off"
   ]
   unixStartScriptGenerator.template = resources.text.fromFile("${projectDir}/besu/src/main/scripts/unixStartScript.txt")
   windowsStartScriptGenerator.template = resources.text.fromFile("${projectDir}/besu/src/main/scripts/windowsStartScript.txt")
@@ -712,7 +780,7 @@ task evmToolStartScripts(type: CreateStartScripts) {
   outputDir = startScripts.outputDir
   applicationName = 'evmtool'
   defaultJvmOpts = [
-    "-Dsecp256k1.randomize=false"
+          "-Dsecp256k1.randomize=false"
   ]
   unixStartScriptGenerator.template = resources.text.fromFile("${projectDir}/besu/src/main/scripts/unixStartScript.txt")
   windowsStartScriptGenerator.template = resources.text.fromFile("${projectDir}/besu/src/main/scripts/windowsStartScript.txt")
@@ -908,8 +976,8 @@ task dockerUploadRelease {
 task manifestDocker {
   def image = "${dockerImageName}:${dockerBuildVersion}"
   def archs = [
-    "arm64",
-    "amd64"] //TODO: this assumes dockerUpload task has already been run on 2 different archs!
+          "arm64",
+          "amd64"] //TODO: this assumes dockerUpload task has already been run on 2 different archs!
   doLast {
     exec {
       def targets = ""
@@ -1021,8 +1089,8 @@ def getGitCommitDetails(length = 8) {
 // Takes the version and if it contains SNAPSHOT, alpha, beta or RC in version then return true indicating an interim build
 def isInterimBuild(dockerBuildVersion) {
   return (dockerBuildVersion ==~ /.*-SNAPSHOT/) || (dockerBuildVersion ==~ /.*-alpha/)
-  || (dockerBuildVersion ==~ /.*-beta/) || (dockerBuildVersion ==~ /.*-RC.*/)
-  || (dockerBuildVersion ==~ /.*develop.*/)
+          || (dockerBuildVersion ==~ /.*-beta/) || (dockerBuildVersion ==~ /.*-RC.*/)
+          || (dockerBuildVersion ==~ /.*develop.*/)
 }
 
 tasks.register("verifyDistributions") {
