@@ -128,6 +128,7 @@ public class StructLog {
   }
 
   @JsonGetter("reason")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String reason() {
     return reason;
   }
