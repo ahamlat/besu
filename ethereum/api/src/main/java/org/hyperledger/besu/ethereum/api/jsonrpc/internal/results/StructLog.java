@@ -22,6 +22,8 @@ import java.util.Objects;
 import java.util.TreeMap;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
@@ -98,6 +100,7 @@ public class StructLog {
   }
 
   @JsonGetter("memory")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String[] memory() {
     return memory;
   }
@@ -113,11 +116,13 @@ public class StructLog {
   }
 
   @JsonGetter("stack")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String[] stack() {
     return stack;
   }
 
   @JsonGetter("storage")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Object storage() {
     return storage;
   }
