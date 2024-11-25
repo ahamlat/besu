@@ -191,17 +191,23 @@ public class TraceFrame {
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("pc", pc)
-        .add("opcode", opcode)
-        .add("getGasRemaining", gasRemaining)
-        .add("gasCost", gasCost)
-        .add("depth", depth)
-        .add("exceptionalHaltReason", exceptionalHaltReason)
-        .add("stack", stack)
-        .add("memory", memory)
-        .add("storage", storage)
-        .toString();
+    MoreObjects.ToStringHelper helper = MoreObjects.toStringHelper(this)
+            .add("pc", pc)
+            .add("opcode", opcode)
+            .add("getGasRemaining", gasRemaining)
+            .add("gasCost", gasCost)
+            .add("depth", depth)
+            .add("exceptionalHaltReason", exceptionalHaltReason);
+    if (stack.isPresent()) {
+      helper.add("stack", stack);
+    }
+    if (memory.isPresent()) {
+      helper.add("memory", memory);
+    }
+    if (storage.isPresent()) {
+      helper.add("storage", storage);
+    }
+    return helper.toString();
   }
 
   public Optional<Code> getMaybeCode() {
