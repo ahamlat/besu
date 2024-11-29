@@ -60,7 +60,7 @@ public class StructLog {
             .map(
                 a ->
                     Arrays.stream(a)
-                        .map(Bytes::toUnprefixedHexString).toArray(String[]::new))
+                        .map(Bytes::toShortHexString).toArray(String[]::new))
             .orElse(null);
 
     storage = traceFrame.getStorage().map(StructLog::formatStorage).orElse(null);
