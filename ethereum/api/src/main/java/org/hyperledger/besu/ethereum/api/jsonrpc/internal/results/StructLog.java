@@ -60,20 +60,11 @@ public class StructLog {
             .map(
                 a ->
                     Arrays.stream(a)
-                        .map(Bytes::toUnprefixedHexString)
-                        .map(this::stringLeftPadTo64)
-                        .toArray(String[]::new))
+                        .map(Bytes::toUnprefixedHexString).toArray(String[]::new))
             .orElse(null);
 
     storage = traceFrame.getStorage().map(StructLog::formatStorage).orElse(null);
     reason = traceFrame.getRevertReason().map(Bytes::toShortHexString).orElse(null);
-  }
-
-  private String stringLeftPadTo64(final String unPaddedHexString) {
-    StringBuilder sb = new StringBuilder(64);
-    sb.append(bytes32ZeroString, 0, 64 - unPaddedHexString.length());
-    sb.append(unPaddedHexString);
-    return sb.toString();
   }
 
   private static Map<String, String> formatStorage(final Map<UInt256, UInt256> storage) {
