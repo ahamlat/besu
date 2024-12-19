@@ -50,7 +50,7 @@ public class StructLog {
     memory =
         traceFrame
             .getMemory()
-            .map(a -> Arrays.stream(a).map(Bytes::toUnprefixedHexString).toArray(String[]::new))
+            .map(a -> Arrays.stream(a).map(Bytes::toShortHexString).toArray(String[]::new))
             .orElse(null);
     op = traceFrame.getOpcode();
     pc = traceFrame.getPc();
@@ -71,7 +71,7 @@ public class StructLog {
     final Map<String, String> formattedStorage = new TreeMap<>();
     storage.forEach(
         (key, value) ->
-            formattedStorage.put(key.toUnprefixedHexString(), value.toUnprefixedHexString()));
+            formattedStorage.put(key.toShortHexString(), value.toShortHexString()));
     return formattedStorage;
   }
 
