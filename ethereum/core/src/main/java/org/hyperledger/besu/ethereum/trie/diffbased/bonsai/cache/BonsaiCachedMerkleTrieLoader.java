@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.ethereum.trie.diffbased.bonsai.cache;
 
+import static org.hyperledger.besu.ethereum.trie.CompactEncoding.bytesToPath;
 import static org.hyperledger.besu.metrics.BesuMetricCategory.BLOCKCHAIN;
 
 import org.hyperledger.besu.datatypes.Address;
@@ -26,6 +27,8 @@ import org.hyperledger.besu.ethereum.trie.diffbased.common.StorageSubscriber;
 import org.hyperledger.besu.ethereum.trie.patricia.StoredMerklePatriciaTrie;
 import org.hyperledger.besu.metrics.ObservableMetricsSystem;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -65,18 +68,21 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       final Address account) {
     final long storageSubscriberId = worldStateKeyValueStorage.subscribe(this);
     try {
-      final StoredMerklePatriciaTrie<Bytes, Bytes> accountTrie =
-          new StoredMerklePatriciaTrie<>(
-              (location, hash) -> {
-                Optional<Bytes> node =
-                    getAccountStateTrieNode(worldStateKeyValueStorage, location, hash);
-                node.ifPresent(bytes -> accountNodes.put(Hash.hash(bytes), bytes));
-                return node;
-              },
-              worldStateRootHash,
-              Function.identity(),
-              Function.identity());
-      accountTrie.get(account.addressHash());
+
+      Bytes path = bytesToPath(account.addressHash());
+      int size = path.size();
+      List<byte[]> inputs = new ArrayList<>(size);
+      for (int i=1; i < path.size(); i++)  {
+        Bytes slice = path.slice(0,i);
+        inputs.add(slice.toArrayUnsafe());
+      }
+
+      List<byte[]> outputs = worldStateKeyValueStorage.getMultipleKeys(inputs);
+
+      for (int i = 0; i < inputs.size() ; i++) {
+        accountNodes.put(Hash.hash(Bytes.wrap(inputs.get(i))), Bytes.wrap(outputs.get(i)));
+      }
+
     } catch (MerkleTrieException e) {
       // ignore exception for the cache
     } finally {
@@ -100,28 +106,19 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
     final Hash accountHash = account.addressHash();
     final long storageSubscriberId = worldStateKeyValueStorage.subscribe(this);
     try {
-      worldStateKeyValueStorage
-          .getStateTrieNode(Bytes.concatenate(accountHash, Bytes.EMPTY))
-          .ifPresent(
-              storageRoot -> {
-                try {
-                  final StoredMerklePatriciaTrie<Bytes, Bytes> storageTrie =
-                      new StoredMerklePatriciaTrie<>(
-                          (location, hash) -> {
-                            Optional<Bytes> node =
-                                getAccountStorageTrieNode(
-                                    worldStateKeyValueStorage, accountHash, location, hash);
-                            node.ifPresent(bytes -> storageNodes.put(Hash.hash(bytes), bytes));
-                            return node;
-                          },
-                          Hash.hash(storageRoot),
-                          Function.identity(),
-                          Function.identity());
-                  storageTrie.get(slotKey.getSlotHash());
-                } catch (MerkleTrieException e) {
-                  // ignore exception for the cache
-                }
-              });
+      Bytes path = bytesToPath(slotKey.getSlotHash());
+      int size = path.size();
+      List<byte[]> inputs = new ArrayList<>(size);
+      for (int i=1; i < path.size(); i++)  {
+        Bytes slice = path.slice(0,i);
+        inputs.add(Bytes.concatenate(accountHash, slice).toArrayUnsafe());
+      }
+
+      List<byte[]> outputs = worldStateKeyValueStorage.getMultipleKeys(inputs);
+
+      for (int i = 0; i < inputs.size() ; i++) {
+        storageNodes.put(Hash.hash(Bytes.wrap(inputs.get(i))), Bytes.wrap(outputs.get(i)));
+      }
     } finally {
       worldStateKeyValueStorage.unSubscribe(storageSubscriberId);
     }

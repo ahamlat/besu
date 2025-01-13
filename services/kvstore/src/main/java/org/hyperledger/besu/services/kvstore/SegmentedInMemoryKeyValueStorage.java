@@ -145,6 +145,11 @@ public class SegmentedInMemoryKeyValueStorage
   }
 
   @Override
+  public List<byte[]> multiget(final List<SegmentIdentifier> segments, final List<byte[]> keys) throws StorageException {
+    return List.of();
+  }
+
+  @Override
   public Optional<NearestKeyValue> getNearestBefore(
       final SegmentIdentifier segmentIdentifier, final Bytes key) throws StorageException {
     return getNearest(

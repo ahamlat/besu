@@ -24,6 +24,8 @@ import org.hyperledger.besu.plugin.services.storage.SnappedKeyValueStorage;
 import org.hyperledger.besu.plugin.services.storage.rocksdb.RocksDBMetrics;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -73,6 +75,12 @@ public class RocksDBColumnarKeyValueSnapshot
       throws StorageException {
     throwIfClosed();
     return snapTx.get(segment, key);
+  }
+
+
+  @Override
+  public List<byte[]> multiget(final List<SegmentIdentifier> segments, final List<byte[]> keys) throws StorageException {
+    return List.of();
   }
 
   @Override
