@@ -75,7 +75,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       Optional<SegmentedKeyValueStorage.NearestKeyValue> nearestBefore = worldStateKeyValueStorage.getComposedWorldStateStorage().getNearestBefore(KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE, bytesPath);
 
       if (nearestBefore.isPresent()) {
-        if (nearestBefore.get().wrapBytes().isPresent()) accountNodes.put(nearestBefore.get().key(), nearestBefore.get().wrapBytes().get());
+        if (nearestBefore.get().wrapBytes().isPresent()) accountNodes.put(Hash.hash(nearestBefore.get().key()), nearestBefore.get().wrapBytes().get());
         byte[] path = nearestBefore.get().key().toArrayUnsafe();
         List<byte[]> inputs = new ArrayList<>(path.length);
         for (int i = 1; i < path.length-1; i++) {
@@ -120,7 +120,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       Optional<SegmentedKeyValueStorage.NearestKeyValue> nearestBefore = worldStateKeyValueStorage.getComposedWorldStateStorage().getNearestBefore(KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE, bytesPath);
       if (nearestBefore.isPresent()) {
         byte[] path = nearestBefore.get().key().toArrayUnsafe();
-        if (nearestBefore.get().wrapBytes().isPresent()) storageNodes.put(nearestBefore.get().key(), nearestBefore.get().wrapBytes().get());
+        if (nearestBefore.get().wrapBytes().isPresent()) storageNodes.put(Hash.hash(nearestBefore.get().key()), nearestBefore.get().wrapBytes().get());
         int accountHashBytesSize = accountHashBytes.length;
         List<byte[]> inputs = new ArrayList<>(path.length);
         for (int i=1; i < path.length-1; i++)  {
