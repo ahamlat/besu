@@ -141,7 +141,7 @@ public class BonsaiWorldState extends DiffBasedWorldState {
 
     // This must be done before updating the accounts so
     // that we can get the storage state hash
-    Stream<Map.Entry<Address, StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>>>>
+    Stream<Map.Entry<Address, StorageConsumingMap<StorageSlotKey,UInt256>>>
         storageStream = worldStateUpdater.getStorageToUpdate().entrySet().stream();
     if (maybeStateUpdater.isEmpty()) {
       storageStream =
@@ -248,7 +248,7 @@ public class BonsaiWorldState extends DiffBasedWorldState {
   private void updateAccountStorageState(
       final Optional<BonsaiWorldStateKeyValueStorage.Updater> maybeStateUpdater,
       final BonsaiWorldStateUpdateAccumulator worldStateUpdater,
-      final Map.Entry<Address, StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>>>
+      final Map.Entry<Address, StorageConsumingMap<StorageSlotKey, UInt256>>
           storageAccountUpdate) {
     final Address updatedAddress = storageAccountUpdate.getKey();
     final Hash updatedAddressHash = updatedAddress.addressHash();
@@ -335,7 +335,7 @@ public class BonsaiWorldState extends DiffBasedWorldState {
               (location, key) -> getStorageTrieNode(addressHash, location, key),
               oldAccount.getStorageRoot());
       try {
-        final StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> storageToDelete =
+        final StorageConsumingMap<StorageSlotKey, UInt256> storageToDelete =
             worldStateUpdater.getStorageToUpdate().get(address);
         Map<Bytes32, Bytes> entriesToDelete = storageTrie.entriesFrom(Bytes32.ZERO, 256);
         while (!entriesToDelete.isEmpty()) {

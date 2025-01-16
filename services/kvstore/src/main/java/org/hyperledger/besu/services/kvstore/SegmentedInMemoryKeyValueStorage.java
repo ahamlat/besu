@@ -25,6 +25,7 @@ import org.hyperledger.besu.plugin.services.storage.SnappableKeyValueStorage;
 import org.hyperledger.besu.plugin.services.storage.SnappedKeyValueStorage;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -146,8 +147,32 @@ public class SegmentedInMemoryKeyValueStorage
 
   @Override
   public List<byte[]> multiget(final List<SegmentIdentifier> segments, final List<byte[]> keys) throws StorageException {
-    return List.of();
+    if (segments.size() != keys.size()) {
+      throw new IllegalArgumentException("The number of segments must be equal to the number of keys");
+    }
+    final Lock lock = rwLock.readLock();
+    lock.lock();
+    try {
+      List<byte[]> result = new ArrayList<>(segments.size());
+
+      for (int i = 0; i < segments.size(); i++) {
+        SegmentIdentifier segmentIdentifier = segments.get(i);
+        byte[] key = keys.get(i);
+
+        // Get the segment map and retrieve the value associated with the key
+        Optional<byte[]> value = hashValueStore
+                .computeIfAbsent(segmentIdentifier, s -> newSegmentMap())
+                .getOrDefault(Bytes.wrap(key), Optional.empty());
+
+        // Add the result to the list (null will be added if no value is found)
+        result.add(value.orElse(null));
+      }
+      return result;
+    } finally {
+      lock.unlock();
+    }
   }
+
 
   @Override
   public Optional<NearestKeyValue> getNearestBefore(

@@ -21,6 +21,8 @@ import org.hyperledger.besu.plugin.services.storage.SegmentedKeyValueStorageTran
 import org.hyperledger.besu.plugin.services.storage.rocksdb.RocksDBMetrics;
 import org.hyperledger.besu.plugin.services.storage.rocksdb.RocksDbIterator;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -101,6 +103,19 @@ public class RocksDBSnapshotTransaction
 
     try (final OperationTimer.TimingContext ignored = metrics.getReadLatency().startTimer()) {
       return Optional.ofNullable(snapTx.get(columnFamilyMapper.apply(segmentId), readOptions, key));
+    } catch (final RocksDBException e) {
+      throw new StorageException(e);
+    }
+  }
+
+
+  public List<byte[]> multiget(final List<SegmentIdentifier> segments, final List<byte[]> keys) {
+    List<ColumnFamilyHandle> columnFamilyHandleList = new ArrayList<>(segments.size());
+    for (int i = 0; i < segments.size(); i++) {
+      columnFamilyHandleList.add(columnFamilyMapper.apply(segments.get(i)));
+    }
+    try (final OperationTimer.TimingContext ignored = metrics.getReadLatency().startTimer()) {
+      return snapTx.multiGetAsList(readOptions, columnFamilyHandleList, keys);
     } catch (final RocksDBException e) {
       throw new StorageException(e);
     }
@@ -280,4 +295,6 @@ public class RocksDBSnapshotTransaction
       throw new StorageException("Storage has already been closed");
     }
   }
+
+
 }

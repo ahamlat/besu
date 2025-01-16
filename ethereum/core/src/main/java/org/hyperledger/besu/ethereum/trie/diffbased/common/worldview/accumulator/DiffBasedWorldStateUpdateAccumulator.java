@@ -71,7 +71,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
   // storage sub mapped by _hashed_ key.  This is because in self_destruct calls we need to
   // enumerate the old storage and delete it.  Those are trie stored by hashed key by spec and the
   // alternative was to keep a giant pre-image cache of the entire trie.
-  private final Map<Address, StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>>>
+  private final Map<Address, StorageConsumingMap<StorageSlotKey, UInt256>>
       storageToUpdate = new ConcurrentHashMap<>();
 
   private final Map<UInt256, Hash> storageKeyHashLookup = new ConcurrentHashMap<>();
@@ -138,7 +138,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
         .getStorageToUpdate()
         .forEach(
             (address, slots) -> {
-              StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> storageConsumingMap =
+              StorageConsumingMap<StorageSlotKey, UInt256> storageConsumingMap =
                   storageToUpdate.computeIfAbsent(
                       address,
                       k ->
@@ -197,7 +197,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
         .getStorageToUpdate()
         .forEach(
             (address, slots) -> {
-              StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> storageConsumingMap =
+              StorageConsumingMap<StorageSlotKey, UInt256> storageConsumingMap =
                   storageToUpdate.computeIfAbsent(
                       address,
                       k ->
@@ -285,7 +285,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
   }
 
   @Override
-  public Map<Address, StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>>>
+  public Map<Address, StorageConsumingMap<StorageSlotKey, UInt256>>
       getStorageToUpdate() {
     return storageToUpdate;
   }
@@ -593,7 +593,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
   @Override
   public Map<Bytes32, Bytes> getAllAccountStorage(final Address address, final Hash rootHash) {
     final Map<Bytes32, Bytes> results = wrappedWorldView().getAllAccountStorage(address, rootHash);
-    final StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> diffBasedValueStorage =
+    final StorageConsumingMap<StorageSlotKey, UInt256> diffBasedValueStorage =
         storageToUpdate.get(address);
     if (diffBasedValueStorage != null) {
       // hash the key to match the implied storage interface of hashed slotKey
@@ -773,7 +773,7 @@ public abstract class DiffBasedWorldStateUpdateAccumulator<ACCOUNT extends DiffB
   private Map<StorageSlotKey, DiffBasedValue<UInt256>> maybeCreateStorageMap(
       final Map<StorageSlotKey, DiffBasedValue<UInt256>> storageMap, final Address address) {
     if (storageMap == null) {
-      final StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> newMap =
+      final StorageConsumingMap<StorageSlotKey, UInt256> newMap =
           new StorageConsumingMap<>(address, new ConcurrentHashMap<>(), storagePreloader);
       storageToUpdate.put(address, newMap);
       return newMap;

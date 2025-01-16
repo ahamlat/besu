@@ -24,10 +24,14 @@ import org.hyperledger.besu.plugin.services.storage.SegmentedKeyValueStorage;
 import org.hyperledger.besu.plugin.services.storage.SegmentedKeyValueStorageTransaction;
 import org.hyperledger.besu.plugin.services.storage.SnappedKeyValueStorage;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterators;
 import java.util.concurrent.ConcurrentHashMap;
@@ -100,6 +104,42 @@ public class LayeredKeyValueStorage extends SegmentedInMemoryKeyValueStorage
       lock.unlock();
     }
   }
+
+  @Override
+  public List<byte[]> multiget(final List<SegmentIdentifier> segments, final List<byte[]> keys) throws StorageException {
+    if (segments.size() != keys.size()) {
+      throw new IllegalArgumentException("The number of segments must be equal to the number of keys");
+    }
+    List<byte[]> keysCopy = new ArrayList<>(keys);
+    final Lock lock = rwLock.readLock();
+    lock.lock();
+    try {
+      List<byte[]> result = new ArrayList<>(segments.size());
+
+      for (int i = 0; i < segments.size(); i++) {
+        SegmentIdentifier segmentIdentifier = segments.get(i);
+        byte[] key = keys.get(i);
+
+        Optional<byte[]> value = hashValueStore
+                .computeIfAbsent(segmentIdentifier, s -> newSegmentMap())
+                .get(Bytes.wrap(key));
+        if (value != null)
+        {
+          result.add(value.orElse(null));
+          keysCopy.remove(key);
+        }
+      }
+      if (!keysCopy.isEmpty())  {
+        List<SegmentIdentifier> newSegments = segments.subList(0, keysCopy.size());
+        List<byte[]> parentResults = parent.multiget(newSegments, keysCopy);
+        result.addAll(parentResults);
+      }
+      return result;
+    } finally {
+      lock.unlock();
+    }
+  }
+
 
   @Override
   public Optional<NearestKeyValue> getNearestBefore(
@@ -280,8 +320,8 @@ public class LayeredKeyValueStorage extends SegmentedInMemoryKeyValueStorage
   @Override
   public boolean tryDelete(final SegmentIdentifier segmentId, final byte[] key) {
     hashValueStore
-        .computeIfAbsent(segmentId, __ -> newSegmentMap())
-        .put(Bytes.wrap(key), Optional.empty());
+            .computeIfAbsent(segmentId, __ -> newSegmentMap())
+            .put(Bytes.wrap(key), Optional.empty());
     return true;
   }
 

@@ -67,7 +67,7 @@ public class BonsaiReferenceTestUpdateAccumulator extends BonsaiWorldStateUpdate
     getStorageToUpdate()
         .forEach(
             (k, v) -> {
-              StorageConsumingMap<StorageSlotKey, DiffBasedValue<UInt256>> newMap =
+              StorageConsumingMap<StorageSlotKey, UInt256> newMap =
                   new StorageConsumingMap<>(k, new ConcurrentHashMap<>(), v.getConsumer());
               v.forEach((key, value) -> newMap.put(key, value.copy()));
               copy.getStorageToUpdate().put(k, newMap);

@@ -395,7 +395,6 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
     }
     try (final OperationTimer.TimingContext ignored = metrics.getReadLatency().startTimer()) {
       List<byte[]> result = getDB().multiGetAsList(readOptions, columnFamilyHandleList, keys);
-
       return result != null ? result : Collections.emptyList();
     } catch (final RocksDBException e) {
       throw new StorageException(e);

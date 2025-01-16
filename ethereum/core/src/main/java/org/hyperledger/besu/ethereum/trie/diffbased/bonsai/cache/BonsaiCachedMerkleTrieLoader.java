@@ -20,6 +20,7 @@ import static org.hyperledger.besu.metrics.BesuMetricCategory.BLOCKCHAIN;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.StorageSlotKey;
+import org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier;
 import org.hyperledger.besu.ethereum.trie.MerkleTrie;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
 import org.hyperledger.besu.ethereum.trie.diffbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
@@ -38,6 +39,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
+import org.hyperledger.besu.plugin.services.storage.SegmentedKeyValueStorage;
 
 public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
 
@@ -69,22 +71,29 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
     final long storageSubscriberId = worldStateKeyValueStorage.subscribe(this);
     try {
 
-      Bytes path = bytesToPath(account.addressHash());
-      int size = path.size();
-      List<byte[]> inputs = new ArrayList<>(size);
-      for (int i=1; i < path.size(); i++)  {
-        Bytes slice = path.slice(0,i);
-        inputs.add(slice.toArrayUnsafe());
+      Bytes bytesPath = bytesToPath(account.addressHash());
+      Optional<SegmentedKeyValueStorage.NearestKeyValue> nearestBefore = worldStateKeyValueStorage.getComposedWorldStateStorage().getNearestBefore(KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE, bytesPath);
+
+      if (nearestBefore.isPresent()) {
+        if (nearestBefore.get().wrapBytes().isPresent()) accountNodes.put(nearestBefore.get().key(), nearestBefore.get().wrapBytes().get());
+        byte[] path = nearestBefore.get().key().toArrayUnsafe();
+        List<byte[]> inputs = new ArrayList<>(path.length);
+        for (int i = 1; i < path.length-1; i++) {
+          byte[] slice = new byte[i];
+          System.arraycopy(path, 0,slice,0,i);
+          inputs.add(slice);
+        }
+
+        List<byte[]> outputs = worldStateKeyValueStorage.getMultipleKeys(inputs);
+        //System.out.println("cacheAccountNodes, outputs.size() : " + outputs.size());
+        for (byte[] output : outputs) {
+          if (output != null) accountNodes.put(Hash.hash(Bytes.wrap(output)), Bytes.wrap(output));
+        }
       }
 
-      List<byte[]> outputs = worldStateKeyValueStorage.getMultipleKeys(inputs);
-
-      for (int i = 0; i < inputs.size() ; i++) {
-        accountNodes.put(Hash.hash(Bytes.wrap(inputs.get(i))), Bytes.wrap(outputs.get(i)));
-      }
-
-    } catch (MerkleTrieException e) {
-      // ignore exception for the cache
+    } catch (Exception e) {
+      System.out.println("Cause : "+ e.getCause() +", message : "+e.getMessage());
+      e.printStackTrace();
     } finally {
       worldStateKeyValueStorage.unSubscribe(storageSubscriberId);
     }
@@ -106,18 +115,24 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
     final Hash accountHash = account.addressHash();
     final long storageSubscriberId = worldStateKeyValueStorage.subscribe(this);
     try {
-      Bytes path = bytesToPath(slotKey.getSlotHash());
-      int size = path.size();
-      List<byte[]> inputs = new ArrayList<>(size);
-      for (int i=1; i < path.size(); i++)  {
-        Bytes slice = path.slice(0,i);
-        inputs.add(Bytes.concatenate(accountHash, slice).toArrayUnsafe());
-      }
-
-      List<byte[]> outputs = worldStateKeyValueStorage.getMultipleKeys(inputs);
-
-      for (int i = 0; i < inputs.size() ; i++) {
-        storageNodes.put(Hash.hash(Bytes.wrap(inputs.get(i))), Bytes.wrap(outputs.get(i)));
+      Bytes bytesPath = bytesToPath(slotKey.getSlotHash());
+      byte[] accountHashBytes = accountHash.toArrayUnsafe();
+      Optional<SegmentedKeyValueStorage.NearestKeyValue> nearestBefore = worldStateKeyValueStorage.getComposedWorldStateStorage().getNearestBefore(KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE, bytesPath);
+      if (nearestBefore.isPresent()) {
+        byte[] path = nearestBefore.get().key().toArrayUnsafe();
+        if (nearestBefore.get().wrapBytes().isPresent()) storageNodes.put(nearestBefore.get().key(), nearestBefore.get().wrapBytes().get());
+        int accountHashBytesSize = accountHashBytes.length;
+        List<byte[]> inputs = new ArrayList<>(path.length);
+        for (int i=1; i < path.length-1; i++)  {
+          byte[] slice = new byte[accountHashBytesSize+i];
+          System.arraycopy(accountHashBytes, 0, slice, 0, accountHashBytesSize);
+          System.arraycopy(path, 0,slice,accountHashBytesSize,i);
+          inputs.add(slice);
+        }
+        List<byte[]> outputs = worldStateKeyValueStorage.getMultipleKeys(inputs);
+        for (byte[] output : outputs) {
+          if (output != null) storageNodes.put(Hash.hash(Bytes.wrap(output)), Bytes.wrap(output));
+        }
       }
     } finally {
       worldStateKeyValueStorage.unSubscribe(storageSubscriberId);
@@ -128,6 +143,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       final BonsaiWorldStateKeyValueStorage worldStateKeyValueStorage,
       final Bytes location,
       final Bytes32 nodeHash) {
+    System.out.println("getAccountStateTrieNode, accountNodes.size() : "+accountNodes.size());
     if (nodeHash.equals(MerkleTrie.EMPTY_TRIE_NODE_HASH)) {
       return Optional.of(MerkleTrie.EMPTY_TRIE_NODE);
     } else {

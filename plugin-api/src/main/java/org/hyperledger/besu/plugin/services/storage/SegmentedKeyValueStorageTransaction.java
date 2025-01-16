@@ -17,6 +17,8 @@ package org.hyperledger.besu.plugin.services.storage;
 import org.hyperledger.besu.plugin.Unstable;
 import org.hyperledger.besu.plugin.services.exception.StorageException;
 
+import java.util.List;
+
 /**
  * A transaction that can atomically commit a sequence of operations to a segmented key-value store.
  */
@@ -52,4 +54,5 @@ public interface SegmentedKeyValueStorageTransaction {
 
   /** Reset the transaction to a state prior to any operations being queued. */
   void rollback();
+
 }

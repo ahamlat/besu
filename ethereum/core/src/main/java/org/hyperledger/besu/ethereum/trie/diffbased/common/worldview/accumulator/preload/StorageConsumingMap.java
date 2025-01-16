@@ -15,39 +15,34 @@
 package org.hyperledger.besu.ethereum.trie.diffbased.common.worldview.accumulator.preload;
 
 import org.hyperledger.besu.datatypes.Address;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nonnull;
-
 import com.google.common.collect.ForwardingMap;
+import org.hyperledger.besu.ethereum.trie.diffbased.common.DiffBasedValue;
 
-public class StorageConsumingMap<K, T> extends ForwardingMap<K, T> {
-
+public class StorageConsumingMap<K, T> extends ForwardingMap<K, DiffBasedValue<T>> {
   private final Address address;
-
-  private final ConcurrentMap<K, T> storages;
+  private final ConcurrentMap<K, DiffBasedValue<T>> storages;
   private final Consumer<K> consumer;
-
   public StorageConsumingMap(
-      final Address address, final ConcurrentMap<K, T> storages, final Consumer<K> consumer) {
+          final Address address, final ConcurrentMap<K, DiffBasedValue<T>> storages, final Consumer<K> consumer) {
     this.address = address;
     this.storages = storages;
     this.consumer = consumer;
   }
-
   @Override
-  public T put(@Nonnull final K slotKey, @Nonnull final T value) {
-    consumer.process(address, slotKey);
+  public DiffBasedValue<T> put(@Nonnull final K slotKey, @Nonnull final DiffBasedValue<T> value) {
+    if(!value.isUnchanged()) {
+      consumer.process(address, slotKey);
+    }
     return storages.put(slotKey, value);
   }
-
   public Consumer<K> getConsumer() {
     return consumer;
   }
-
   @Override
-  protected Map<K, T> delegate() {
+  protected Map<K, DiffBasedValue<T>> delegate() {
     return storages;
   }
 }
