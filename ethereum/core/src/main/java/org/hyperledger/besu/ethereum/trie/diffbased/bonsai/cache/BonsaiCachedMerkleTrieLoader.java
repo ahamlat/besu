@@ -17,6 +17,7 @@ package org.hyperledger.besu.ethereum.trie.diffbased.bonsai.cache;
 import static org.hyperledger.besu.ethereum.trie.CompactEncoding.bytesToPath;
 import static org.hyperledger.besu.metrics.BesuMetricCategory.BLOCKCHAIN;
 
+import com.google.common.util.concurrent.AbstractListeningExecutorService;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.StorageSlotKey;
@@ -32,6 +33,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -49,6 +57,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       CacheBuilder.newBuilder().recordStats().maximumSize(ACCOUNT_CACHE_SIZE).build();
   private final Cache<Bytes, Bytes> storageNodes =
       CacheBuilder.newBuilder().recordStats().maximumSize(STORAGE_CACHE_SIZE).build();
+  private static final ExecutorService executorService = Executors.newFixedThreadPool(64);
 
   public BonsaiCachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem) {
     metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "accountsNodes", accountNodes);
@@ -70,12 +79,15 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       final Address account) {
     final long storageSubscriberId = worldStateKeyValueStorage.subscribe(this);
     try {
-
+      CompletionService<Optional<Bytes>> accountCompletionService = new ExecutorCompletionService<>(executorService);
       Bytes bytesPath = bytesToPath(account.addressHash());
       Optional<SegmentedKeyValueStorage.NearestKeyValue> nearestBefore = worldStateKeyValueStorage.getComposedWorldStateStorage().getNearestBefore(KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE, bytesPath);
 
       if (nearestBefore.isPresent()) {
-        if (nearestBefore.get().wrapBytes().isPresent()) accountNodes.put(Hash.hash(nearestBefore.get().key()), nearestBefore.get().wrapBytes().get());
+        if (nearestBefore.get().wrapBytes().isPresent()) {
+          Bytes value = nearestBefore.get().wrapBytes().get();
+          accountNodes.put(Hash.hash(value), value);
+        }
         byte[] path = nearestBefore.get().key().toArrayUnsafe();
         List<byte[]> inputs = new ArrayList<>(path.length);
         for (int i = 1; i < path.length-1; i++) {
@@ -84,11 +96,22 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
           inputs.add(slice);
         }
 
-        List<byte[]> outputs = worldStateKeyValueStorage.getMultipleKeys(inputs);
-        //System.out.println("cacheAccountNodes, outputs.size() : " + outputs.size());
-        for (byte[] output : outputs) {
-          if (output != null) accountNodes.put(Hash.hash(Bytes.wrap(output)), Bytes.wrap(output));
+        for (byte[] input : inputs) {
+          accountCompletionService.submit(() -> worldStateKeyValueStorage.getTrieNodeUnsafe(Bytes.wrap(input)));
         }
+        int remainingTasks = inputs.size();
+
+        while (remainingTasks > 0) {
+          Future<Optional<Bytes>> future = accountCompletionService.take();
+          if (future != null) {
+            Optional<Bytes> output = future.get(); // Get the result (blocking for each future)
+            if (output.isPresent()) {
+              accountNodes.put(Hash.hash(output.get()), Bytes.wrap(output.get()));  // Your logic for processing
+            }
+            remainingTasks--;
+          }
+        }
+
       }
 
     } catch (Exception e) {
@@ -111,16 +134,14 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
   public void cacheStorageNodes(
       final BonsaiWorldStateKeyValueStorage worldStateKeyValueStorage,
       final Address account,
-      final StorageSlotKey slotKey) {
+      final StorageSlotKey slotKey)  {
     final Hash accountHash = account.addressHash();
     final long storageSubscriberId = worldStateKeyValueStorage.subscribe(this);
     try {
-      Bytes bytesPath = bytesToPath(slotKey.getSlotHash());
+      CompletionService<Optional<Bytes>> storageCompletionService = new ExecutorCompletionService<>(executorService);
+      byte[] path = bytesToPath(slotKey.getSlotHash()).toArrayUnsafe();
       byte[] accountHashBytes = accountHash.toArrayUnsafe();
-      Optional<SegmentedKeyValueStorage.NearestKeyValue> nearestBefore = worldStateKeyValueStorage.getComposedWorldStateStorage().getNearestBefore(KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE, bytesPath);
-      if (nearestBefore.isPresent()) {
-        byte[] path = nearestBefore.get().key().toArrayUnsafe();
-        if (nearestBefore.get().wrapBytes().isPresent()) storageNodes.put(Hash.hash(nearestBefore.get().key()), nearestBefore.get().wrapBytes().get());
+
         int accountHashBytesSize = accountHashBytes.length;
         List<byte[]> inputs = new ArrayList<>(path.length);
         for (int i=1; i < path.length-1; i++)  {
@@ -129,11 +150,26 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
           System.arraycopy(path, 0,slice,accountHashBytesSize,i);
           inputs.add(slice);
         }
-        List<byte[]> outputs = worldStateKeyValueStorage.getMultipleKeys(inputs);
-        for (byte[] output : outputs) {
-          if (output != null) storageNodes.put(Hash.hash(Bytes.wrap(output)), Bytes.wrap(output));
+
+      for (byte[] input : inputs) {
+        storageCompletionService.submit(() -> worldStateKeyValueStorage.getTrieNodeUnsafe(Bytes.wrap(input)));
+      }
+      int remainingTasks = inputs.size();
+      while (remainingTasks > 0) {
+        Future<Optional<Bytes>> future = storageCompletionService.take();
+        if (future != null) {
+          Optional<Bytes> output = future.get();
+          if (output.isPresent()) {
+            storageNodes.put(Hash.hash(output.get()), Bytes.wrap(output.get()));
+          }
+          remainingTasks--;
         }
       }
+
+    } catch (ExecutionException e) {
+        throw new RuntimeException(e);
+    } catch (InterruptedException e) {
+        throw new RuntimeException(e);
     } finally {
       worldStateKeyValueStorage.unSubscribe(storageSubscriberId);
     }
