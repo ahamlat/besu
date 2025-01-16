@@ -82,7 +82,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       CompletionService<Optional<Bytes>> accountCompletionService = new ExecutorCompletionService<>(executorService);
       byte[] path = bytesToPath(account.addressHash()).toArrayUnsafe();
 
-        List<byte[]> inputs = new ArrayList<>(path.length);
+        List<byte[]> inputs = new ArrayList<>(16);
         for (int i = 1; i < 16; i++) {
           byte[] slice = new byte[i];
           System.arraycopy(path, 0,slice,0,i);
@@ -135,7 +135,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       byte[] accountHashBytes = accountHash.toArrayUnsafe();
 
         int accountHashBytesSize = accountHashBytes.length;
-        List<byte[]> inputs = new ArrayList<>(path.length);
+        List<byte[]> inputs = new ArrayList<>(16);
         for (int i=1; i < 16; i++)  {
           byte[] slice = new byte[accountHashBytesSize+i];
           System.arraycopy(accountHashBytes, 0, slice, 0, accountHashBytesSize);
