@@ -57,7 +57,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       CacheBuilder.newBuilder().recordStats().maximumSize(ACCOUNT_CACHE_SIZE).build();
   private final Cache<Bytes, Bytes> storageNodes =
       CacheBuilder.newBuilder().recordStats().maximumSize(STORAGE_CACHE_SIZE).build();
-  private static final ExecutorService executorService = Executors.newFixedThreadPool(32);
+  private static final ExecutorService executorService = Executors.newFixedThreadPool(16);
 
   public BonsaiCachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem) {
     metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "accountsNodes", accountNodes);
@@ -83,7 +83,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       byte[] path = bytesToPath(account.addressHash()).toArrayUnsafe();
 
         List<byte[]> inputs = new ArrayList<>(path.length);
-        for (int i = 1; i < path.length-32; i++) {
+        for (int i = 1; i < 16; i++) {
           byte[] slice = new byte[i];
           System.arraycopy(path, 0,slice,0,i);
           inputs.add(slice);
@@ -136,7 +136,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
 
         int accountHashBytesSize = accountHashBytes.length;
         List<byte[]> inputs = new ArrayList<>(path.length);
-        for (int i=1; i < path.length-32; i++)  {
+        for (int i=1; i < 16; i++)  {
           byte[] slice = new byte[accountHashBytesSize+i];
           System.arraycopy(accountHashBytes, 0, slice, 0, accountHashBytesSize);
           System.arraycopy(path, 0,slice,accountHashBytesSize,i);
