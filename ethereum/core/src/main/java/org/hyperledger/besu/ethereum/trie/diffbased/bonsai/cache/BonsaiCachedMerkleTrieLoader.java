@@ -57,7 +57,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       CacheBuilder.newBuilder().recordStats().maximumSize(ACCOUNT_CACHE_SIZE).build();
   private final Cache<Bytes, Bytes> storageNodes =
       CacheBuilder.newBuilder().recordStats().maximumSize(STORAGE_CACHE_SIZE).build();
-  private static final ExecutorService executorService = Executors.newFixedThreadPool(64);
+  private static final ExecutorService executorService = Executors.newFixedThreadPool(32);
 
   public BonsaiCachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem) {
     metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "accountsNodes", accountNodes);
@@ -80,17 +80,10 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
     final long storageSubscriberId = worldStateKeyValueStorage.subscribe(this);
     try {
       CompletionService<Optional<Bytes>> accountCompletionService = new ExecutorCompletionService<>(executorService);
-      Bytes bytesPath = bytesToPath(account.addressHash());
-      Optional<SegmentedKeyValueStorage.NearestKeyValue> nearestBefore = worldStateKeyValueStorage.getComposedWorldStateStorage().getNearestBefore(KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE, bytesPath);
+      byte[] path = bytesToPath(account.addressHash()).toArrayUnsafe();
 
-      if (nearestBefore.isPresent()) {
-        if (nearestBefore.get().wrapBytes().isPresent()) {
-          Bytes value = nearestBefore.get().wrapBytes().get();
-          accountNodes.put(Hash.hash(value), value);
-        }
-        byte[] path = nearestBefore.get().key().toArrayUnsafe();
         List<byte[]> inputs = new ArrayList<>(path.length);
-        for (int i = 1; i < path.length-1; i++) {
+        for (int i = 1; i < path.length-32; i++) {
           byte[] slice = new byte[i];
           System.arraycopy(path, 0,slice,0,i);
           inputs.add(slice);
@@ -112,7 +105,6 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
           }
         }
 
-      }
 
     } catch (Exception e) {
       System.out.println("Cause : "+ e.getCause() +", message : "+e.getMessage());
@@ -144,7 +136,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
 
         int accountHashBytesSize = accountHashBytes.length;
         List<byte[]> inputs = new ArrayList<>(path.length);
-        for (int i=1; i < path.length-1; i++)  {
+        for (int i=1; i < path.length-32; i++)  {
           byte[] slice = new byte[accountHashBytesSize+i];
           System.arraycopy(accountHashBytes, 0, slice, 0, accountHashBytesSize);
           System.arraycopy(path, 0,slice,accountHashBytesSize,i);
