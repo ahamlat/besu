@@ -76,6 +76,7 @@ public class MessageCallProcessor extends AbstractMessageProcessor {
       // Check first if the message call is to a pre-compile contract
       final PrecompiledContract precompile = precompiles.get(frame.getContractAddress());
       if (precompile != null) {
+        LOG.info("Precompile execution : "+precompile.getName());
         executePrecompile(precompile, frame, operationTracer);
       } else {
         frame.setState(MessageFrame.State.CODE_EXECUTING);
