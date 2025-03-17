@@ -440,25 +440,27 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
     }
 
     // Run GC in a low-priority background thread
-    CompletableFuture.runAsync(() -> {
-      try {
-        Thread gcThread = new Thread(() -> {
+    CompletableFuture.runAsync(
+        () -> {
           try {
-            Thread.sleep(100); // To be sure this is not going to block the current call
-            System.gc();
-            LOG.atInfo().setMessage("Async Full GC triggered in background").log();
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            Thread gcThread =
+                new Thread(
+                    () -> {
+                      try {
+                        Thread.sleep(100); // To be sure this is not going to block the current call
+                        System.gc();
+                        LOG.atInfo().setMessage("Async Full GC triggered in background").log();
+                      } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                      }
+                    });
+
+            gcThread.setDaemon(true);
+            gcThread.start();
+          } catch (Exception e) {
+            LOG.atError().setMessage("Error triggering GC: {}").addArgument(e::getMessage).log();
           }
         });
-
-        gcThread.setDaemon(true);
-        gcThread.setPriority(Thread.MIN_PRIORITY);
-        gcThread.start();
-      } catch (Exception e) {
-        LOG.atError().setMessage("Error triggering GC: {}").addArgument(e::getMessage).log();
-      }
-    });
 
     LOG.atDebug()
         .setMessage(
