@@ -70,6 +70,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import io.vertx.core.Vertx;
@@ -437,6 +438,28 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
       throw new IllegalArgumentException(
           "Don't call respondWith() with invalid status of " + status.toString());
     }
+
+    // Run GC in a low-priority background thread
+    CompletableFuture.runAsync(() -> {
+      try {
+        Thread gcThread = new Thread(() -> {
+          try {
+            Thread.sleep(100); // To be sure this is not going to block the current call
+            System.gc();
+            LOG.atInfo().setMessage("Async Full GC triggered in background").log();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        });
+
+        gcThread.setDaemon(true);
+        gcThread.setPriority(Thread.MIN_PRIORITY);
+        gcThread.start();
+      } catch (Exception e) {
+        LOG.atError().setMessage("Error triggering GC: {}").addArgument(e::getMessage).log();
+      }
+    });
+
     LOG.atDebug()
         .setMessage(
             "New payload: number: {}, hash: {}, parentHash: {}, latestValidHash: {}, status: {}")
