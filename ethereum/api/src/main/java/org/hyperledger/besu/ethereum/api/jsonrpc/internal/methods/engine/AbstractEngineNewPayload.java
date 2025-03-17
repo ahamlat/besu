@@ -70,7 +70,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import io.vertx.core.Vertx;
@@ -88,6 +89,7 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
   private final MergeMiningCoordinator mergeCoordinator;
   private final EthPeers ethPeers;
   private long lastExecutionTime = 0L;
+  private static final ExecutorService gcExecutor = Executors.newSingleThreadExecutor();
 
   public AbstractEngineNewPayload(
       final Vertx vertx,
@@ -439,24 +441,12 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
           "Don't call respondWith() with invalid status of " + status.toString());
     }
 
-    // Run GC in a low-priority background thread
-    CompletableFuture.runAsync(
+    // TODO : Add a flag to trigger this code
+    gcExecutor.submit(
         () -> {
           try {
-            Thread gcThread =
-                new Thread(
-                    () -> {
-                      try {
-                        Thread.sleep(100); // To be sure this is not going to block the current call
-                        System.gc();
-                        LOG.atInfo().setMessage("Async Full GC triggered in background").log();
-                      } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                      }
-                    });
-
-            gcThread.setDaemon(true);
-            gcThread.start();
+            System.gc();
+            LOG.atDebug().setMessage("Async Full GC triggered via executor").log();
           } catch (Exception e) {
             LOG.atError().setMessage("Error triggering GC: {}").addArgument(e::getMessage).log();
           }
