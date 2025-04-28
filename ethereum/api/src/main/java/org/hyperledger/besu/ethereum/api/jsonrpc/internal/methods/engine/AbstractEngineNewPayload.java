@@ -357,41 +357,10 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
     }
 
     final var latestValidAncestor = mergeCoordinator.getLatestValidAncestor(newBlockHeader);
-    LOG.info("Block : "+block.getHeader().getNumber());
     if (latestValidAncestor.isEmpty()) {
       return respondWith(reqId, blockParam, null, ACCEPTED);
     }
-    if (block.getHeader().getNumber() == 177_000L) {
-      // Start async-profiler BEFORE measuring time
-      try {
-        // Get current process PID
-        String pid = Iterables.get(Splitter.on('@')
-                .split(ManagementFactory.getRuntimeMXBean().getName()), 0);
-        // Path to your async-profiler installation
-        String asyncProfilerHome = "/opt/besu/async-profiler-4.0-linux-x64"; // TODO: Update this
-        String outputFile = "/tmp/Wall-Clock-profiling-nethermind-devnet-300s-5ms-10.html";
 
-        // Build the command
-        ProcessBuilder processBuilder = new ProcessBuilder(
-                "sudo",
-                asyncProfilerHome + "/bin/asprof",
-                "-d", "300",
-                "-e", "wall",
-                "-t",
-                "-i", "5ms",
-                "-f", outputFile,
-                pid
-        );
-
-        // Start the profiler asynchronously
-        processBuilder.inheritIO(); // (optional) if you want to see output/errors
-        processBuilder.start();
-
-      } catch (IOException e) {
-        // Handle the exception (optional: you may want to log this properly)
-        System.err.println("Failed to start async-profiler: " + e.getMessage());
-      }
-    }
     // execute block and return result response
     final long startTimeMs = System.currentTimeMillis();
     final BlockProcessingResult executionResult = mergeCoordinator.rememberBlock(block);
