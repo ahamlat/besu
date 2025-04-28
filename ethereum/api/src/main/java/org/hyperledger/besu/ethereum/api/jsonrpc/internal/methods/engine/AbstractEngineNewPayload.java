@@ -24,6 +24,8 @@ import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.engine.
 import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.engine.WithdrawalsValidatorProvider.getWithdrawalsValidator;
 import static org.hyperledger.besu.metrics.BesuMetricCategory.BLOCK_PROCESSING;
 
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
 import org.hyperledger.besu.consensus.merge.blockcreation.MergeMiningCoordinator;
 import org.hyperledger.besu.datatypes.BlobGas;
 import org.hyperledger.besu.datatypes.Hash;
@@ -354,12 +356,12 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
     if (latestValidAncestor.isEmpty()) {
       return respondWith(reqId, blockParam, null, ACCEPTED);
     }
-    if (block.getHeader().getNumber() == 208_172L) {
+    if (block.getHeader().getNumber() == 177_000L) {
       // Start async-profiler BEFORE measuring time
       try {
         // Get current process PID
-        String pid = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
-
+        String pid = Iterables.get(Splitter.on('@')
+                .split(ManagementFactory.getRuntimeMXBean().getName()), 0);
         // Path to your async-profiler installation
         String asyncProfilerHome = "/opt/besu/async-profiler-4.0-linux-x64"; // TODO: Update this
         String outputFile = "/tmp/Wall-Clock-profiling-nethermind-devnet-300s-5ms-10.html";
