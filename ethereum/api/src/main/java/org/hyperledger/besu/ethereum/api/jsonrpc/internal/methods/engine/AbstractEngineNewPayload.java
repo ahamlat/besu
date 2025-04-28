@@ -74,6 +74,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import io.vertx.core.Vertx;
@@ -91,6 +94,8 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
   private final MergeMiningCoordinator mergeCoordinator;
   private final EthPeers ethPeers;
   private long lastExecutionTime = 0L;
+  private static final ExecutorService precomputeExecutor = Executors.newFixedThreadPool(100);
+
 
   public AbstractEngineNewPayload(
       final Vertx vertx,
@@ -352,7 +357,7 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
     }
 
     final var latestValidAncestor = mergeCoordinator.getLatestValidAncestor(newBlockHeader);
-
+    LOG.info("Block : "+block.getHeader().getNumber());
     if (latestValidAncestor.isEmpty()) {
       return respondWith(reqId, blockParam, null, ACCEPTED);
     }
@@ -422,23 +427,20 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
   }
 
   private void precomputeSenders(final List<Transaction> transactions) {
-    transactions.forEach(
-        transaction -> {
-          mergeCoordinator
-              .getEthScheduler()
-              .scheduleTxWorkerTask(
-                  () -> {
-                    final var sender = transaction.getSender();
-                    LOG.atTrace()
-                        .setMessage("The sender for transaction {} is calculated : {}")
-                        .addArgument(transaction::getHash)
-                        .addArgument(sender)
-                        .log();
-                  });
+    for (Transaction transaction : transactions) {
+      // Fire and forget the sender precomputation
+      CompletableFuture.runAsync(() -> {
+        final var sender = transaction.getSender();
+        LOG.atTrace()
+                .setMessage("The sender for transaction {} is calculated : {}")
+                .addArgument(transaction::getHash)
+                .addArgument(sender)
+                .log();
+      }, precomputeExecutor);
           if (transaction.getType().supportsDelegateCode()) {
             precomputeAuthorities(transaction);
           }
-        });
+        };
   }
 
   private void precomputeAuthorities(final Transaction transaction) {
