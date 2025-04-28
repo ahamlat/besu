@@ -65,6 +65,8 @@ import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.exception.StorageException;
 
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -352,7 +354,37 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
     if (latestValidAncestor.isEmpty()) {
       return respondWith(reqId, blockParam, null, ACCEPTED);
     }
+    if (block.getHeader().getNumber() == 208_172L) {
+      // Start async-profiler BEFORE measuring time
+      try {
+        // Get current process PID
+        String pid = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
 
+        // Path to your async-profiler installation
+        String asyncProfilerHome = "/opt/besu/async-profiler-4.0-linux-x64"; // TODO: Update this
+        String outputFile = "/tmp/Wall-Clock-profiling-nethermind-devnet-300s-5ms-10.html";
+
+        // Build the command
+        ProcessBuilder processBuilder = new ProcessBuilder(
+                "sudo",
+                asyncProfilerHome + "/bin/asprof",
+                "-d", "300",
+                "-e", "wall",
+                "-t",
+                "-i", "5ms",
+                "-f", outputFile,
+                pid
+        );
+
+        // Start the profiler asynchronously
+        processBuilder.inheritIO(); // (optional) if you want to see output/errors
+        processBuilder.start();
+
+      } catch (IOException e) {
+        // Handle the exception (optional: you may want to log this properly)
+        System.err.println("Failed to start async-profiler: " + e.getMessage());
+      }
+    }
     // execute block and return result response
     final long startTimeMs = System.currentTimeMillis();
     final BlockProcessingResult executionResult = mergeCoordinator.rememberBlock(block);
