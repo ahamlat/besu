@@ -75,6 +75,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -94,8 +95,8 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
   private final MergeMiningCoordinator mergeCoordinator;
   private final EthPeers ethPeers;
   private long lastExecutionTime = 0L;
-  private static final ExecutorService precomputeExecutor = Executors.newFixedThreadPool(100);
-
+  private static final int NCPU = Runtime.getRuntime().availableProcessors();
+  private static final Executor precomputeExecutor = Executors.newFixedThreadPool(NCPU);
 
   public AbstractEngineNewPayload(
       final Vertx vertx,
