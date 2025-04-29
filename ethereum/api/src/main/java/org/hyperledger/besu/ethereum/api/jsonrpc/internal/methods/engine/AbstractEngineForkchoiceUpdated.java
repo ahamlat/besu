@@ -396,10 +396,9 @@ public abstract class AbstractEngineForkchoiceUpdated extends ExecutionEngineJso
       final EngineStatus status,
       final EngineForkchoiceUpdatedParameter forkChoice) {
     // cheaply limit the noise of fcU during consensus client syncing to once a minute:
-    if (lastFcuInfoLog + ENGINE_API_LOGGING_THRESHOLD < System.currentTimeMillis()) {
-      lastFcuInfoLog = System.currentTimeMillis();
-      logAtLevel.accept(status, forkChoice);
-    }
+
+    logAtLevel.accept(status, forkChoice);
+
   }
 
   private void logAtInfo(

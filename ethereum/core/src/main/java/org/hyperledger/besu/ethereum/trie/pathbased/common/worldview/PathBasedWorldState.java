@@ -203,6 +203,9 @@ public abstract class PathBasedWorldState
       // then persist the TrieLog for that transition.
       // If specified but not a direct descendant simply store the new block hash.
       if (blockHeader != null) {
+        if(isModifyingHeadWorldState()){
+          LOG.info("persisting "+blockHeader.getNumber()+" "+blockHeader.getHash());
+        }
         verifyWorldStateRoot(calculatedRootHash, blockHeader);
         saveTrieLog =
             () -> {
