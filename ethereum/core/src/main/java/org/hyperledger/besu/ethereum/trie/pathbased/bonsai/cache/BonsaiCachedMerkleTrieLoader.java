@@ -28,6 +28,7 @@ import org.hyperledger.besu.metrics.ObservableMetricsSystem;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -45,17 +46,24 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
   private final Cache<Bytes, Bytes> storageNodes =
       CacheBuilder.newBuilder().recordStats().maximumSize(STORAGE_CACHE_SIZE).build();
 
-  public BonsaiCachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem) {
+  private ExecutorService ioExecutor;
+
+  public BonsaiCachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem, final ExecutorService ioExecutor) {
     metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "accountsNodes", accountNodes);
     metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "storageNodes", storageNodes);
+    this.ioExecutor = ioExecutor;
+  }
+
+    public BonsaiCachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem) {
+        metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "accountsNodes", accountNodes);
+        metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "storageNodes", storageNodes);
   }
 
   public void preLoadAccount(
       final BonsaiWorldStateKeyValueStorage worldStateKeyValueStorage,
       final Hash worldStateRootHash,
       final Address account) {
-    CompletableFuture.runAsync(
-        () -> cacheAccountNodes(worldStateKeyValueStorage, worldStateRootHash, account));
+      ioExecutor.submit(() -> cacheAccountNodes(worldStateKeyValueStorage, worldStateRootHash, account));
   }
 
   @VisibleForTesting
@@ -88,8 +96,7 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       final BonsaiWorldStateKeyValueStorage worldStateKeyValueStorage,
       final Address account,
       final StorageSlotKey slotKey) {
-    CompletableFuture.runAsync(
-        () -> cacheStorageNodes(worldStateKeyValueStorage, account, slotKey));
+      ioExecutor.submit(() -> cacheStorageNodes(worldStateKeyValueStorage, account, slotKey));
   }
 
   @VisibleForTesting

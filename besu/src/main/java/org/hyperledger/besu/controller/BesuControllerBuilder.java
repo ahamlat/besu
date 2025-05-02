@@ -580,6 +580,14 @@ public abstract class BesuControllerBuilder implements MiningParameterOverrides 
     checkNotNull(besuComponent, "Must supply a BesuComponent");
     prepForBuild();
 
+
+    final EthScheduler scheduler =
+            new EthScheduler(
+                    syncConfig.getDownloaderParallelism(),
+                    syncConfig.getTransactionsParallelism(),
+                    syncConfig.getComputationParallelism(),
+                    metricsSystem);
+
     final ProtocolSchedule protocolSchedule = createProtocolSchedule();
 
     final VariablesStorage variablesStorage = storageProvider.createVariablesStorage();
@@ -609,7 +617,7 @@ public abstract class BesuControllerBuilder implements MiningParameterOverrides 
     final BonsaiCachedMerkleTrieLoader bonsaiCachedMerkleTrieLoader =
         besuComponent
             .map(BesuComponent::getCachedMerkleTrieLoader)
-            .orElseGet(() -> new BonsaiCachedMerkleTrieLoader(metricsSystem));
+            .orElseGet(() -> new BonsaiCachedMerkleTrieLoader(metricsSystem, scheduler.getSyncWorkerExecutor()));
 
     final var worldStateHealerSupplier = new AtomicReference<WorldStateHealer>();
 
@@ -673,12 +681,7 @@ public abstract class BesuControllerBuilder implements MiningParameterOverrides 
     final EthMessages ethMessages = new EthMessages();
     final EthMessages snapMessages = new EthMessages();
 
-    final EthScheduler scheduler =
-        new EthScheduler(
-            syncConfig.getDownloaderParallelism(),
-            syncConfig.getTransactionsParallelism(),
-            syncConfig.getComputationParallelism(),
-            metricsSystem);
+
 
     Optional<Checkpoint> checkpoint = Optional.empty();
     if (genesisConfigOptions.getCheckpointOptions().isValid()) {
