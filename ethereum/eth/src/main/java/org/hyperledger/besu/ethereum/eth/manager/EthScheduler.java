@@ -176,6 +176,10 @@ public class EthScheduler {
     return pipelineFuture;
   }
 
+  public void executeComputationTask(final Runnable task) {
+    computationExecutor.submit(task);
+  }
+
   public <T> CompletableFuture<T> scheduleComputationTask(final Supplier<T> computation) {
     return CompletableFuture.supplyAsync(computation, computationExecutor);
   }
