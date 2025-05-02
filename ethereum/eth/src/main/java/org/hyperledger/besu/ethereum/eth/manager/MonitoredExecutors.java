@@ -37,7 +37,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public class MonitoredExecutors {
 
-  private static int MAX_NB_THREADS_FOR_CACHED_EXECUTORS = 200;
+  private static final int MAX_NB_THREADS_FOR_CACHED_EXECUTORS = 200;
 
   public static ExecutorService newFixedThreadPool(
       final String name,
