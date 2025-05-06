@@ -37,6 +37,8 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public class MonitoredExecutors {
 
+  private static final int SERVICE_EXECUTOR_MAX_THREAD = 50;
+
   public static ExecutorService newFixedThreadPool(
       final String name,
       final int minWorkerCount,
@@ -101,7 +103,7 @@ public class MonitoredExecutors {
         (rejectedExecutionHandler, threadFactory) ->
             new ThreadPoolExecutor(
                 corePoolSize,
-                Integer.MAX_VALUE,
+                SERVICE_EXECUTOR_MAX_THREAD,
                 60L,
                 TimeUnit.SECONDS,
                 new SynchronousQueue<Runnable>(),

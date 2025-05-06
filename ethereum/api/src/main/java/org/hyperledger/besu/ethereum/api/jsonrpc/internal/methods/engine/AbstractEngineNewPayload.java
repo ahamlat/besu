@@ -392,7 +392,7 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
         transaction -> {
           mergeCoordinator
               .getEthScheduler()
-              .scheduleTxWorkerTask(
+              .executeServiceTask(
                   () -> {
                     final var sender = transaction.getSender();
                     LOG.atTrace()
@@ -414,7 +414,7 @@ public abstract class AbstractEngineNewPayload extends ExecutionEngineJsonRpcMet
       final var constIndex = index++;
       mergeCoordinator
           .getEthScheduler()
-          .scheduleTxWorkerTask(
+              .executeServiceTask(
               () -> {
                 final var authority = codeDelegation.authorizer();
                 LOG.atTrace()
