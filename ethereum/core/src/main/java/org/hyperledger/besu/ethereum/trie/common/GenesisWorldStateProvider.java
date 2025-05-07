@@ -34,6 +34,7 @@ import org.hyperledger.besu.services.kvstore.InMemoryKeyValueStorage;
 import org.hyperledger.besu.services.kvstore.SegmentedInMemoryKeyValueStorage;
 
 import java.util.Objects;
+import java.util.concurrent.Executors;
 
 public class GenesisWorldStateProvider {
 
@@ -61,6 +62,7 @@ public class GenesisWorldStateProvider {
   private static MutableWorldState createGenesisBonsaiWorldState() {
     final BonsaiCachedMerkleTrieLoader bonsaiCachedMerkleTrieLoader =
         new BonsaiCachedMerkleTrieLoader(new NoOpMetricsSystem());
+    bonsaiCachedMerkleTrieLoader.ioExecutor = Executors.newSingleThreadExecutor();
     final BonsaiWorldStateKeyValueStorage bonsaiWorldStateKeyValueStorage =
         new BonsaiWorldStateKeyValueStorage(
             new KeyValueStorageProvider(

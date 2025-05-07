@@ -60,8 +60,8 @@ public class EthScheduler {
 
   private final Collection<CompletableFuture<?>> pendingFutures = new ConcurrentLinkedDeque<>();
 
-  public ExecutorService getSyncWorkerExecutor() {
-    return syncWorkerExecutor;
+  public ExecutorService getServicesExecutor() {
+    return servicesExecutor;
   }
 
   public EthScheduler(

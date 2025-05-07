@@ -617,7 +617,8 @@ public abstract class BesuControllerBuilder implements MiningParameterOverrides 
     final BonsaiCachedMerkleTrieLoader bonsaiCachedMerkleTrieLoader =
         besuComponent
             .map(BesuComponent::getCachedMerkleTrieLoader)
-            .orElseGet(() -> new BonsaiCachedMerkleTrieLoader(metricsSystem, scheduler.getSyncWorkerExecutor()));
+            .orElseGet(() -> new BonsaiCachedMerkleTrieLoader(metricsSystem));
+    bonsaiCachedMerkleTrieLoader.ioExecutor = scheduler.getServicesExecutor();
 
     final var worldStateHealerSupplier = new AtomicReference<WorldStateHealer>();
 

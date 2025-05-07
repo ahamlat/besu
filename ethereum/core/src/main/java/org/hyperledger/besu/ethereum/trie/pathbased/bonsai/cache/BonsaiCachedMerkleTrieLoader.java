@@ -46,17 +46,11 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
   private final Cache<Bytes, Bytes> storageNodes =
       CacheBuilder.newBuilder().recordStats().maximumSize(STORAGE_CACHE_SIZE).build();
 
-  private ExecutorService ioExecutor;
+  public ExecutorService ioExecutor;
 
-  public BonsaiCachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem, final ExecutorService ioExecutor) {
+  public BonsaiCachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem) {
     metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "accountsNodes", accountNodes);
     metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "storageNodes", storageNodes);
-    this.ioExecutor = ioExecutor;
-  }
-
-    public BonsaiCachedMerkleTrieLoader(final ObservableMetricsSystem metricsSystem) {
-        metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "accountsNodes", accountNodes);
-        metricsSystem.createGuavaCacheCollector(BLOCKCHAIN, "storageNodes", storageNodes);
   }
 
   public void preLoadAccount(

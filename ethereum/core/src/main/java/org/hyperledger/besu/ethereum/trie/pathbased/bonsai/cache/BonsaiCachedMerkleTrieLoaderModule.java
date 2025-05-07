@@ -25,7 +25,7 @@ public class BonsaiCachedMerkleTrieLoaderModule {
 
   @Provides
   BonsaiCachedMerkleTrieLoader provideCachedMerkleTrieLoaderModule(
-      final MetricsSystem metricsSystem) {
+          final MetricsSystem metricsSystem) {
     return new BonsaiCachedMerkleTrieLoader((ObservableMetricsSystem) metricsSystem);
   }
 }
