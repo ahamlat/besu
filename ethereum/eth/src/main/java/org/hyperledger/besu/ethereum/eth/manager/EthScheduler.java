@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -85,9 +86,10 @@ public class EthScheduler {
             txWorkerCount,
             txWorkerQueueSize,
             metricsSystem),
-        MonitoredExecutors.newCachedThreadPool(
-            EthScheduler.class.getSimpleName() + "-Services", metricsSystem),
-        MonitoredExecutors.newFixedThreadPool(
+
+            Executors.newVirtualThreadPerTaskExecutor(),
+
+    MonitoredExecutors.newFixedThreadPool(
             EthScheduler.class.getSimpleName() + "-Computation",
             1,
             computationWorkerCount,
