@@ -110,6 +110,33 @@ public class BlockAddedEvent {
         block.getHeader().getParentHash());
   }
 
+  /**
+   * Crée un événement de réorganisation de chaîne “léger”, sans
+   * listes de transactions ajoutées/retirées ni logs détaillés.
+   *
+   * @param block                le nouveau bloc en tête de chaîne
+   * @param transactionReceipts  les reçus de transactions du nouveau bloc
+   * @param logsWithMetadata     les logs du nouveau bloc
+   * @param commonAncestorHash   le hash de l'ancêtre commun à l'issue de la réorg
+   * @return un BlockAddedEvent de type CHAIN_REORG avec payload minimal
+   */
+  public static BlockAddedEvent createForChainReorgSummary(
+          final Block block,
+          final List<TransactionReceipt> transactionReceipts,
+          final List<LogWithMetadata> logsWithMetadata,
+          final Hash commonAncestorHash) {
+
+    return new BlockAddedEvent(
+            EventType.CHAIN_REORG,
+            block,
+            Collections.emptyList(),
+            Collections.emptyList(),
+            transactionReceipts,
+            logsWithMetadata,
+            commonAncestorHash);
+  }
+
+
   public Block getBlock() {
     return block;
   }

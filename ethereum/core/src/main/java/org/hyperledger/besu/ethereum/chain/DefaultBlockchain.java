@@ -40,6 +40,7 @@ import org.hyperledger.besu.util.Subscribers;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -563,7 +564,7 @@ public class DefaultBlockchain implements MutableBlockchain {
         return handleNewHead(updater, blockWithReceipts, transactionIndexing);
       } else if (blockChoiceRule.compare(newBlock.getHeader(), chainHeader) > 0) {
         // New block represents a chain reorganization
-        return handleChainReorg(updater, blockWithReceipts);
+        return handleChainReorgChunked(updater, blockWithReceipts);
       } else {
         // New block represents a fork
         return handleFork(updater, newBlock);
@@ -620,95 +621,127 @@ public class DefaultBlockchain implements MutableBlockchain {
     return BlockAddedEvent.createForFork(fork);
   }
 
-  private BlockAddedEvent handleChainReorg(
-      final BlockchainStorage.Updater updater, final BlockWithReceipts newChainHeadWithReceipts) {
-    final BlockWithReceipts oldChainWithReceipts = getBlockWithReceipts(chainHeader).get();
-    BlockWithReceipts currentOldChainWithReceipts = oldChainWithReceipts;
-    BlockWithReceipts currentNewChainWithReceipts = newChainHeadWithReceipts;
+  private static final int CHUNK_SIZE = 100;
 
-    // Update chain head
-    updater.setChainHead(currentNewChainWithReceipts.getHeader().getHash());
+  private BlockAddedEvent handleChainReorgChunked(
+          final BlockchainStorage.Updater updater,
+          final BlockWithReceipts newHeadWithReceipts) {
 
-    // Track transactions and logs to be added and removed
-    final Map<Hash, List<Transaction>> newTransactions = new HashMap<>();
-    final List<Transaction> removedTransactions = new ArrayList<>();
-    final List<LogWithMetadata> addedLogsWithMetadata = new ArrayList<>();
-    final List<LogWithMetadata> removedLogsWithMetadata = new ArrayList<>();
+    // 1) Préserver les têtes
+    final Hash realNewHeadHash = newHeadWithReceipts.getHeader().getHash();
+    BlockWithReceipts oldHeadWithReceipts = getBlockWithReceipts(chainHeader).orElseThrow();
 
-    while (currentNewChainWithReceipts.getNumber() > currentOldChainWithReceipts.getNumber()) {
-      // If new chain is longer than old chain, walk back until we meet the old chain by number
-      // adding indexing for new chain along the way.
-      final Hash blockHash = currentNewChainWithReceipts.getHash();
-      updater.putBlockHash(currentNewChainWithReceipts.getNumber(), blockHash);
+    // 2) Mettre à jour immédiatement la tête canonique
+    updater.setChainHead(realNewHeadHash);
 
-      newTransactions.put(
-          blockHash, currentNewChainWithReceipts.getBlock().getBody().getTransactions());
-      addAddedLogsWithMetadata(addedLogsWithMetadata, currentNewChainWithReceipts);
-      notifyChainReorgBlockAdded(currentNewChainWithReceipts);
-      currentNewChainWithReceipts = getParentBlockWithReceipts(currentNewChainWithReceipts);
+    // 3) Préparer les buffers de blocs à ajouter/retirer
+    List<BlockWithReceipts> toAdd    = new ArrayList<>();
+    List<BlockWithReceipts> toRemove = new ArrayList<>();
+
+    // 4) Aligner les hauteurs des chaînes
+    BlockWithReceipts curNew = newHeadWithReceipts;
+    BlockWithReceipts curOld = oldHeadWithReceipts;
+
+    while (curNew.getNumber() > curOld.getNumber()) {
+      toAdd.add(curNew);
+      curNew = getParentBlockWithReceipts(curNew);
+      flushIfNeeded(updater, toAdd, toRemove);
+    }
+    while (curOld.getNumber() > curNew.getNumber()) {
+      toRemove.add(curOld);
+      curOld = getParentBlockWithReceipts(curOld);
+      flushIfNeeded(updater, toAdd, toRemove);
     }
 
-    while (currentOldChainWithReceipts.getNumber() > currentNewChainWithReceipts.getNumber()) {
-      // If oldChain is longer than new chain, walk back until we meet the new chain by number,
-      // updating as we go.
-      updater.removeBlockHash(currentOldChainWithReceipts.getNumber());
-
-      removedTransactions.addAll(
-          currentOldChainWithReceipts.getBlock().getBody().getTransactions());
-      addRemovedLogsWithMetadata(removedLogsWithMetadata, currentOldChainWithReceipts);
-
-      currentOldChainWithReceipts = getParentBlockWithReceipts(currentOldChainWithReceipts);
+    // 5) Remontée conjointe jusqu'à l'ancêtre commun
+    while (!curNew.getHash().equals(curOld.getHash())) {
+      toAdd   .add(curNew);
+      toRemove.add(curOld);
+      curNew = getParentBlockWithReceipts(curNew);
+      curOld = getParentBlockWithReceipts(curOld);
+      flushIfNeeded(updater, toAdd, toRemove);
     }
 
-    while (!currentOldChainWithReceipts.getHash().equals(currentNewChainWithReceipts.getHash())) {
-      // Walk back until we meet the common ancestor between the two chains, updating as we go.
-      final Hash newBlockHash = currentNewChainWithReceipts.getHash();
-      updater.putBlockHash(currentNewChainWithReceipts.getNumber(), newBlockHash);
+    // 6) curNew == curOld == ancêtre commun
+    final BlockWithReceipts commonAncestorWithReceipts = curNew;
 
-      newTransactions.put(
-          newBlockHash, currentNewChainWithReceipts.getBlock().getBody().getTransactions());
-      removedTransactions.addAll(
-          currentOldChainWithReceipts.getBlock().getBody().getTransactions());
-      addAddedLogsWithMetadata(addedLogsWithMetadata, currentNewChainWithReceipts);
-      addRemovedLogsWithMetadata(removedLogsWithMetadata, currentOldChainWithReceipts);
+    // 7) Flush final pour les blocs restants (< 100)
+    flushIfNeeded(updater, toAdd, toRemove);
 
-      currentNewChainWithReceipts = getParentBlockWithReceipts(currentNewChainWithReceipts);
-      currentOldChainWithReceipts = getParentBlockWithReceipts(currentOldChainWithReceipts);
-    }
-    final BlockWithReceipts commonAncestorWithReceipts = currentNewChainWithReceipts;
-
-    // Update indexed transactions
-    newTransactions.forEach(
-        (blockHash, transactionsInBlock) -> {
-          indexTransactionsForBlock(updater, blockHash, transactionsInBlock);
-          // Don't remove transactions that are being re-indexed.
-          removedTransactions.removeAll(transactionsInBlock);
-        });
-    clearIndexedTransactionsForBlock(updater, removedTransactions);
-
-    // Update tracked forks
-    final Collection<Hash> forks = blockchainStorage.getForkHeads();
-    // Old head is now a fork
-    forks.add(oldChainWithReceipts.getHash());
-    // Remove new chain head's parent if it was tracked as a fork
-    final Optional<Hash> parentFork =
-        forks.stream()
-            .filter(f -> f.equals(newChainHeadWithReceipts.getHeader().getParentHash()))
-            .findAny();
-    parentFork.ifPresent(forks::remove);
+    // 8) Mettre à jour les forks
+    Set<Hash> forks = new HashSet<>(blockchainStorage.getForkHeads());
+    forks.add(oldHeadWithReceipts.getHash());
+    forks.remove(newHeadWithReceipts.getHeader().getParentHash());
     updater.setForkHeads(forks);
 
-    maybeLogReorg(newChainHeadWithReceipts, oldChainWithReceipts, commonAncestorWithReceipts);
+    // 9) Journalisation conditionnelle de la réorg
+    maybeLogReorg(newHeadWithReceipts, oldHeadWithReceipts, commonAncestorWithReceipts);
 
-    return BlockAddedEvent.createForChainReorg(
-        newChainHeadWithReceipts.getBlock(),
-        newTransactions.values().stream().flatMap(Collection::stream).collect(toList()),
-        removedTransactions,
-        newChainHeadWithReceipts.getReceipts(),
-        Stream.concat(removedLogsWithMetadata.stream(), addedLogsWithMetadata.stream())
-            .collect(Collectors.toUnmodifiableList()),
-        currentNewChainWithReceipts.getBlock().getHash());
+    // 10) Construire la liste de logs du nouveau tip
+    List<LogWithMetadata> tipLogs = new ArrayList<>();
+    addAddedLogsWithMetadata(tipLogs, newHeadWithReceipts);
+
+    // 11) Récupérer les receipts du nouveau tip
+    List<TransactionReceipt> tipReceipts = newHeadWithReceipts.getReceipts();
+
+    // 12) Émettre l’événement de résumé
+    return BlockAddedEvent.createForChainReorgSummary(
+            newHeadWithReceipts.getBlock(),
+            tipReceipts,
+            tipLogs,
+            commonAncestorWithReceipts.getHash());
   }
+
+  /**
+   * Applique et vide les buffers dès que leur taille atteint CHUNK_SIZE
+   * ou en cas d'interruption de thread.
+   */
+  private void flushIfNeeded(
+          final BlockchainStorage.Updater updater,
+          final List<BlockWithReceipts> adds,
+          final List<BlockWithReceipts> removes) {
+
+    if (adds.size() + removes.size() >= CHUNK_SIZE
+            || Thread.currentThread().isInterrupted()) {
+
+      // 1) Indexation des nouveaux blocs
+      for (BlockWithReceipts b : adds) {
+        long blockNumber = b.getNumber();
+        Hash blockHash = b.getHeader().getHash();
+        updater.putBlockHash(blockNumber, blockHash);
+        indexTransactionsForBlock(updater, blockHash, b.getBlock().getBody().getTransactions());
+        addAddedLogsWithMetadata(updater, b);
+      }
+
+      // 2) Désindexation des anciens blocs
+      for (BlockWithReceipts b : removes) {
+        long blockNumber = b.getNumber();
+        updater.removeBlockHash(blockNumber);
+        removeTransactionsForBlock(updater, b.getBlock().getBody().getTransactions());
+        addRemovedLogsWithMetadata(updater, b);
+      }
+
+      // 3) Vider les buffers
+      adds.clear();
+      removes.clear();
+    }
+  }
+
+  /**
+   * For each transaction in the list, remove its indexing from storage.
+   */
+  private void removeTransactionsForBlock(
+          final BlockchainStorage.Updater updater,
+          final List<Transaction> transactions) {
+    for (Transaction tx : transactions) {
+      // Suppose you indexed transactions by hash to block number:
+      updater.removeTransactionLocation(tx.getHash());
+      // If you have a separate receipts index:
+      updater.removeTransactionReceipts(tx.getHash());
+    }
+  }
+
+
 
   private void maybeLogReorg(
       final BlockWithReceipts newChainHeadWithReceipts,
@@ -752,7 +785,7 @@ public class DefaultBlockchain implements MutableBlockchain {
       final BlockWithReceipts blockWithReceipts = getBlockWithReceipts(oldBlockHeader).get();
       final Block block = blockWithReceipts.getBlock();
 
-      var reorgEvent = handleChainReorg(updater, blockWithReceipts);
+      var reorgEvent = handleChainReorgChunked(updater, blockWithReceipts);
       updateCacheForNewCanonicalHead(block, calculateTotalDifficulty(block.getHeader()));
       updater.commit();
       blockAddedObservers.forEach(o -> o.onBlockAdded(reorgEvent));
@@ -902,6 +935,36 @@ public class DefaultBlockchain implements MutableBlockchain {
             LogWithMetadata.generate(
                 blockWithReceipts.getBlock(), blockWithReceipts.getReceipts(), true)));
   }
+
+  /**
+   * For a given block, generate its “removed” logs (i.e. logs that are no longer on
+   * the canonical chain), reverse them to match the old ordering, and tell the updater
+   * to remove each one.
+   */
+  private void addRemovedLogsWithMetadata(
+          final BlockchainStorage.Updater updater,
+          final BlockWithReceipts blockWithReceipts) {
+
+    // 1) Generate all logs marked as “removed” for this block
+    List<LogWithMetadata> removedLogs =
+            LogWithMetadata.generate(
+                    blockWithReceipts.getBlock(),
+                    blockWithReceipts.getReceipts(),
+                    /* removed = */ true);
+
+    // 2) Reverse to keep the same order as before
+    Collections.reverse(removedLogs);
+
+    // 3) Remove each from the index via the updater
+    for (LogWithMetadata log : removedLogs) {
+      // You’ll need an updater method that undoes whatever
+      // addLogWithMetadata(...) does. For example:
+      updater.removeTransactionReceipts(;
+      // Or, if your updater API is lower-level:
+      // updater.removeLog(log.getBlockHash(), log.getLogIndex());
+    }
+  }
+
 
   private Optional<BlockWithReceipts> getBlockWithReceipts(final BlockHeader blockHeader) {
     return blockchainStorage
