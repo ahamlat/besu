@@ -15,7 +15,7 @@
 package org.hyperledger.besu.evm.internal;
 
 /** The type Return stack. */
-public class ReturnStack extends FlexStack<ReturnStack.ReturnStackItem> {
+public class ReturnStack extends FixedStack<ReturnStack.ReturnStackItem> {
 
   /**
    * The type Return stack item.
