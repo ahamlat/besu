@@ -128,6 +128,7 @@ public class BigIntegerModularExponentiationPrecompiledContract
   @Override
   public PrecompileContractResult computePrecompile(
       final Bytes input, @NotNull final MessageFrame messageFrame) {
+    System.out.println(input.toHexString());
     // https://eips.ethereum.org/EIPS/eip-7823
     // We introduce an upper bound to the inputs of the precompile,
     // each of the length inputs (length_of_BASE, length_of_EXPONENT and length_of_MODULUS)
