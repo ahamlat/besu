@@ -37,7 +37,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 
 @State(Scope.Thread)
-@OutputTimeUnit(value = TimeUnit.MILLISECONDS)
+@OutputTimeUnit(value = TimeUnit.NANOSECONDS)
 public class OneMillionCountLeadingZerosOperationBenchmark {
   @Param({
     "0x23",
@@ -75,14 +75,11 @@ public class OneMillionCountLeadingZerosOperationBenchmark {
             .completer(messageFrame -> {})
             .build();
     bytes = Bytes.fromHexString(bytesHex);
+    frame.pushStackItem(bytes);
   }
 
   @Benchmark
   public void executeOperation() {
-    for (int i = 0; i < 1000000; i++) {
-      frame.pushStackItem(bytes);
       CountLeadingZerosOperation.staticOperation(frame);
-      frame.popStackItem();
-    }
   }
 }
