@@ -30,16 +30,26 @@ import java.util.concurrent.TimeUnit;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
 
 @State(Scope.Thread)
-@OutputTimeUnit(value = TimeUnit.NANOSECONDS)
-public class OneMillionCountLeadingZerosOperationBenchmark {
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@BenchmarkMode(Mode.AverageTime)
+@Warmup(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
+public class CountLeadingZerosOperationBenchmark {
   @Param({
+    "0x00",  // All zeros - worst case for leading zeros counting
+    "0x80",  // Single bit set in MSB
+    "0x01",  // Single bit set in LSB
     "0x23",
     "0x2323232323232323232323232323232323232323232323232323232323232323",
     "0x23232323232323232323232323232323232323232323232323232323232323",
