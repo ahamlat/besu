@@ -107,6 +107,8 @@ public class MulModOperationBenchmark {
       frame.pushStackItem(bytes2);
       frame.pushStackItem(bytes3);
       frame.popStackItem();
+      frame.popStackItem();
+      frame.popStackItem();
     }
   }
 }
