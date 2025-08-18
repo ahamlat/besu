@@ -22,7 +22,7 @@ import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.code.CodeV0;
 import org.hyperledger.besu.evm.frame.BlockValues;
 import org.hyperledger.besu.evm.frame.MessageFrame;
-import org.hyperledger.besu.evm.operation.CountLeadingZerosOperation;
+import org.hyperledger.besu.evm.operation.ModOperation;
 import org.hyperledger.besu.evm.operation.MulModOperation;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -31,12 +31,12 @@ import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OperationsPerInvocation;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.mock;
@@ -46,12 +46,11 @@ import static org.mockito.Mockito.mock;
 @OutputTimeUnit(value = TimeUnit.NANOSECONDS)
 @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 @BenchmarkMode(Mode.AverageTime)
-public class MulModOperationBenchmark {
+public class ModOperationBenchmark {
   private static final int OPERATIONS_PER_INVOCATION = 1_000_000;
 
   private Bytes bytes1;
   private Bytes bytes2;
-  private Bytes bytes3;
 
   private MessageFrame frame;
 
@@ -79,8 +78,9 @@ public class MulModOperationBenchmark {
             .build();
     bytes1 = Utils.generateBytes(32);
     bytes2 = Utils.generateBytes(32);
-    bytes3 = Utils.generateBytes(32);
   }
+
+
 
   @Benchmark
   @OperationsPerInvocation(OPERATIONS_PER_INVOCATION)
@@ -88,8 +88,7 @@ public class MulModOperationBenchmark {
     for (int i = 0; i < OPERATIONS_PER_INVOCATION; i++) {
       frame.pushStackItem(bytes1);
       frame.pushStackItem(bytes2);
-      frame.pushStackItem(bytes3);
-      MulModOperation.staticOperation(frame);
+      ModOperation.staticOperation(frame);
       frame.popStackItem();
     }
   }
@@ -100,8 +99,6 @@ public class MulModOperationBenchmark {
     for (int i = 0; i < OPERATIONS_PER_INVOCATION; i++) {
       frame.pushStackItem(bytes1);
       frame.pushStackItem(bytes2);
-      frame.pushStackItem(bytes3);
-      frame.popStackItem();
       frame.popStackItem();
       frame.popStackItem();
     }
