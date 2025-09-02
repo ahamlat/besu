@@ -2804,7 +2804,7 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
     assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
 
-    final String startupConfigLog = stringArgumentCaptor.getAllValues().get(2);
+    final String startupConfigLog = stringArgumentCaptor.getAllValues().toString();
     final String targetGasLimitOutput =
         ConfigurationOverviewBuilder.normalizeGas(DEFAULT_TARGET_GAS_LIMIT);
     assertThat(startupConfigLog)
@@ -2829,7 +2829,7 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(miningArg.getValue().getTargetGasLimit().getAsLong())
         .isEqualTo(CUSTOM_TARGET_GAS_LIMIT);
 
-    final String startupConfigLog = stringArgumentCaptor.getAllValues().get(2);
+    final String startupConfigLog = stringArgumentCaptor.getAllValues().toString();
     final String targetGasLimitOutput =
         ConfigurationOverviewBuilder.normalizeGas(CUSTOM_TARGET_GAS_LIMIT);
     assertThat(startupConfigLog)
@@ -2852,7 +2852,7 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
     assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
 
-    final String startupConfigLog = stringArgumentCaptor.getAllValues().get(2);
+    final String startupConfigLog = stringArgumentCaptor.getAllValues().toString();
     final String targetGasLimitOutput =
         ConfigurationOverviewBuilder.normalizeGas(DEFAULT_TARGET_GAS_LIMIT_TESTNET);
     assertThat(startupConfigLog)
@@ -2878,7 +2878,7 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(miningArg.getValue().getTargetGasLimit().getAsLong())
         .isEqualTo(CUSTOM_TARGET_GAS_LIMIT);
 
-    final String startupConfigLog = stringArgumentCaptor.getAllValues().get(2);
+    final String startupConfigLog = stringArgumentCaptor.getAllValues().toString();
     final String targetGasLimitOutput =
         ConfigurationOverviewBuilder.normalizeGas(CUSTOM_TARGET_GAS_LIMIT);
     assertThat(startupConfigLog)
@@ -2901,7 +2901,7 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(commandOutput.toString(UTF_8)).isEmpty();
     assertThat(commandErrorOutput.toString(UTF_8)).isEmpty();
 
-    final String startupConfigLog = stringArgumentCaptor.getAllValues().get(2);
+    final String startupConfigLog = stringArgumentCaptor.getAllValues().toString();
     final String targetGasLimitOutput =
         ConfigurationOverviewBuilder.normalizeGas(DEFAULT_TARGET_GAS_LIMIT);
     assertThat(startupConfigLog)
@@ -2926,7 +2926,7 @@ public class BesuCommandTest extends CommandTestAbstract {
     assertThat(miningArg.getValue().getTargetGasLimit().getAsLong())
         .isEqualTo(CUSTOM_TARGET_GAS_LIMIT);
 
-    final String startupConfigLog = stringArgumentCaptor.getAllValues().get(2);
+    final String startupConfigLog = stringArgumentCaptor.getAllValues().toString();
     final String targetGasLimitOutput =
         ConfigurationOverviewBuilder.normalizeGas(CUSTOM_TARGET_GAS_LIMIT);
     assertThat(startupConfigLog)
