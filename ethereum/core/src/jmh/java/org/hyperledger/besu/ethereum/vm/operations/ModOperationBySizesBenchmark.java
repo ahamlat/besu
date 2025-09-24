@@ -49,7 +49,7 @@ public class ModOperationBySizesBenchmark extends BinaryOperationBenchmark {
     MOD_256_256(8, 8),
     LARGER_MOD_64_128(2, 4),
     LARGER_MOD_192_256(6, 8),
-    ZERO_MOD_128_0(4, 0);
+    ZERO_MOD_128_0(4, 0),
     FULL_RANDOM(-1,-1);
 
     final int divSize;
