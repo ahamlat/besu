@@ -98,9 +98,9 @@ public class ModOperationBySizesBenchmark extends BinaryOperationBenchmark {
     int bSize;
 
     for (int i = 0; i < SAMPLE_SIZE; i++) {
-      if (scenario.divSize == -1) aSize = random.nextInt(32+1);
+      if (scenario.divSize == -1) aSize = 1 + random.nextInt(32);
       else aSize = scenario.divSize * 4;
-      if (scenario.modSize == -1) bSize = random.nextInt(32+1);
+      if (scenario.modSize == -1) bSize = 1 + random.nextInt(32);
       else bSize = scenario.modSize * 4;
       final byte[] a = new byte[aSize];
       final byte[] b = new byte[bSize];
