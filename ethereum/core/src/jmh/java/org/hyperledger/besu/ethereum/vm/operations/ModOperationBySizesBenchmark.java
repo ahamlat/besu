@@ -96,12 +96,12 @@ public class ModOperationBySizesBenchmark extends BinaryOperationBenchmark {
     final ThreadLocalRandom random = ThreadLocalRandom.current();
     int aSize;
     int bSize;
-    if (scenario.divSize == -1) aSize = random.nextInt(32+1);
-    else aSize = scenario.divSize * 4;
-    if (scenario.modSize == -1) bSize = random.nextInt(32+1);
-    else bSize = scenario.modSize * 4;
 
     for (int i = 0; i < SAMPLE_SIZE; i++) {
+      if (scenario.divSize == -1) aSize = random.nextInt(32+1);
+      else aSize = scenario.divSize * 4;
+      if (scenario.modSize == -1) bSize = random.nextInt(32+1);
+      else bSize = scenario.modSize * 4;
       final byte[] a = new byte[aSize];
       final byte[] b = new byte[bSize];
       random.nextBytes(a);
