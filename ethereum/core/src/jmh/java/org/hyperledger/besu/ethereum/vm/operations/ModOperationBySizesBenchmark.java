@@ -19,6 +19,7 @@ import org.hyperledger.besu.evm.operation.ModOperation;
 import org.hyperledger.besu.evm.operation.Operation;
 
 import java.math.BigInteger;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.tuweni.bytes.Bytes;
@@ -49,6 +50,7 @@ public class ModOperationBySizesBenchmark extends BinaryOperationBenchmark {
     LARGER_MOD_64_128(2, 4),
     LARGER_MOD_192_256(6, 8),
     ZERO_MOD_128_0(4, 0);
+    FULL_RANDOM(-1,-1);
 
     final int divSize;
     final int modSize;
@@ -77,7 +79,8 @@ public class ModOperationBySizesBenchmark extends BinaryOperationBenchmark {
     "MOD_256_256",
     "LARGER_MOD_64_128",
     "LARGER_MOD_192_256",
-    "ZERO_MOD_128_0"
+    "ZERO_MOD_128_0",
+          "FULL_RANDOM"
   })
   private String caseName;
 
@@ -91,10 +94,16 @@ public class ModOperationBySizesBenchmark extends BinaryOperationBenchmark {
     bPool = new Bytes[SAMPLE_SIZE];
 
     final ThreadLocalRandom random = ThreadLocalRandom.current();
+    int aSize;
+    int bSize;
+    if (scenario.divSize == -1) aSize = random.nextInt(32+1);
+    else aSize = scenario.divSize * 4;
+    if (scenario.modSize == -1) bSize = random.nextInt(32+1);
+    else bSize = scenario.modSize * 4;
 
     for (int i = 0; i < SAMPLE_SIZE; i++) {
-      final byte[] a = new byte[scenario.divSize * 4];
-      final byte[] b = new byte[scenario.modSize * 4];
+      final byte[] a = new byte[aSize];
+      final byte[] b = new byte[bSize];
       random.nextBytes(a);
       random.nextBytes(b);
 
