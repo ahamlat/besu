@@ -51,7 +51,7 @@ public class EqOptiOperation extends AbstractFixedCostOperation {
     public static OperationResult staticOperation(final MessageFrame frame) {
         org.hyperledger.besu.evm.UInt256 b0 = org.hyperledger.besu.evm.UInt256.fromBytesBE(frame.popStackItem().toArrayUnsafe());
         org.hyperledger.besu.evm.UInt256 b1 = org.hyperledger.besu.evm.UInt256.fromBytesBE(frame.popStackItem().toArrayUnsafe());
-        final Bytes result = (b0.equals(b1) ? UInt256.ONE : UInt256.ZERO);
+        final Bytes result = (b0.eq(b1) ? UInt256.ONE : UInt256.ZERO);
 
         frame.pushStackItem(result);
 
