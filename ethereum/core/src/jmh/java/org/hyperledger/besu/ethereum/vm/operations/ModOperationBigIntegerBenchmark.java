@@ -14,17 +14,17 @@
  */
 package org.hyperledger.besu.ethereum.vm.operations;
 
-import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.ModBigIntegerOperation;
-import org.hyperledger.besu.evm.operation.ModOperation;
 import org.hyperledger.besu.evm.operation.Operation;
-import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Param;
-import org.openjdk.jmh.annotations.Setup;
 
 import java.math.BigInteger;
 import java.util.concurrent.ThreadLocalRandom;
+
+import org.apache.tuweni.bytes.Bytes;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Setup;
 
 public class ModOperationBigIntegerBenchmark extends BinaryOperationBenchmark {
   // Benches for a % b
@@ -49,7 +49,7 @@ public class ModOperationBigIntegerBenchmark extends BinaryOperationBenchmark {
     LARGER_MOD_64_128(2, 4),
     LARGER_MOD_192_256(6, 8),
     ZERO_MOD_128_0(4, 0),
-    FULL_RANDOM(-1,-1);
+    FULL_RANDOM(-1, -1);
 
     final int divSize;
     final int modSize;
@@ -79,7 +79,7 @@ public class ModOperationBigIntegerBenchmark extends BinaryOperationBenchmark {
     "LARGER_MOD_64_128",
     "LARGER_MOD_192_256",
     "ZERO_MOD_128_0",
-          "FULL_RANDOM"
+    "FULL_RANDOM"
   })
   private String caseName;
 

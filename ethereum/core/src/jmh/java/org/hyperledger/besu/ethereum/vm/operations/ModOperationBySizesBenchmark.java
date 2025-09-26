@@ -19,7 +19,6 @@ import org.hyperledger.besu.evm.operation.ModOperation;
 import org.hyperledger.besu.evm.operation.Operation;
 
 import java.math.BigInteger;
-import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.tuweni.bytes.Bytes;
@@ -50,7 +49,7 @@ public class ModOperationBySizesBenchmark extends BinaryOperationBenchmark {
     LARGER_MOD_64_128(2, 4),
     LARGER_MOD_192_256(6, 8),
     ZERO_MOD_128_0(4, 0),
-    FULL_RANDOM(-1,-1);
+    FULL_RANDOM(-1, -1);
 
     final int divSize;
     final int modSize;
@@ -80,7 +79,7 @@ public class ModOperationBySizesBenchmark extends BinaryOperationBenchmark {
     "LARGER_MOD_64_128",
     "LARGER_MOD_192_256",
     "ZERO_MOD_128_0",
-          "FULL_RANDOM"
+    "FULL_RANDOM"
   })
   private String caseName;
 

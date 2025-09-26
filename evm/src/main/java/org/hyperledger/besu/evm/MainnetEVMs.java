@@ -30,7 +30,7 @@ import org.hyperledger.besu.evm.gascalculator.ShanghaiGasCalculator;
 import org.hyperledger.besu.evm.gascalculator.SpuriousDragonGasCalculator;
 import org.hyperledger.besu.evm.gascalculator.TangerineWhistleGasCalculator;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
-import org.hyperledger.besu.evm.operation.AddModOperation;
+import org.hyperledger.besu.evm.operation.AddModBigIntegerOperation;
 import org.hyperledger.besu.evm.operation.AddOperation;
 import org.hyperledger.besu.evm.operation.AddressOperation;
 import org.hyperledger.besu.evm.operation.AndOperation;
@@ -210,7 +210,7 @@ public class MainnetEVMs {
     registry.put(new ModOperation(gasCalculator));
     registry.put(new SModOperation(gasCalculator));
     registry.put(new ExpOperation(gasCalculator));
-    registry.put(new AddModOperation(gasCalculator));
+    registry.put(new AddModBigIntegerOperation(gasCalculator));
     registry.put(new MulModOperation(gasCalculator));
     registry.put(new SignExtendOperation(gasCalculator));
     registry.put(new LtOperation(gasCalculator));

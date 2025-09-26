@@ -29,7 +29,7 @@ import org.hyperledger.besu.evm.internal.EvmConfiguration;
 import org.hyperledger.besu.evm.internal.JumpDestOnlyCodeCache;
 import org.hyperledger.besu.evm.internal.OverflowException;
 import org.hyperledger.besu.evm.internal.UnderflowException;
-import org.hyperledger.besu.evm.operation.AddModOperation;
+import org.hyperledger.besu.evm.operation.AddModBigIntegerOperation;
 import org.hyperledger.besu.evm.operation.AddOperation;
 import org.hyperledger.besu.evm.operation.AndOperation;
 import org.hyperledger.besu.evm.operation.ByteOperation;
@@ -241,7 +241,7 @@ public class EVM {
               case 0x05 -> SDivOperation.staticOperation(frame);
               case 0x06 -> ModOperation.staticOperation(frame);
               case 0x07 -> SModOperation.staticOperation(frame);
-              case 0x08 -> AddModOperation.staticOperation(frame);
+              case 0x08 -> AddModBigIntegerOperation.staticOperation(frame);
               case 0x09 -> MulModOperation.staticOperation(frame);
               case 0x0a -> ExpOperation.staticOperation(frame, gasCalculator);
               case 0x0b -> SignExtendOperation.staticOperation(frame);
