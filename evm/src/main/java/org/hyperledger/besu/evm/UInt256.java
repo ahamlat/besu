@@ -704,9 +704,14 @@ public final class UInt256 {
     int[] uLimbs = new int[dividend.length + 1];
     shiftLeftInto(uLimbs, dividend, bitShift);
 
+    // Pre-convert vLimbs to unsigned longs (single pass!)
+    long[] vLimbsUnsigned = new long[n];
+    for (int i = 0; i < n; i++) {
+      vLimbsUnsigned[i] = vLimbs[i] & MASK_L;
+    }
     // Main division loop
-    long vn1 = vLimbs[n - 1] & MASK_L;
-    long vn2 = vLimbs[n - 2] & MASK_L;
+    long vn1 = vLimbsUnsigned[n - 1] ;
+    long vn2 = vLimbsUnsigned[n - 2] ;
     for (int j = m; j >= 0; j--) {
       long ujn = (uLimbs[j + n] & MASK_L);
       long ujn1 = (uLimbs[j + n - 1] & MASK_L);
@@ -726,7 +731,7 @@ public final class UInt256 {
       // Multiply-subtract qhat*v from u slice
       long borrow = 0;
       for (int i = 0; i < n; i++) {
-        long prod = (vLimbs[i] & MASK_L) * qhat;
+        long prod = vLimbsUnsigned[i] * qhat;
         long sub = (uLimbs[i + j] & MASK_L) - (prod & MASK_L) - borrow;
         uLimbs[i + j] = (int) sub;
         borrow = (prod >>> 32) - (sub >> 32);
@@ -738,7 +743,7 @@ public final class UInt256 {
         // Add back
         long carry = 0;
         for (int i = 0; i < n; i++) {
-          long sum = (uLimbs[i + j] & MASK_L) + (vLimbs[i] & MASK_L) + carry;
+          long sum = (uLimbs[i + j] & MASK_L) + vLimbsUnsigned[i] + carry;
           uLimbs[i + j] = (int) sum;
           carry = sum >>> 32;
         }
