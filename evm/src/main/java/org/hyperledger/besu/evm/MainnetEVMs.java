@@ -188,6 +188,7 @@ public class MainnetEVMs {
   public static OperationRegistry frontierOperations(final GasCalculator gasCalculator) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerFrontierOperations(operationRegistry, gasCalculator);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -320,6 +321,7 @@ public class MainnetEVMs {
   public static OperationRegistry homesteadOperations(final GasCalculator gasCalculator) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerHomesteadOperations(operationRegistry, gasCalculator);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -400,6 +402,7 @@ public class MainnetEVMs {
   public static OperationRegistry byzantiumOperations(final GasCalculator gasCalculator) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerByzantiumOperations(operationRegistry, gasCalculator);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -458,6 +461,7 @@ public class MainnetEVMs {
   public static OperationRegistry constantinopleOperations(final GasCalculator gasCalculator) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerConstantinopleOperations(operationRegistry, gasCalculator);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -539,6 +543,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerIstanbulOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -651,6 +656,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerLondonOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -720,6 +726,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerParisOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -789,6 +796,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerShanghaiOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -858,6 +866,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerCancunOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -942,6 +951,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerCancunEOFOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -1012,6 +1022,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerPragueOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -1070,6 +1081,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerOsakaOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -1318,6 +1330,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerPolisOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -1386,6 +1399,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerBangkokOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -1456,6 +1470,7 @@ public class MainnetEVMs {
     registerFutureEipsOperations(operationRegistry, gasCalculator, chainId);
 
     registerEOFOperations(operationRegistry, gasCalculator);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 
@@ -1528,6 +1543,7 @@ public class MainnetEVMs {
       final GasCalculator gasCalculator, final BigInteger chainId) {
     OperationRegistry operationRegistry = new OperationRegistry();
     registerExperimentalEipsOperations(operationRegistry, gasCalculator, chainId);
+    operationRegistry.buildMethodHandles();
     return operationRegistry;
   }
 

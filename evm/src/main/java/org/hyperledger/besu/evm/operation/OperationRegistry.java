@@ -14,70 +14,123 @@
  */
 package org.hyperledger.besu.evm.operation;
 
-/** Encapsulates a group of {@link Operation}s used together. */
+import org.hyperledger.besu.evm.EVM;
+import org.hyperledger.besu.evm.frame.MessageFrame;
+import org.hyperledger.besu.evm.operation.Operation.OperationResult;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** Registry for EVM operations with MethodHandle support for performance optimization. */
 public class OperationRegistry {
+  private static final Logger LOG = LoggerFactory.getLogger(OperationRegistry.class);
 
-  private static final int NUM_OPERATIONS = 256;
+  private static final MethodType EXECUTE_SIGNATURE =
+      MethodType.methodType(OperationResult.class, MessageFrame.class, EVM.class);
 
-  private final Operation[] operations;
+  private final Operation[] operations = new Operation[256];
+  private MethodHandle[] operationMethodHandles;
+  private final MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-  /** Instantiates a new Operation registry. */
+  /** Default constructor */
   public OperationRegistry() {
-    this.operations = new Operation[NUM_OPERATIONS];
+    Arrays.fill(operations, null);
   }
 
   /**
-   * Get operation.
+   * Register an operation at its opcode position
    *
-   * @param opcode the opcode
-   * @return the operation
+   * @param operation the operation to register
    */
-  public Operation get(final byte opcode) {
-    return get(opcode & 0xff);
+  public void put(final Operation operation) {
+    int opcode = operation.getOpcode();
+    if (opcode < 0 || opcode > 255) {
+      throw new IllegalArgumentException("Opcode must be between 0 and 255: " + opcode);
+    }
+    operations[opcode] = operation;
   }
 
   /**
-   * Get operation.
+   * Get an operation by opcode
    *
    * @param opcode the opcode
-   * @return the operation
+   * @return the operation, or null if not registered
    */
   public Operation get(final int opcode) {
+    if (opcode < 0 || opcode > 255) {
+      return null;
+    }
     return operations[opcode];
   }
 
   /**
-   * Put.
+   * Get the operations array
    *
-   * @param operation the operation
-   */
-  public void put(final Operation operation) {
-    operations[operation.getOpcode()] = operation;
-  }
-
-  /**
-   * Gets or default.
-   *
-   * @param opcode the opcode
-   * @param defaultOperation the default operation
-   * @return the or default
-   */
-  public Operation getOrDefault(final byte opcode, final Operation defaultOperation) {
-    final Operation operation = get(opcode);
-
-    if (operation == null) {
-      return defaultOperation;
-    }
-
-    return operation;
-  }
-
-  /**
-   * Get operations.
-   *
-   * @return the operation [ ]
+   * @return the operations array
    */
   public Operation[] getOperations() {
     return operations;
+  }
+
+  /**
+   * Build method handles for all registered operations. Call this once after all operations are
+   * registered.
+   *
+   * @return this registry for method chaining
+   */
+  public OperationRegistry buildMethodHandles() {
+    operationMethodHandles = new MethodHandle[256];
+
+    for (int i = 0; i < 256; i++) {
+      Operation op = operations[i];
+      if (op != null) {
+        operationMethodHandles[i] = createMethodHandle(op);
+      }
+    }
+
+    LOG.debug("Built method handles for operation registry");
+    return this;
+  }
+
+  /**
+   * Create a method handle for a specific operation.
+   *
+   * @param operation the operation
+   * @return the method handle bound to the operation instance
+   */
+  private MethodHandle createMethodHandle(final Operation operation) {
+    try {
+      Method executeMethod =
+          operation.getClass().getMethod("execute", MessageFrame.class, EVM.class);
+
+      MethodHandle handle = lookup.unreflect(executeMethod);
+      handle = handle.bindTo(operation);
+      handle = handle.asType(EXECUTE_SIGNATURE);
+
+      return handle;
+
+    } catch (NoSuchMethodException | IllegalAccessException e) {
+      throw new IllegalStateException(
+          "Failed to create method handle for " + operation.getClass().getSimpleName(), e);
+    }
+  }
+
+  /**
+   * Get the method handles array for all operations.
+   *
+   * @return array of method handles, indexed by opcode
+   */
+  public MethodHandle[] getOperationMethodHandles() {
+    if (operationMethodHandles == null) {
+      throw new IllegalStateException(
+          "Method handles have not been built. Call buildMethodHandles() first.");
+    }
+    return operationMethodHandles;
   }
 }
