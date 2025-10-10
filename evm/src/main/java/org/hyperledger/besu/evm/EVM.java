@@ -29,6 +29,7 @@ import org.hyperledger.besu.evm.internal.EvmConfiguration;
 import org.hyperledger.besu.evm.internal.JumpDestOnlyCodeCache;
 import org.hyperledger.besu.evm.internal.OverflowException;
 import org.hyperledger.besu.evm.internal.UnderflowException;
+import org.hyperledger.besu.evm.operation.AbstractOperation;
 import org.hyperledger.besu.evm.operation.AddModOperation;
 import org.hyperledger.besu.evm.operation.AddOperation;
 import org.hyperledger.besu.evm.operation.AndOperation;
@@ -64,7 +65,6 @@ import org.hyperledger.besu.evm.operation.SignExtendOperation;
 import org.hyperledger.besu.evm.operation.StopOperation;
 import org.hyperledger.besu.evm.operation.SubOperation;
 import org.hyperledger.besu.evm.operation.SwapOperation;
-import org.hyperledger.besu.evm.operation.VirtualOperation;
 import org.hyperledger.besu.evm.operation.XorOperation;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 
@@ -88,7 +88,7 @@ public class EVM {
 
   private final OperationRegistry operations;
   private final GasCalculator gasCalculator;
-  private final Operation endOfScriptStop;
+  private final AbstractOperation endOfScriptStop;
   private final CodeFactory codeFactory;
   private final EvmConfiguration evmConfiguration;
   private final EvmSpecVersion evmSpecVersion;
@@ -114,7 +114,7 @@ public class EVM {
       final EvmSpecVersion evmSpecVersion) {
     this.operations = operations;
     this.gasCalculator = gasCalculator;
-    this.endOfScriptStop = new VirtualOperation(new StopOperation(gasCalculator));
+    this.endOfScriptStop = new StopOperation(gasCalculator);
     this.evmConfiguration = evmConfiguration;
     this.evmSpecVersion = evmSpecVersion;
     this.jumpDestOnlyCodeCache = new JumpDestOnlyCodeCache(evmConfiguration);
@@ -212,9 +212,9 @@ public class EVM {
 
     var operationTracer = tracing == OperationTracer.NO_TRACING ? null : tracing;
     byte[] code = frame.getCode().getBytes().toArrayUnsafe();
-    Operation[] operationArray = operations.getOperations();
+    AbstractOperation[] operationArray = operations.getOperations();
     while (frame.getState() == MessageFrame.State.CODE_EXECUTING) {
-      Operation currentOperation;
+      AbstractOperation currentOperation;
       int opcode;
       int pc = frame.getPC();
       try {
@@ -261,6 +261,10 @@ public class EVM {
                       ? CountLeadingZerosOperation.staticOperation(frame)
                       : InvalidOperation.invalidOperationResult(opcode);
               case 0x50 -> PopOperation.staticOperation(frame);
+              case 0x51 -> currentOperation.executeMLOAD(frame, this);
+              case 0x52 -> currentOperation.executeMSTORE(frame, this);
+              case 0x53 -> currentOperation.executeMSTORE8(frame, this);
+              case 0x54 -> currentOperation.executeSLOAD(frame, this);
               case 0x56 -> JumpOperation.staticOperation(frame);
               case 0x57 -> JumpiOperation.staticOperation(frame);
               case 0x5b -> JumpDestOperation.JUMPDEST_SUCCESS;

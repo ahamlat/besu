@@ -36,7 +36,7 @@ public class MLoadOperation extends AbstractOperation {
   }
 
   @Override
-  public OperationResult execute(final MessageFrame frame, final EVM evm) {
+  public OperationResult executeMLOAD(final MessageFrame frame, final EVM evm) {
     final long location = clampedToLong(frame.popStackItem());
 
     final long cost = gasCalculator().mLoadOperationGasCost(frame, location);
@@ -48,5 +48,10 @@ public class MLoadOperation extends AbstractOperation {
 
     frame.pushStackItem(value);
     return new OperationResult(cost, null);
+  }
+
+  @Override
+  public OperationResult execute(final MessageFrame frame, final EVM evm) {
+    return executeMLOAD(frame, evm);
   }
 }

@@ -36,7 +36,7 @@ public class MStoreOperation extends AbstractOperation {
   }
 
   @Override
-  public OperationResult execute(final MessageFrame frame, final EVM evm) {
+  public OperationResult executeMSTORE(final MessageFrame frame, final EVM evm) {
     final long location = clampedToLong(frame.popStackItem());
     final Bytes value = frame.popStackItem();
 
@@ -47,5 +47,10 @@ public class MStoreOperation extends AbstractOperation {
 
     frame.writeMemoryRightAligned(location, 32, value, true);
     return new OperationResult(cost, null);
+  }
+
+  @Override
+  public OperationResult execute(final MessageFrame frame, final EVM evm) {
+    return executeMSTORE(frame, evm);
   }
 }

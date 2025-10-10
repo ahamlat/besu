@@ -19,11 +19,11 @@ public class OperationRegistry {
 
   private static final int NUM_OPERATIONS = 256;
 
-  private final Operation[] operations;
+  private final AbstractOperation[] operations;
 
   /** Instantiates a new Operation registry. */
   public OperationRegistry() {
-    this.operations = new Operation[NUM_OPERATIONS];
+    this.operations = new AbstractOperation[NUM_OPERATIONS];
   }
 
   /**
@@ -51,7 +51,7 @@ public class OperationRegistry {
    *
    * @param operation the operation
    */
-  public void put(final Operation operation) {
+  public void put(final AbstractOperation operation) {
     operations[operation.getOpcode()] = operation;
   }
 
@@ -77,7 +77,7 @@ public class OperationRegistry {
    *
    * @return the operation [ ]
    */
-  public Operation[] getOperations() {
+  public AbstractOperation[] getOperations() {
     return operations;
   }
 }

@@ -15,6 +15,7 @@
 package org.hyperledger.besu.evm.operation;
 
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -165,5 +166,21 @@ public abstract class AbstractOperation implements Operation {
         .getEip7928AccessList()
         .ifPresent(t -> t.addSlotAccessForAccount(account.getAddress(), slotKey));
     return slotValue;
+  }
+
+  public OperationResult executeSLOAD(final MessageFrame frame, final EVM evm) {
+    return new OperationResult(0L, null);
+  }
+
+  public OperationResult executeMLOAD(final MessageFrame frame, final EVM evm) {
+    return new OperationResult(0L, null);
+  }
+
+  public OperationResult executeMSTORE(final MessageFrame frame, final EVM evm) {
+    return new OperationResult(0L, null);
+  }
+
+  public OperationResult executeMSTORE8(final MessageFrame frame, final EVM evm) {
+    return new OperationResult(0L, null);
   }
 }

@@ -51,7 +51,7 @@ public class SLoadOperation extends AbstractOperation {
   }
 
   @Override
-  public OperationResult execute(final MessageFrame frame, final EVM evm) {
+  public OperationResult executeSLOAD(final MessageFrame frame, final EVM evm) {
     try {
       final Account account = getAccount(frame.getRecipientAddress(), frame);
       final Address address = account.getAddress();
@@ -69,5 +69,10 @@ public class SLoadOperation extends AbstractOperation {
     } catch (final OverflowException ofe) {
       return new OperationResult(warmCost, ExceptionalHaltReason.TOO_MANY_STACK_ITEMS);
     }
+  }
+
+  @Override
+  public OperationResult execute(final MessageFrame frame, final EVM evm) {
+    return executeSLOAD(frame, evm);
   }
 }
