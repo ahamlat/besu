@@ -73,8 +73,6 @@ dependencies {
 
     api 'com.github.ben-manes.caffeine:caffeine:3.2.0'
 
-    api 'com.github.oshi:oshi-core:6.6.6'
-
     api 'com.google.auto.service:auto-service:1.1.1'
 
     api 'com.google.dagger:dagger-compiler:2.55'

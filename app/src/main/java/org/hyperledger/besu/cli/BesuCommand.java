@@ -255,9 +255,8 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.jackson.DatabindCodec;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
+import org.hyperledger.besu.util.platform.PlatformDetector;
 import org.slf4j.Logger;
-import oshi.PlatformEnum;
-import oshi.SystemInfo;
 import picocli.AutoComplete;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -409,9 +408,9 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
       description = "Print the configured paths and exit without starting the node.",
       arity = "0..1")
   void setUserName(final String userName) {
-    PlatformEnum currentPlatform = SystemInfo.getCurrentPlatform();
+    final String osType = PlatformDetector.getOSType();
     // Only allow on Linux and macOS
-    if (currentPlatform == PlatformEnum.LINUX || currentPlatform == PlatformEnum.MACOS) {
+    if ("linux".equals(osType) || "osx".equals(osType)) {
       if (userName != null) {
         besuUserName = userName;
       }

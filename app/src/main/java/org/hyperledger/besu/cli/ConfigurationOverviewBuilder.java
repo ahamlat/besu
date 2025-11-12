@@ -32,10 +32,8 @@ import java.util.Optional;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
+import com.sun.management.OperatingSystemMXBean;
 import org.slf4j.Logger;
-import oshi.PlatformEnum;
-import oshi.SystemInfo;
-import oshi.hardware.HardwareAbstractionLayer;
 
 /** The Configuration overview builder. */
 public class ConfigurationOverviewBuilder {
@@ -507,7 +505,7 @@ public class ConfigurationOverviewBuilder {
     lines.add("Maximum heap size: " + normalizeSize(Runtime.getRuntime().maxMemory()));
     lines.add("OS: " + PlatformDetector.getOS());
 
-    if (SystemInfo.getCurrentPlatform() == PlatformEnum.LINUX) {
+    if ("linux".equals(PlatformDetector.getOSType())) {
       final String glibcVersion = PlatformDetector.getGlibc();
       if (glibcVersion != null) {
         lines.add("glibc: " + glibcVersion);
@@ -516,10 +514,16 @@ public class ConfigurationOverviewBuilder {
       detectJemalloc(lines);
     }
 
-    final HardwareAbstractionLayer hardwareInfo = new SystemInfo().getHardware();
-
-    lines.add("Total memory: " + normalizeSize(hardwareInfo.getMemory().getTotal()));
-    lines.add("CPU cores: " + hardwareInfo.getProcessor().getLogicalProcessorCount());
+    final OperatingSystemMXBean operatingSystemMXBean =
+        java.lang.management.ManagementFactory.getPlatformMXBean(
+            OperatingSystemMXBean.class);
+    if (operatingSystemMXBean != null) {
+      final long totalMemory = operatingSystemMXBean.getTotalPhysicalMemorySize();
+      if (totalMemory > 0) {
+        lines.add("Total memory: " + normalizeSize(totalMemory));
+      }
+    }
+    lines.add("CPU cores: " + Runtime.getRuntime().availableProcessors());
 
     lines.add("");
 

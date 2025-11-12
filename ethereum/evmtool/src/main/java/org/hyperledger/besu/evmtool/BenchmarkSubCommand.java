@@ -33,13 +33,26 @@ import org.hyperledger.besu.evmtool.benchmarks.SHA256Benchmark;
 import org.hyperledger.besu.util.BesuVersionUtils;
 import org.hyperledger.besu.util.LogConfigurator;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.OptionalLong;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
-import oshi.SystemInfo;
-import oshi.hardware.CentralProcessor;
-import oshi.hardware.HardwareAbstractionLayer;
+import com.sun.management.OperatingSystemMXBean;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -202,20 +215,258 @@ public class BenchmarkSubCommand implements Runnable {
     output.println(
         "\n****************************** Hardware Specs ******************************");
     output.println("*");
-    SystemInfo si = new SystemInfo();
-    HardwareAbstractionLayer hal = si.getHardware();
-    CentralProcessor processor = hal.getProcessor();
-    output.println("* OS: " + si.getOperatingSystem());
-    output.println("* Processor: " + processor.getProcessorIdentifier().getName());
+    final HardwareSummary hardwareSummary = HardwareSummary.detect();
+    output.println("* OS: " + hardwareSummary.osDescription());
     output.println(
-        "* Microarchitecture: " + processor.getProcessorIdentifier().getMicroarchitecture());
-    output.println("* Physical CPU packages: " + processor.getPhysicalPackageCount());
-    output.println("* Physical CPU cores: " + processor.getPhysicalProcessorCount());
-    output.println("* Logical CPU cores: " + processor.getLogicalProcessorCount());
+        "* Processor: " + hardwareSummary.processorName().orElse("Unavailable"));
+    output.println(
+        "* Microarchitecture: "
+            + hardwareSummary.microarchitecture().orElse("Unavailable"));
+    output.println(
+        "* Physical CPU packages: "
+            + (hardwareSummary.physicalPackages().isPresent()
+                ? Integer.toString(hardwareSummary.physicalPackages().getAsInt())
+                : "Unavailable"));
+    output.println(
+        "* Physical CPU cores: "
+            + (hardwareSummary.physicalCores().isPresent()
+                ? Integer.toString(hardwareSummary.physicalCores().getAsInt())
+                : "Unavailable"));
+    output.println("* Logical CPU cores: " + hardwareSummary.logicalCores());
     output.println(
         "* Average Max Frequency per core: "
-            + processor.getMaxFreq() / 100_000 / processor.getLogicalProcessorCount()
-            + " MHz");
-    output.println("* Memory Total: " + hal.getMemory().getTotal() / 1_000_000_000 + " GB");
+            + (hardwareSummary.averageMaxFrequencyMhz().isPresent()
+                ? hardwareSummary.averageMaxFrequencyMhz().getAsLong() + " MHz"
+                : "Unavailable"));
+    output.println(
+        "* Memory Total: "
+            + (hardwareSummary.totalMemoryBytes().isPresent()
+                ? hardwareSummary.totalMemoryBytes().getAsLong() / 1_000_000_000 + " GB"
+                : "Unavailable"));
+  }
+
+  private record HardwareSummary(
+      String osDescription,
+      Optional<String> processorName,
+      Optional<String> microarchitecture,
+      OptionalInt physicalPackages,
+      OptionalInt physicalCores,
+      int logicalCores,
+      OptionalLong averageMaxFrequencyMhz,
+      OptionalLong totalMemoryBytes) {
+
+    private static HardwareSummary detect() {
+      final String osName = System.getProperty("os.name", "Unknown");
+      final String osVersion = System.getProperty("os.version", "");
+      final String osArch = System.getProperty("os.arch", "");
+      final String osDescription =
+          (osName + " " + osVersion).trim()
+              + (osArch.isBlank() ? "" : " (" + osArch.trim() + ")");
+
+      final int logicalCores = Runtime.getRuntime().availableProcessors();
+
+      OptionalLong totalMemoryBytes = OptionalLong.empty();
+      final OperatingSystemMXBean osBean =
+          ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
+      if (osBean != null) {
+        try {
+          final long total = osBean.getTotalPhysicalMemorySize();
+          if (total > 0) {
+            totalMemoryBytes = OptionalLong.of(total);
+          }
+        } catch (final UnsupportedOperationException ignored) {
+          // some JVMs may not support this call
+        }
+      }
+
+      Optional<String> processorName = Optional.empty();
+      Optional<String> microarchitecture = Optional.empty();
+      OptionalInt physicalPackages = OptionalInt.empty();
+      OptionalInt physicalCores = OptionalInt.empty();
+      OptionalLong averageMaxFrequencyMhz = OptionalLong.empty();
+
+      final String osNameLower = osName.toLowerCase(Locale.ROOT);
+      if (osNameLower.contains("linux")) {
+        final LinuxCpuInfo linuxCpuInfo = LinuxCpuInfo.detect();
+        processorName = linuxCpuInfo.processorName();
+        physicalPackages = linuxCpuInfo.physicalPackages();
+        physicalCores = linuxCpuInfo.physicalCores();
+        averageMaxFrequencyMhz = linuxCpuInfo.averageMaxFrequencyMhz();
+      } else if (osNameLower.contains("mac")) {
+        processorName = detectMacProcessorName();
+      } else if (osNameLower.contains("windows")) {
+        processorName = detectWindowsProcessorName();
+      }
+
+      if (processorName.isEmpty()) {
+        processorName =
+            Optional.ofNullable(System.getenv("PROCESSOR_IDENTIFIER")).filter(s -> !s.isBlank());
+      }
+
+      return new HardwareSummary(
+          osDescription,
+          processorName.map(String::trim),
+          microarchitecture,
+          physicalPackages,
+          physicalCores,
+          logicalCores,
+          averageMaxFrequencyMhz,
+          totalMemoryBytes);
+    }
+  }
+
+  private record LinuxCpuInfo(
+      Optional<String> processorName,
+      OptionalInt physicalPackages,
+      OptionalInt physicalCores,
+      OptionalLong averageMaxFrequencyMhz) {
+
+    private static LinuxCpuInfo detect() {
+      final Path cpuInfoPath = Path.of("/proc/cpuinfo");
+      if (!Files.isReadable(cpuInfoPath)) {
+        return new LinuxCpuInfo(
+            Optional.empty(), OptionalInt.empty(), OptionalInt.empty(), OptionalLong.empty());
+      }
+
+      final Set<String> packageIds = new HashSet<>();
+      final Set<String> physicalCoreIds = new HashSet<>();
+      final Map<String, Integer> coresPerPackage = new HashMap<>();
+      final AtomicReference<String> processorName = new AtomicReference<>();
+      double totalObservedFrequencyMhz = 0.0D;
+      int frequencySamples = 0;
+
+      try (BufferedReader reader =
+          Files.newBufferedReader(cpuInfoPath, StandardCharsets.UTF_8)) {
+        final Map<String, String> block = new HashMap<>();
+        String line;
+        while ((line = reader.readLine()) != null) {
+          if (line.isBlank()) {
+            final double observedFrequency =
+                processBlock(
+                    block, packageIds, physicalCoreIds, coresPerPackage, processorName);
+            if (!Double.isNaN(observedFrequency)) {
+              totalObservedFrequencyMhz += observedFrequency;
+              frequencySamples++;
+            }
+          } else {
+            final int separator = line.indexOf(':');
+            if (separator > -1) {
+              final String key = line.substring(0, separator).trim();
+              final String value = line.substring(separator + 1).trim();
+              block.put(key, value);
+            }
+          }
+        }
+        final double observedFrequency =
+            processBlock(
+                block, packageIds, physicalCoreIds, coresPerPackage, processorName);
+        if (!Double.isNaN(observedFrequency)) {
+          totalObservedFrequencyMhz += observedFrequency;
+          frequencySamples++;
+        }
+      } catch (final IOException ignored) {
+        return new LinuxCpuInfo(
+            Optional.empty(), OptionalInt.empty(), OptionalInt.empty(), OptionalLong.empty());
+      }
+
+      final OptionalInt packages =
+          packageIds.isEmpty() ? OptionalInt.empty() : OptionalInt.of(packageIds.size());
+
+      OptionalInt cores = OptionalInt.empty();
+      if (!physicalCoreIds.isEmpty()) {
+        cores = OptionalInt.of(physicalCoreIds.size());
+      } else if (!coresPerPackage.isEmpty()) {
+        final int totalCores =
+            coresPerPackage.values().stream().mapToInt(Integer::intValue).sum();
+        if (totalCores > 0) {
+          cores = OptionalInt.of(totalCores);
+        }
+      }
+
+      OptionalLong averageFrequency =
+          frequencySamples == 0
+              ? OptionalLong.empty()
+              : OptionalLong.of(Math.round(totalObservedFrequencyMhz / frequencySamples));
+
+      return new LinuxCpuInfo(
+          Optional.ofNullable(processorName.get()).filter(name -> !name.isBlank()),
+          packages,
+          cores,
+          averageFrequency);
+    }
+
+    private static double processBlock(
+        final Map<String, String> block,
+        final Set<String> packageIds,
+        final Set<String> physicalCoreIds,
+        final Map<String, Integer> coresPerPackage,
+        final AtomicReference<String> processorName) {
+      if (block.isEmpty()) {
+        return Double.NaN;
+      }
+      if (processorName.get() == null) {
+        String modelName = block.get("model name");
+        if (modelName == null || modelName.isBlank()) {
+          modelName = block.get("Hardware");
+        }
+        if (modelName != null && !modelName.isBlank()) {
+          processorName.set(modelName.trim());
+        }
+      }
+      final String physicalId = block.get("physical id");
+      if (physicalId != null && !physicalId.isBlank()) {
+        packageIds.add(physicalId);
+      }
+      final String coreId = block.get("core id");
+      if (physicalId != null && coreId != null && !coreId.isBlank()) {
+        physicalCoreIds.add(physicalId + ":" + coreId);
+      }
+      final String coresCount = block.get("cpu cores");
+      if (physicalId != null && coresCount != null && !coresCount.isBlank()) {
+        try {
+          coresPerPackage.putIfAbsent(physicalId, Integer.parseInt(coresCount.trim()));
+        } catch (final NumberFormatException ignored) {
+          // ignore unparsable values
+        }
+      }
+      final String cpuMhz = block.get("cpu MHz");
+      double observedFrequency = Double.NaN;
+      if (cpuMhz != null && !cpuMhz.isBlank()) {
+        try {
+          observedFrequency = Double.parseDouble(cpuMhz.trim());
+        } catch (final NumberFormatException ignored) {
+          // ignore unparsable values
+        }
+      }
+      block.clear();
+      return observedFrequency;
+    }
+  }
+
+  private static Optional<String> detectMacProcessorName() {
+    final ProcessBuilder builder =
+        new ProcessBuilder("sysctl", "-n", "machdep.cpu.brand_string");
+    try {
+      final Process process = builder.start();
+      try (BufferedReader reader =
+          new BufferedReader(
+              new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+        final String line = reader.readLine();
+        if (line != null && !line.isBlank()) {
+          return Optional.of(line.trim());
+        }
+      } finally {
+        process.destroy();
+      }
+    } catch (final IOException ignored) {
+      // ignore inability to run sysctl
+    } catch (final SecurityException ignored) {
+      // insufficient privileges to execute sysctl
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<String> detectWindowsProcessorName() {
+    return Optional.ofNullable(System.getenv("PROCESSOR_IDENTIFIER")).filter(s -> !s.isBlank());
   }
 }
