@@ -106,8 +106,6 @@ public class FrontierGasCalculator implements GasCalculator {
 
   private static final long LOG_OPERATION_TOPIC_GAS_COST = 375L;
 
-  private static final long SELFDESTRUCT_OPERATION_GAS_COST = 0L;
-
   private static final long KECCAK256_OPERATION_BASE_GAS_COST = 30L;
 
   /** The constant KECCAK256_OPERATION_WORD_GAS_COST. */
@@ -295,8 +293,7 @@ public class FrontierGasCalculator implements GasCalculator {
       final long outputDataOffset,
       final long outputDataLength,
       final Wei transferValue,
-      final Account recipient,
-      final Address to,
+      final Address recipientAddress,
       final boolean accountIsWarm) {
     final long inputDataMemoryExpansionCost =
         memoryExpansionGasCost(frame, inputDataOffset, inputDataLength);
@@ -311,6 +308,7 @@ public class FrontierGasCalculator implements GasCalculator {
       cost = clampedAdd(cost, callValueTransferGasCost());
     }
 
+    final Account recipient = frame.getWorldUpdater().get(recipientAddress);
     if (recipient == null) {
       cost = clampedAdd(cost, newAccountGasCost());
     }
@@ -468,11 +466,6 @@ public class FrontierGasCalculator implements GasCalculator {
   @Override
   public long mStore8OperationGasCost(final MessageFrame frame, final long offset) {
     return clampedAdd(VERY_LOW_TIER_GAS_COST, memoryExpansionGasCost(frame, offset, 1));
-  }
-
-  @Override
-  public long selfDestructOperationGasCost(final Account recipient, final Wei inheritance) {
-    return SELFDESTRUCT_OPERATION_GAS_COST;
   }
 
   @Override

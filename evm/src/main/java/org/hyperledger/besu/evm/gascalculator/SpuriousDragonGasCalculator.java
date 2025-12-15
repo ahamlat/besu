@@ -38,8 +38,7 @@ public class SpuriousDragonGasCalculator extends TangerineWhistleGasCalculator {
       final long outputDataOffset,
       final long outputDataLength,
       final Wei transferValue,
-      final Account recipient,
-      final Address to,
+      final Address recipientAddress,
       final boolean accountIsWarm) {
     final long inputDataMemoryExpansionCost =
         memoryExpansionGasCost(frame, inputDataOffset, inputDataLength);
@@ -50,12 +49,16 @@ public class SpuriousDragonGasCalculator extends TangerineWhistleGasCalculator {
 
     long cost = clampedAdd(callOperationBaseGasCost(), memoryExpansionCost);
 
-    if (!transferValue.isZero()) {
-      cost = clampedAdd(cost, callValueTransferGasCost());
-    }
+    final boolean isTransferValueZero = transferValue.isZero();
 
-    if ((recipient == null || recipient.isEmpty()) && !transferValue.isZero()) {
-      cost = clampedAdd(cost, newAccountGasCost());
+    if (!isTransferValueZero) {
+      cost = clampedAdd(cost, callValueTransferGasCost());
+
+      final Account recipient = frame.getWorldUpdater().get(recipientAddress);
+      frame.getEip7928AccessList().ifPresent(t -> t.addTouchedAccount(recipientAddress));
+      if (recipient == null || recipient.isEmpty()) {
+        cost = clampedAdd(cost, newAccountGasCost());
+      }
     }
 
     return cost;
@@ -66,16 +69,12 @@ public class SpuriousDragonGasCalculator extends TangerineWhistleGasCalculator {
     return EXP_OPERATION_BYTE_GAS_COST;
   }
 
-  private static final long SELFDESTRUCT_OPERATION_GAS_COST = 5_000L;
-
-  private static final long SELFDESTRUCT_OPERATION_CREATES_NEW_ACCOUNT = 30_000L;
-
   @Override
   public long selfDestructOperationGasCost(final Account recipient, final Wei inheritance) {
     if ((recipient == null || recipient.isEmpty()) && !inheritance.isZero()) {
       return SELFDESTRUCT_OPERATION_CREATES_NEW_ACCOUNT;
     } else {
-      return SELFDESTRUCT_OPERATION_GAS_COST;
+      return selfDestructOperationBaseGasCost();
     }
   }
 }

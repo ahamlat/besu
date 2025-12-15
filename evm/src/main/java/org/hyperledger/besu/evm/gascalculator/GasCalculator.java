@@ -176,8 +176,7 @@ public interface GasCalculator {
    * @param outputDataOffset The offset in memory to place the CALL output data
    * @param outputDataLength The CALL output data length
    * @param transferValue The wei being transferred
-   * @param recipient The CALL recipient (may be null if self destructed or new)
-   * @param contract The address of the recipient (never null)
+   * @param recipientAddress The CALL recipient (may be null if self destructed or new) address
    * @param accountIsWarm The address of the contract is "warm" as per EIP-2929
    * @return The gas cost for the CALL operation
    */
@@ -189,8 +188,7 @@ public interface GasCalculator {
       long outputDataOffset,
       long outputDataLength,
       Wei transferValue,
-      Account recipient,
-      Address contract,
+      Address recipientAddress,
       boolean accountIsWarm);
 
   /**
@@ -378,7 +376,18 @@ public interface GasCalculator {
    * @param inheritance The amount the recipient will receive
    * @return the cost for executing the self destruct operation
    */
-  long selfDestructOperationGasCost(Account recipient, Wei inheritance);
+  default long selfDestructOperationGasCost(final Account recipient, final Wei inheritance) {
+    return selfDestructOperationBaseGasCost();
+  }
+
+  /**
+   * Returns the base cost for executing a {@link SelfDestructOperation}.
+   *
+   * @return the base cost for executing a {@link SelfDestructOperation}
+   */
+  default long selfDestructOperationBaseGasCost() {
+    return 0L;
+  }
 
   /**
    * Returns the cost for executing a {@link Keccak256Operation}.
