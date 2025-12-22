@@ -35,11 +35,30 @@ public class ParallelTransactionPreprocessing implements PreprocessingFunction {
 
   private final MainnetTransactionProcessor transactionProcessor;
   private final Executor executor;
+  private final int maxInFlightTransactions;
 
   public ParallelTransactionPreprocessing(
       final MainnetTransactionProcessor transactionProcessor, final Executor executor) {
+    this(transactionProcessor, executor, defaultMaxInFlight());
+  }
+
+  public ParallelTransactionPreprocessing(
+      final MainnetTransactionProcessor transactionProcessor,
+      final Executor executor,
+      final int maxInFlightTransactions) {
     this.transactionProcessor = transactionProcessor;
     this.executor = executor;
+    this.maxInFlightTransactions = Math.max(1, maxInFlightTransactions);
+  }
+
+  private static int defaultMaxInFlight() {
+    final int configured = Integer.getInteger("besu.parallelTx.maxInFlight", -1);
+    if (configured > 0) {
+      return configured;
+    }
+    // Conservative default: 2x available CPUs worth of in-flight work.
+    // (Actual parallelism depends on the provided Executor.)
+    return Math.max(1, Runtime.getRuntime().availableProcessors() * 2);
   }
 
   @Override
@@ -64,6 +83,7 @@ public class ParallelTransactionPreprocessing implements PreprocessingFunction {
           blockHashLookup,
           blobGasPrice,
           executor,
+          maxInFlightTransactions,
           blockAccessListBuilder);
       return Optional.of(
           new ParallelizedPreProcessingContext(parallelizedConcurrentTransactionProcessor));

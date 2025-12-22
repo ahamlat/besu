@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -52,7 +53,9 @@ import org.hyperledger.besu.evm.internal.EvmConfiguration;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
+import org.hyperledger.besu.testutil.MockExecutorService;
 
+import java.util.List;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -99,19 +102,20 @@ class ParallelizedConcurrentTransactionProcessorTest {
             createStatefulConfigWithTrie(),
             new CodeCache());
 
-    when(chainHeadBlockHeader.getHash()).thenReturn(Hash.ZERO);
-    when(chainHeadBlockHeader.getStateRoot()).thenReturn(Hash.EMPTY_TRIE_HASH);
-    when(blockHeader.getParentHash()).thenReturn(Hash.ZERO);
+    lenient().when(chainHeadBlockHeader.getHash()).thenReturn(Hash.ZERO);
+    lenient().when(chainHeadBlockHeader.getStateRoot()).thenReturn(Hash.EMPTY_TRIE_HASH);
+    lenient().when(blockHeader.getParentHash()).thenReturn(Hash.ZERO);
 
-    when(transaction.detachedCopy()).thenReturn(transaction);
+    lenient().when(transaction.detachedCopy()).thenReturn(transaction);
 
     final MutableBlockchain blockchain = mock(MutableBlockchain.class);
-    when(protocolContext.getBlockchain()).thenReturn(blockchain);
-    when(blockchain.getChainHeadHeader()).thenReturn(chainHeadBlockHeader);
+    lenient().when(protocolContext.getBlockchain()).thenReturn(blockchain);
+    lenient().when(blockchain.getChainHeadHeader()).thenReturn(chainHeadBlockHeader);
     final WorldStateArchive worldStateArchive = mock(WorldStateArchive.class);
-    when(protocolContext.getWorldStateArchive()).thenReturn(worldStateArchive);
-    when(worldStateArchive.getWorldState(any())).thenReturn(Optional.of(worldState));
-    when(transactionCollisionDetector.hasCollision(any(), any(), any(), any())).thenReturn(false);
+    lenient().when(protocolContext.getWorldStateArchive()).thenReturn(worldStateArchive);
+    lenient().when(worldStateArchive.getWorldState(any())).thenReturn(Optional.of(worldState));
+    lenient().when(transactionCollisionDetector.hasCollision(any(), any(), any(), any()))
+        .thenReturn(false);
   }
 
   @Test
@@ -300,5 +304,40 @@ class ParallelizedConcurrentTransactionProcessorTest {
     TransactionProcessingResult result = maybeResult.get();
     assertTrue(result.getPartialBlockAccessView().isPresent(), "Expected BAL view to be present");
     verify(beneficiaryChanges).setPostBalance(any(Wei.class));
+  }
+
+  @Test
+  void testRunAsyncBlockSchedulesBoundedWorkAndCancelsWhenSequentialOvertakes() {
+    final Address miningBeneficiary = Address.fromHexString("0x1");
+    final Wei blobGasPrice = Wei.ZERO;
+
+    final MockExecutorService mockExecutor = new MockExecutorService();
+    mockExecutor.setAutoRun(false); // keep tasks pending so apply() will attempt to cancel
+
+    final Transaction tx0 = mock(Transaction.class);
+    final Transaction tx1 = mock(Transaction.class);
+
+    processor.runAsyncBlock(
+        protocolContext,
+        blockHeader,
+        List.of(tx0, tx1),
+        miningBeneficiary,
+        (__, ___) -> Hash.EMPTY,
+        blobGasPrice,
+        mockExecutor,
+        1, // maxInFlightTransactions
+        Optional.empty());
+
+    // With maxInFlight=1, only the first transaction should be scheduled initially.
+    assertTrue(mockExecutor.getFutures().size() == 1, "Expected one background task scheduled");
+
+    processor.applyParallelizedTransactionResult(
+        worldState, miningBeneficiary, tx0, 0, Optional.empty(), Optional.empty());
+
+    // When the sequential processor overtakes tx0, we should cancel its background task.
+    verify(mockExecutor.getFutures().get(0)).cancel(true);
+
+    // And we should schedule the next tx to maintain the in-flight window.
+    assertTrue(mockExecutor.getFutures().size() == 2, "Expected the next background task scheduled");
   }
 }

@@ -41,8 +41,8 @@ import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.metrics.Counter;
 
 import java.util.Optional;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +55,23 @@ public class MainnetParallelBlockProcessor extends MainnetBlockProcessor {
   private final Optional<Counter> conflictingButCachedTransactionCounter;
 
   private static final int NCPU = Runtime.getRuntime().availableProcessors();
-  private static final Executor executor = Executors.newFixedThreadPool(NCPU);
+  private static final int PARALLEL_TX_THREADS =
+      Math.max(1, Integer.getInteger("besu.parallelTx.threads", NCPU));
+  private static final int PARALLEL_TX_MAX_IN_FLIGHT =
+      Math.max(1, Integer.getInteger("besu.parallelTx.maxInFlight", PARALLEL_TX_THREADS * 2));
+
+  /**
+   * Shared executor for parallel tx preprocessing. Prestarted threads reduce first-block latency.
+   *
+   * <p>Note: lifecycle is tied to the JVM. This mirrors existing behavior (static pool).
+   */
+  private static final ThreadPoolExecutor executor =
+      (ThreadPoolExecutor) Executors.newFixedThreadPool(PARALLEL_TX_THREADS);
+
+  static {
+    // Reduce latency spikes due to on-demand thread start.
+    executor.prestartAllCoreThreads();
+  }
 
   public MainnetParallelBlockProcessor(
       final MainnetTransactionProcessor transactionProcessor,
@@ -147,7 +163,8 @@ public class MainnetParallelBlockProcessor extends MainnetBlockProcessor {
             blockchain,
             worldState,
             block,
-            new ParallelTransactionPreprocessing(transactionProcessor, executor));
+            new ParallelTransactionPreprocessing(
+                transactionProcessor, executor, PARALLEL_TX_MAX_IN_FLIGHT));
 
     if (blockProcessingResult.isFailed()) {
       // Fallback to non-parallel processing if there is a block processing exception .

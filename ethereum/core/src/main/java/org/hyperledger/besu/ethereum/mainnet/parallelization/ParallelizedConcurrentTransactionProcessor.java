@@ -42,6 +42,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -61,7 +63,25 @@ public class ParallelizedConcurrentTransactionProcessor {
   private final Map<Integer, ParallelizedTransactionContext>
       parallelizedTransactionContextByLocation = new ConcurrentHashMap<>();
 
-  private CompletableFuture<Void>[] completableFuturesForBackgroundTransactions;
+  /**
+   * Background tasks for optimistic execution. We store {@link Future} so we can attempt to cancel
+   * work that becomes useless as the sequential processor overtakes the background execution.
+   */
+  private Future<?>[] futuresForBackgroundTransactions;
+
+  // Sliding window scheduling: only keep a bounded number of in-flight transactions scheduled.
+  private int maxInFlightTransactions;
+  private int nextTransactionToSchedule;
+
+  // Captured context so we can schedule additional work as the block is processed.
+  private ProtocolContext protocolContext;
+  private BlockHeader blockHeader;
+  private List<Transaction> transactions;
+  private Address miningBeneficiary;
+  private BlockHashLookup blockHashLookup;
+  private Wei blobGasPrice;
+  private Executor executor;
+  private Optional<BlockAccessListBuilder> blockAccessListBuilder;
 
   /**
    * Constructs a PreloadConcurrentTransactionProcessor with a specified transaction processor. This
@@ -97,6 +117,7 @@ public class ParallelizedConcurrentTransactionProcessor {
    * @param blockHashLookup Function for block hash lookup.
    * @param blobGasPrice Gas price for blob transactions.
    * @param executor The executor to use for asynchronous execution.
+   * @param maxInFlightTransactions Max number of background transactions to keep in-flight.
    * @param blockAccessListBuilder BAL builder.
    */
   public void runAsyncBlock(
@@ -107,28 +128,59 @@ public class ParallelizedConcurrentTransactionProcessor {
       final BlockHashLookup blockHashLookup,
       final Wei blobGasPrice,
       final Executor executor,
+      final int maxInFlightTransactions,
       final Optional<BlockAccessListBuilder> blockAccessListBuilder) {
 
-    completableFuturesForBackgroundTransactions = new CompletableFuture[transactions.size()];
-    for (int i = 0; i < transactions.size(); i++) {
-      final Transaction transaction = transactions.get(i);
-      final int transactionLocation = i;
-      /*
-       * All transactions are executed in the background by copying the world state of the block on which the transactions need to be executed, ensuring that each one has its own accumulator.
-       */
-      CompletableFuture.runAsync(
-          () ->
-              runTransaction(
-                  protocolContext,
-                  blockHeader,
-                  transactionLocation,
-                  transaction,
-                  miningBeneficiary,
-                  blockHashLookup,
-                  blobGasPrice,
-                  blockAccessListBuilder),
-          executor);
+    this.protocolContext = protocolContext;
+    this.blockHeader = blockHeader;
+    this.transactions = transactions;
+    this.miningBeneficiary = miningBeneficiary;
+    this.blockHashLookup = blockHashLookup;
+    this.blobGasPrice = blobGasPrice;
+    this.executor = executor;
+    this.blockAccessListBuilder = blockAccessListBuilder;
+
+    this.maxInFlightTransactions = Math.max(1, maxInFlightTransactions);
+    this.nextTransactionToSchedule = 0;
+    this.futuresForBackgroundTransactions = new Future<?>[transactions.size()];
+
+    // Schedule only a bounded window to avoid long queues of soon-to-be-useless work.
+    scheduleUpToExclusive(Math.min(transactions.size(), this.maxInFlightTransactions));
+  }
+
+  private void scheduleUpToExclusive(final int desiredExclusive) {
+    final int limit = Math.min(desiredExclusive, transactions.size());
+    while (nextTransactionToSchedule < limit) {
+      final int transactionLocation = nextTransactionToSchedule++;
+      // Defensive: never schedule the same transaction twice
+      if (futuresForBackgroundTransactions[transactionLocation] != null) {
+        continue;
+      }
+      final Transaction transaction = transactions.get(transactionLocation);
+      futuresForBackgroundTransactions[transactionLocation] =
+          submitBackgroundTransaction(transactionLocation, transaction);
     }
+  }
+
+  private Future<?> submitBackgroundTransaction(
+      final int transactionLocation, final Transaction transaction) {
+    final Runnable task =
+        () ->
+            runTransaction(
+                protocolContext,
+                blockHeader,
+                transactionLocation,
+                transaction,
+                miningBeneficiary,
+                blockHashLookup,
+                blobGasPrice,
+                blockAccessListBuilder);
+
+    // Prefer ExecutorService.submit() when available to get a cancellable Future.
+    if (executor instanceof ExecutorService executorService) {
+      return executorService.submit(task);
+    }
+    return CompletableFuture.runAsync(task, executor);
   }
 
   @VisibleForTesting
@@ -141,6 +193,9 @@ public class ParallelizedConcurrentTransactionProcessor {
       final BlockHashLookup blockHashLookup,
       final Wei blobGasPrice,
       final Optional<BlockAccessListBuilder> blockAccessListBuilder) {
+    if (Thread.currentThread().isInterrupted()) {
+      return;
+    }
     final BlockHeader chainHeadHeader = protocolContext.getBlockchain().getChainHeadHeader();
     if (chainHeadHeader.getHash().equals(blockHeader.getParentHash())) {
       try (BonsaiWorldState ws =
@@ -151,6 +206,9 @@ public class ParallelizedConcurrentTransactionProcessor {
                       WorldStateQueryParams.withBlockHeaderAndNoUpdateNodeHead(chainHeadHeader))
                   .orElse(null)) {
         if (ws != null) {
+          if (Thread.currentThread().isInterrupted()) {
+            return;
+          }
           ws.disableCacheMerkleTrieLoader();
           final ParallelizedTransactionContext.Builder contextBuilder =
               new ParallelizedTransactionContext.Builder();
@@ -251,6 +309,14 @@ public class ParallelizedConcurrentTransactionProcessor {
       final int transactionLocation,
       final Optional<Counter> confirmedParallelizedTransactionCounter,
       final Optional<Counter> conflictingButCachedTransactionCounter) {
+    // Keep a bounded amount of work scheduled ahead of the sequential execution cursor.
+    // (Guarded because some unit tests call runTransaction() directly without runAsyncBlock().)
+    if (transactions != null) {
+      // We schedule relative to the *next* location, since the current location is being applied now.
+      scheduleUpToExclusive(
+          Math.min(transactions.size(), (transactionLocation + 1) + maxInFlightTransactions));
+    }
+
     final PathBasedWorldState pathBasedWorldState = (PathBasedWorldState) worldState;
     final PathBasedWorldStateUpdateAccumulator blockAccumulator =
         (PathBasedWorldStateUpdateAccumulator) pathBasedWorldState.updater();
@@ -306,10 +372,11 @@ public class ParallelizedConcurrentTransactionProcessor {
       }
     } else {
       // stop background processing for this transaction as useless
-      final CompletableFuture<Void> completableFuturesForBackgroundTransaction =
-          completableFuturesForBackgroundTransactions[transactionLocation];
-      if (completableFuturesForBackgroundTransaction != null) {
-        completableFuturesForBackgroundTransaction.cancel(true);
+      final Future<?> futureForBackgroundTransaction =
+          futuresForBackgroundTransactions[transactionLocation];
+      if (futureForBackgroundTransaction != null) {
+        futureForBackgroundTransaction.cancel(true);
+        futuresForBackgroundTransactions[transactionLocation] = null;
       }
     }
     return Optional.empty();
