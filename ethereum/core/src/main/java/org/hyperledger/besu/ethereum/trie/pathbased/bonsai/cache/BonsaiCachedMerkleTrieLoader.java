@@ -58,9 +58,9 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       final BonsaiWorldStateKeyValueStorage worldStateKeyValueStorage,
       final Hash worldStateRootHash,
       final Address account) {
-    CompletableFuture.runAsync(
+    /* CompletableFuture.runAsync(
         () -> cacheAccountNodes(worldStateKeyValueStorage, worldStateRootHash, account),
-        VIRTUAL_POOL);
+        VIRTUAL_POOL); */
   }
 
   @VisibleForTesting
@@ -93,8 +93,9 @@ public class BonsaiCachedMerkleTrieLoader implements StorageSubscriber {
       final BonsaiWorldStateKeyValueStorage worldStateKeyValueStorage,
       final Address account,
       final StorageSlotKey slotKey) {
-    CompletableFuture.runAsync(
+    /* CompletableFuture.runAsync(
         () -> cacheStorageNodes(worldStateKeyValueStorage, account, slotKey), VIRTUAL_POOL);
+     */
   }
 
   @VisibleForTesting

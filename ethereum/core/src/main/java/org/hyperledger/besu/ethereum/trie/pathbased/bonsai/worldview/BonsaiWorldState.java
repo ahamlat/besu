@@ -95,12 +95,8 @@ public class BonsaiWorldState extends PathBasedWorldState {
     this.setAccumulator(
         new BonsaiWorldStateUpdateAccumulator(
             this,
-            (addr, value) ->
-                this.bonsaiCachedMerkleTrieLoader.preLoadAccount(
-                    getWorldStateStorage(), worldStateRootHash, addr),
-            (addr, value) ->
-                this.bonsaiCachedMerkleTrieLoader.preLoadStorageSlot(
-                    getWorldStateStorage(), addr, value),
+            (addr, value) -> {},
+            (addr, value) -> {},
             evmConfiguration,
             codeCache));
     this.codeCache = codeCache;
