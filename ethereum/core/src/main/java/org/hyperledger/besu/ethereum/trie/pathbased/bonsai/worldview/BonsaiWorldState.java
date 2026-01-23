@@ -94,11 +94,7 @@ public class BonsaiWorldState extends PathBasedWorldState {
     this.worldStateKeyValueStorage = worldStateKeyValueStorage;
     this.setAccumulator(
         new BonsaiWorldStateUpdateAccumulator(
-            this,
-            (addr, value) -> {},
-            (addr, value) -> {},
-            evmConfiguration,
-            codeCache));
+            this, (addr, value) -> {}, (addr, value) -> {}, evmConfiguration, codeCache));
     this.codeCache = codeCache;
   }
 
