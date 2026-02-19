@@ -53,6 +53,10 @@ public class DebugOperationTracer implements OperationTracer {
   private List<TraceFrame> traceFrames = new ArrayList<>();
   private TraceFrame lastFrame;
 
+  private Bytes[] lastCapturedMemory;
+  private long lastMemoryVersion;
+  private int lastMemoryDepth;
+
   private Optional<Bytes[]> preExecutionStack;
   private long gasRemaining;
   private Bytes inputData;
@@ -287,10 +291,25 @@ public class DebugOperationTracer implements OperationTracer {
     if (!options.traceMemory() || frame.memoryWordSize() == 0) {
       return Optional.empty();
     }
+
+    final long currentVersion = frame.getMemoryVersion();
+    final int currentDepth = frame.getDepth();
+
+    if (lastCapturedMemory != null
+        && currentDepth == lastMemoryDepth
+        && currentVersion == lastMemoryVersion) {
+      return Optional.of(lastCapturedMemory);
+    }
+
     final Bytes[] memoryContents = new Bytes[frame.memoryWordSize()];
     for (int i = 0; i < memoryContents.length; i++) {
       memoryContents[i] = frame.readMemory(i * 32L, 32);
     }
+
+    lastCapturedMemory = memoryContents;
+    lastMemoryVersion = currentVersion;
+    lastMemoryDepth = currentDepth;
+
     return Optional.of(memoryContents);
   }
 
@@ -315,6 +334,7 @@ public class DebugOperationTracer implements OperationTracer {
   public void reset() {
     traceFrames = new ArrayList<>();
     lastFrame = null;
+    lastCapturedMemory = null;
   }
 
   public List<TraceFrame> copyTraceFrames() {

@@ -44,6 +44,8 @@ public class Memory {
 
   private int activeWords;
 
+  private long version;
+
   /** Instantiates a new Memory. */
   public Memory() {
     memBytes = new byte[0];
@@ -140,6 +142,7 @@ public class Memory {
       memBytes = newMem;
     }
     activeWords = newActiveWords;
+    version++;
   }
 
   /**
@@ -178,6 +181,15 @@ public class Memory {
    */
   public int getActiveWords() {
     return activeWords;
+  }
+
+  /**
+   * Returns a monotonically increasing version that is incremented on every memory mutation.
+   *
+   * @return the current memory version
+   */
+  public long getVersion() {
+    return version;
   }
 
   /**
@@ -324,6 +336,7 @@ public class Memory {
         System.arraycopy(taintedValue.toArrayUnsafe(), 0, memBytes, start, srcLength);
       }
     }
+    version++;
   }
 
   /**
@@ -365,6 +378,7 @@ public class Memory {
         System.arraycopy(value.toArrayUnsafe(), 0, memBytes, divider, srcLength);
       }
     }
+    version++;
   }
 
   /**
@@ -395,6 +409,7 @@ public class Memory {
 
     ensureCapacityForBytes(location, numBytes);
     Arrays.fill(memBytes, location, location + numBytes, (byte) 0);
+    version++;
   }
 
   /**
@@ -407,6 +422,7 @@ public class Memory {
     final int start = asByteIndex(location);
     ensureCapacityForBytes(start, 1);
     memBytes[start] = value;
+    version++;
   }
 
   /**
@@ -434,6 +450,7 @@ public class Memory {
     final int start = asByteIndex(location);
     ensureCapacityForBytes(start, Bytes32.SIZE);
     System.arraycopy(bytes.toArrayUnsafe(), 0, memBytes, start, Bytes32.SIZE);
+    version++;
   }
 
   /**
@@ -448,6 +465,7 @@ public class Memory {
   public void copy(final long dst, final long src, final long length) {
     ensureCapacityForBytes(Math.max(dst, src), length);
     System.arraycopy(memBytes, asByteIndex(src), memBytes, asByteIndex(dst), asByteLength(length));
+    version++;
   }
 
   @Override

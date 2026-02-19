@@ -524,6 +524,16 @@ public class MessageFrame {
   }
 
   /**
+   * Returns a monotonically increasing version that is incremented on every memory mutation.
+   * Useful for cache invalidation in tracers.
+   *
+   * @return the current memory version
+   */
+  public long getMemoryVersion() {
+    return memory.getVersion();
+  }
+
+  /**
    * Returns the revertReason as string
    *
    * @return the revertReason string
