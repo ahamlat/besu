@@ -100,13 +100,13 @@ public class ShrOperationOptimized extends AbstractFixedCostOperation {
 
     // Shift right: bytes move to higher indices (towards index 31)
     // Bytes below shiftBytes are guaranteed zero (already from new byte[32])
-    for (int i = 31; i >= shiftBytes; i--) {
-      final int srcIndex = i - shiftBytes;
-      final int curr = in[srcIndex] & 0xFF;
-      if (shiftBits == 0) {
-        out[i] = (byte) curr;
-      } else {
-        final int prev = (srcIndex - 1 >= 0) ? (in[srcIndex - 1] & 0xFF) : 0;
+    if (shiftBits == 0) {
+      System.arraycopy(in, 0, out, shiftBytes, 32 - shiftBytes);
+    } else {
+      for (int i = 31; i >= shiftBytes; i--) {
+        final int srcIndex = i - shiftBytes;
+        final int curr = in[srcIndex] & 0xFF;
+        final int prev = (srcIndex > 0) ? (in[srcIndex - 1] & 0xFF) : 0;
         out[i] = (byte) ((curr >>> shiftBits) | (prev << (8 - shiftBits)));
       }
     }

@@ -97,23 +97,20 @@ public class SarOperationOptimized extends AbstractFixedCostOperation {
 
     final int shiftBytes = shift >>> 3; // /8
     final int shiftBits = shift & 7; // %8
-    final int fill = negative ? 0xFF : 0x00;
-
     final byte[] out = new byte[32];
 
-    // Pre-fill sign-extended bytes (indices below shiftBytes are fully sign-extended)
     if (negative && shiftBytes > 0) {
       Arrays.fill(out, 0, shiftBytes, (byte) 0xFF);
     }
 
-    // Only iterate bytes that receive shifted data from the input
-    for (int i = 31; i >= shiftBytes; i--) {
-      final int srcIndex = i - shiftBytes;
-      final int curr = in[srcIndex] & 0xFF;
-      if (shiftBits == 0) {
-        out[i] = (byte) curr;
-      } else {
-        final int prev = (srcIndex - 1 >= 0) ? (in[srcIndex - 1] & 0xFF) : fill;
+    if (shiftBits == 0) {
+      System.arraycopy(in, 0, out, shiftBytes, 32 - shiftBytes);
+    } else {
+      final int fill = negative ? 0xFF : 0x00;
+      for (int i = 31; i >= shiftBytes; i--) {
+        final int srcIndex = i - shiftBytes;
+        final int curr = in[srcIndex] & 0xFF;
+        final int prev = (srcIndex > 0) ? (in[srcIndex - 1] & 0xFF) : fill;
         out[i] = (byte) ((curr >>> shiftBits) | (prev << (8 - shiftBits)));
       }
     }
