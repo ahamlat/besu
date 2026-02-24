@@ -14,17 +14,20 @@
  */
 package org.hyperledger.besu.evm.operation;
 
+import static org.apache.tuweni.bytes.Bytes32.leftPad;
+import static org.hyperledger.besu.evm.operation.Bitwise256Operations.getLong;
+import static org.hyperledger.besu.evm.operation.Bitwise256Operations.putLong;
+
 import org.hyperledger.besu.evm.EVM;
-import org.hyperledger.besu.evm.UInt256;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 
 import org.apache.tuweni.bytes.Bytes;
 
-/** The XOR operation. */
+/** The Xor operation. */
 public class XorOperationOptimized extends AbstractFixedCostOperation {
 
-  /** The XOR operation success result. */
+  /** The Xor operation success result. */
   static final OperationResult xorSuccess = new OperationResult(3, null);
 
   /**
@@ -42,19 +45,22 @@ public class XorOperationOptimized extends AbstractFixedCostOperation {
   }
 
   /**
-   * Performs XOR operation.
+   * Performs XOR using 4-long register-based computation to keep values in CPU cache.
    *
    * @param frame the frame
    * @return the operation result
    */
   public static OperationResult staticOperation(final MessageFrame frame) {
-    final Bytes value0 = frame.popStackItem();
-    final Bytes value1 = frame.popStackItem();
-    UInt256 b0 = UInt256.fromBytesBE(value0.toArrayUnsafe());
-    UInt256 b1 = UInt256.fromBytesBE(value1.toArrayUnsafe());
-    UInt256 result = b0.xor(b1);
-    byte[] resultArray = result.toBytesBE();
-    frame.pushStackItem(Bytes.wrap(resultArray));
+    final byte[] a = leftPad(frame.popStackItem()).toArrayUnsafe();
+    final byte[] b = leftPad(frame.popStackItem()).toArrayUnsafe();
+
+    final byte[] out = new byte[32];
+    putLong(out, 0, getLong(a, 0) ^ getLong(b, 0));
+    putLong(out, 8, getLong(a, 8) ^ getLong(b, 8));
+    putLong(out, 16, getLong(a, 16) ^ getLong(b, 16));
+    putLong(out, 24, getLong(a, 24) ^ getLong(b, 24));
+
+    frame.pushStackItem(Bytes.wrap(out));
     return xorSuccess;
   }
 }
