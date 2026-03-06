@@ -42,6 +42,7 @@ public class ProcessableBlockHeader
   protected final long timestamp;
   // base fee is included for post EIP-1559 blocks
   protected final Wei baseFee;
+  private final Optional<Wei> optionalBaseFee;
   // prevRandao is included for post-merge blocks
   protected final Bytes32 mixHashOrPrevRandao;
   // parentBeaconBlockRoot is included for Cancun
@@ -67,6 +68,7 @@ public class ProcessableBlockHeader
     this.gasLimit = gasLimit;
     this.timestamp = timestamp;
     this.baseFee = baseFee;
+    this.optionalBaseFee = Optional.ofNullable(baseFee);
     this.mixHashOrPrevRandao = mixHashOrPrevRandao;
     this.parentBeaconBlockRoot = parentBeaconBlockRoot;
     this.slotNumber = slotNumber;
@@ -149,7 +151,7 @@ public class ProcessableBlockHeader
    */
   @Override
   public Optional<Wei> getBaseFee() {
-    return Optional.ofNullable(baseFee);
+    return optionalBaseFee;
   }
 
   /**
