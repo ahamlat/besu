@@ -17,7 +17,6 @@ package org.hyperledger.besu.evm.operation;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
-import org.hyperledger.besu.evm.internal.StackMath;
 
 /** The Blob Base fee operation. */
 public class BlobBaseFeeOperation extends AbstractFixedCostOperation {
@@ -34,9 +33,10 @@ public class BlobBaseFeeOperation extends AbstractFixedCostOperation {
   @Override
   public OperationResult executeFixedCostOperation(final MessageFrame frame, final EVM evm) {
     if (!frame.stackHasSpace(1)) return OVERFLOW_RESPONSE;
-    final byte[] bytes = frame.getBlobGasPrice().toBytes().toArrayUnsafe();
-    frame.setTop(
-        StackMath.pushFromBytes(frame.stackData(), frame.stackTop(), bytes, 0, bytes.length));
+    final long[] s = frame.stackData();
+    final int top = frame.stackTop();
+    frame.getBlobGasPrice().writeLimbs(s, top << 2);
+    frame.setTop(top + 1);
     return successResponse;
   }
 }
