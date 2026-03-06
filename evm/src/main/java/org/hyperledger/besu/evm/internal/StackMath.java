@@ -15,6 +15,7 @@
 package org.hyperledger.besu.evm.internal;
 
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.UInt256;
 
 import java.lang.invoke.MethodHandles;
@@ -635,6 +636,13 @@ public final class StackMath {
     return top + 1;
   }
 
+  /** Push a Wei value directly from its cached limbs — zero allocation. */
+  public static int pushWei(final long[] s, final int top, final Wei value) {
+    final int dst = top << 2;
+    value.writeLimbs(s, dst);
+    return top + 1;
+  }
+
   /** Push an Address (20 bytes), return top+1. */
   public static int pushAddress(final long[] s, final int top, final Address addr) {
     final int dst = top << 2;
@@ -764,6 +772,13 @@ public final class StackMath {
   public static UInt256 getAt(final long[] s, final int top, final int depth) {
     final int off = (top - 1 - depth) << 2;
     return new UInt256(s[off], s[off + 1], s[off + 2], s[off + 3]);
+  }
+
+  /** Write a Wei value into slot at depth directly from its cached limbs — zero allocation. */
+  public static void putWeiAt(
+      final long[] s, final int top, final int depth, final Wei value) {
+    final int off = (top - 1 - depth) << 2;
+    value.writeLimbs(s, off);
   }
 
   /** Write UInt256 record into slot at depth. */
