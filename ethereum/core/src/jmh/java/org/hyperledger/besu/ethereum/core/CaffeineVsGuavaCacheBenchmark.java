@@ -23,7 +23,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.cache.CacheBuilder;
 import org.apache.tuweni.bytes.Bytes;
-import org.apache.tuweni.bytes.Bytes32;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -79,13 +78,8 @@ public class CaffeineVsGuavaCacheBenchmark {
     preloadedKeys = new Hash[KEY_COUNT];
     preloadedValues = new Bytes[KEY_COUNT];
     for (int i = 0; i < KEY_COUNT; i++) {
-      byte[] raw = new byte[32];
-      raw[0] = (byte) (i >> 24);
-      raw[1] = (byte) (i >> 16);
-      raw[2] = (byte) (i >> 8);
-      raw[3] = (byte) i;
-      preloadedKeys[i] = Hash.wrap(Bytes32.wrap(raw));
-      preloadedValues[i] = Bytes.wrap(raw);
+      preloadedKeys[i] = Hash.hash(Bytes.ofUnsignedInt(i));
+      preloadedValues[i] = preloadedKeys[i].getBytes();
     }
 
     for (int i = 0; i < KEY_COUNT; i++) {
@@ -98,12 +92,7 @@ public class CaffeineVsGuavaCacheBenchmark {
 
     missKeys = new Hash[MISS_KEY_COUNT];
     for (int i = 0; i < MISS_KEY_COUNT; i++) {
-      byte[] raw = new byte[32];
-      raw[0] = (byte) 0xFF;
-      raw[1] = (byte) (i >> 16);
-      raw[2] = (byte) (i >> 8);
-      raw[3] = (byte) i;
-      missKeys[i] = Hash.wrap(Bytes32.wrap(raw));
+      missKeys[i] = Hash.hash(Bytes.ofUnsignedInt(KEY_COUNT + i));
     }
   }
 
