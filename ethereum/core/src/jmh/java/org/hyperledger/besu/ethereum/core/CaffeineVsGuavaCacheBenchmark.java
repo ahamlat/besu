@@ -15,6 +15,7 @@
 package org.hyperledger.besu.ethereum.core;
 
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.util.CacheMaintenanceExecutor;
 
 import java.util.concurrent.TimeUnit;
 
@@ -55,6 +56,7 @@ public class CaffeineVsGuavaCacheBenchmark {
   private int cacheSize;
 
   private Cache<Hash, Bytes> caffeineCache;
+  private Cache<Hash, Bytes> caffeineWithExecutorCache;
   private com.google.common.cache.Cache<Hash, Bytes> guavaCache;
 
   private Hash[] preloadedKeys;
@@ -67,6 +69,11 @@ public class CaffeineVsGuavaCacheBenchmark {
   @Setup
   public void setUp() {
     caffeineCache = Caffeine.newBuilder().maximumSize(cacheSize).build();
+    caffeineWithExecutorCache =
+        Caffeine.newBuilder()
+            .maximumSize(cacheSize)
+            .executor(CacheMaintenanceExecutor.getInstance())
+            .build();
     guavaCache = CacheBuilder.newBuilder().maximumSize(cacheSize).build();
 
     preloadedKeys = new Hash[KEY_COUNT];
@@ -83,9 +90,11 @@ public class CaffeineVsGuavaCacheBenchmark {
 
     for (int i = 0; i < KEY_COUNT; i++) {
       caffeineCache.put(preloadedKeys[i], preloadedValues[i]);
+      caffeineWithExecutorCache.put(preloadedKeys[i], preloadedValues[i]);
       guavaCache.put(preloadedKeys[i], preloadedValues[i]);
     }
     caffeineCache.cleanUp();
+    caffeineWithExecutorCache.cleanUp();
 
     missKeys = new Hash[MISS_KEY_COUNT];
     for (int i = 0; i < MISS_KEY_COUNT; i++) {
@@ -108,6 +117,13 @@ public class CaffeineVsGuavaCacheBenchmark {
   }
 
   @Benchmark
+  public void caffeineWithExecutor_hit(final Blackhole bh) {
+    for (int i = 0; i < 100; i++) {
+      bh.consume(caffeineWithExecutorCache.getIfPresent(preloadedKeys[i]));
+    }
+  }
+
+  @Benchmark
   public void guava_hit(final Blackhole bh) {
     for (int i = 0; i < 100; i++) {
       bh.consume(guavaCache.getIfPresent(preloadedKeys[i]));
@@ -120,6 +136,13 @@ public class CaffeineVsGuavaCacheBenchmark {
   public void caffeine_miss(final Blackhole bh) {
     for (int i = 0; i < 100; i++) {
       bh.consume(caffeineCache.getIfPresent(missKeys[i % MISS_KEY_COUNT]));
+    }
+  }
+
+  @Benchmark
+  public void caffeineWithExecutor_miss(final Blackhole bh) {
+    for (int i = 0; i < 100; i++) {
+      bh.consume(caffeineWithExecutorCache.getIfPresent(missKeys[i % MISS_KEY_COUNT]));
     }
   }
 
@@ -141,6 +164,14 @@ public class CaffeineVsGuavaCacheBenchmark {
   }
 
   @Benchmark
+  public void caffeineWithExecutor_put(final Blackhole bh) {
+    for (int i = 0; i < 100; i++) {
+      int idx = (i + cacheSize) % KEY_COUNT;
+      caffeineWithExecutorCache.put(preloadedKeys[idx], preloadedValues[idx]);
+    }
+  }
+
+  @Benchmark
   public void guava_put(final Blackhole bh) {
     for (int i = 0; i < 100; i++) {
       int idx = (i + cacheSize) % KEY_COUNT;
@@ -156,6 +187,15 @@ public class CaffeineVsGuavaCacheBenchmark {
       final int index = i;
       Hash key = preloadedKeys[index];
       bh.consume(caffeineCache.get(key, k -> preloadedValues[index]));
+    }
+  }
+
+  @Benchmark
+  public void caffeineWithExecutor_computeIfAbsent(final Blackhole bh) {
+    for (int i = 0; i < 100; i++) {
+      final int index = i;
+      Hash key = preloadedKeys[index];
+      bh.consume(caffeineWithExecutorCache.get(key, k -> preloadedValues[index]));
     }
   }
 
@@ -180,6 +220,15 @@ public class CaffeineVsGuavaCacheBenchmark {
   public void caffeine_concurrentRead(final Blackhole bh) {
     for (int i = 0; i < 100; i++) {
       bh.consume(caffeineCache.getIfPresent(preloadedKeys[i]));
+    }
+  }
+
+  @Benchmark
+  @Group("caffeineWithExecutor_concurrent_read")
+  @GroupThreads(4)
+  public void caffeineWithExecutor_concurrentRead(final Blackhole bh) {
+    for (int i = 0; i < 100; i++) {
+      bh.consume(caffeineWithExecutorCache.getIfPresent(preloadedKeys[i]));
     }
   }
 
@@ -210,6 +259,25 @@ public class CaffeineVsGuavaCacheBenchmark {
     for (int i = 0; i < 100; i++) {
       int idx = (i + cacheSize) % KEY_COUNT;
       caffeineCache.put(preloadedKeys[idx], preloadedValues[idx]);
+    }
+  }
+
+  @Benchmark
+  @Group("caffeineWithExecutor_mixed")
+  @GroupThreads(3)
+  public void caffeineWithExecutor_mixedRead(final Blackhole bh) {
+    for (int i = 0; i < 100; i++) {
+      bh.consume(caffeineWithExecutorCache.getIfPresent(preloadedKeys[i]));
+    }
+  }
+
+  @Benchmark
+  @Group("caffeineWithExecutor_mixed")
+  @GroupThreads(1)
+  public void caffeineWithExecutor_mixedWrite(final Blackhole bh) {
+    for (int i = 0; i < 100; i++) {
+      int idx = (i + cacheSize) % KEY_COUNT;
+      caffeineWithExecutorCache.put(preloadedKeys[idx], preloadedValues[idx]);
     }
   }
 
