@@ -19,6 +19,9 @@ import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.frame.BlockValues;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
 import java.util.Optional;
 
 import org.apache.tuweni.bytes.Bytes;
@@ -27,6 +30,9 @@ import org.apache.tuweni.bytes.Bytes32;
 /** A block header capable of being processed. */
 public class ProcessableBlockHeader
     implements BlockValues, org.hyperledger.besu.plugin.data.ProcessableBlockHeader {
+
+  private static final VarHandle LONG_BE =
+      MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
 
   protected final Hash parentHash;
 
@@ -45,6 +51,10 @@ public class ProcessableBlockHeader
   private final Optional<Wei> optionalBaseFee;
   // prevRandao is included for post-merge blocks
   protected final Bytes32 mixHashOrPrevRandao;
+  private final long prevRandaoU3;
+  private final long prevRandaoU2;
+  private final long prevRandaoU1;
+  private final long prevRandaoU0;
   // parentBeaconBlockRoot is included for Cancun
   protected final Bytes32 parentBeaconBlockRoot;
   // slotNumber is included for Amsterdam (EIP-7843)
@@ -70,6 +80,18 @@ public class ProcessableBlockHeader
     this.baseFee = baseFee;
     this.optionalBaseFee = Optional.ofNullable(baseFee);
     this.mixHashOrPrevRandao = mixHashOrPrevRandao;
+    if (mixHashOrPrevRandao != null) {
+      final byte[] b = mixHashOrPrevRandao.toArrayUnsafe();
+      this.prevRandaoU3 = (long) LONG_BE.get(b, 0);
+      this.prevRandaoU2 = (long) LONG_BE.get(b, 8);
+      this.prevRandaoU1 = (long) LONG_BE.get(b, 16);
+      this.prevRandaoU0 = (long) LONG_BE.get(b, 24);
+    } else {
+      this.prevRandaoU3 = 0;
+      this.prevRandaoU2 = 0;
+      this.prevRandaoU1 = 0;
+      this.prevRandaoU0 = 0;
+    }
     this.parentBeaconBlockRoot = parentBeaconBlockRoot;
     this.slotNumber = slotNumber;
   }
@@ -162,6 +184,14 @@ public class ProcessableBlockHeader
   @Override
   public Bytes32 getMixHashOrPrevRandao() {
     return mixHashOrPrevRandao;
+  }
+
+  @Override
+  public void writePrevRandaoLimbs(final long[] target, final int off) {
+    target[off] = prevRandaoU3;
+    target[off + 1] = prevRandaoU2;
+    target[off + 2] = prevRandaoU1;
+    target[off + 3] = prevRandaoU0;
   }
 
   /**

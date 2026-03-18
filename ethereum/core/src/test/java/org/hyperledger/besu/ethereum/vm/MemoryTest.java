@@ -112,8 +112,7 @@ public class MemoryTest {
     // Word 4 got partially cleared because of the starting offset.
     assertThat(memory.getWord(106))
         .isEqualTo(
-            hexToBytes32(
-                "0x4444444444444444444444444444444444444444444400000000000000000000"));
+            hexToBytes32("0x4444444444444444444444444444444444444444444400000000000000000000"));
   }
 
   @Test
@@ -226,8 +225,7 @@ public class MemoryTest {
     // Word 4 got partially set because of the starting offset.
     assertThat(memory.getWord(96))
         .isEqualTo(
-            hexToBytes32(
-                "0x2222222222222222222244444444444444444444444444444444444444444444"));
+            hexToBytes32("0x2222222222222222222244444444444444444444444444444444444444444444"));
   }
 
   @Test

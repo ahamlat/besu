@@ -16,6 +16,9 @@ package org.hyperledger.besu.evm.frame;
 
 import org.hyperledger.besu.datatypes.Wei;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
 import java.util.Optional;
 
 import org.apache.tuweni.bytes.Bytes;
@@ -26,6 +29,8 @@ import org.apache.tuweni.bytes.Bytes32;
  * values that are returned or accessed by various operations.
  */
 public interface BlockValues {
+
+  VarHandle LONG_BE = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
 
   /**
    * Returns the block difficulty.
@@ -43,6 +48,29 @@ public interface BlockValues {
    */
   default Bytes32 getMixHashOrPrevRandao() {
     return null;
+  }
+
+  /**
+   * Writes the 4 big-endian long limbs of the prevRandao/mixHash value into the target array at the
+   * given offset. This enables zero-allocation transfer to the EVM operand stack.
+   *
+   * @param target the target long array (typically the EVM stack)
+   * @param off the offset into the array where u3 should be written
+   */
+  default void writePrevRandaoLimbs(final long[] target, final int off) {
+    final Bytes32 value = getMixHashOrPrevRandao();
+    if (value == null) {
+      target[off] = 0;
+      target[off + 1] = 0;
+      target[off + 2] = 0;
+      target[off + 3] = 0;
+    } else {
+      final byte[] b = value.toArrayUnsafe();
+      target[off] = (long) LONG_BE.get(b, 0);
+      target[off + 1] = (long) LONG_BE.get(b, 8);
+      target[off + 2] = (long) LONG_BE.get(b, 16);
+      target[off + 3] = (long) LONG_BE.get(b, 24);
+    }
   }
 
   /**

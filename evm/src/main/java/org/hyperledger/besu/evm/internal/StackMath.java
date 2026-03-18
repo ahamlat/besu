@@ -775,8 +775,7 @@ public final class StackMath {
   }
 
   /** Write a Wei value into slot at depth directly from its cached limbs — zero allocation. */
-  public static void putWeiAt(
-      final long[] s, final int top, final int depth, final Wei value) {
+  public static void putWeiAt(final long[] s, final int top, final int depth, final Wei value) {
     final int off = (top - 1 - depth) << 2;
     value.writeLimbs(s, off);
   }

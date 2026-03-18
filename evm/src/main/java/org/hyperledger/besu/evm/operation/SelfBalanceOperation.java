@@ -36,15 +36,15 @@ public class SelfBalanceOperation extends AbstractFixedCostOperation {
   public Operation.OperationResult executeFixedCostOperation(
       final MessageFrame frame, final EVM evm) {
     if (!frame.stackHasSpace(1)) return OVERFLOW_RESPONSE;
+    final long[] s = frame.stackData();
+    final int top = frame.stackTop();
     final Account account = getAccount(frame.getRecipientAddress(), frame);
     if (account == null) {
-      frame.setTop(StackMath.pushZero(frame.stackData(), frame.stackTop()));
+      frame.setTop(StackMath.pushZero(s, top));
     } else {
-      final byte[] bytes = account.getBalance().toBytes().toArrayUnsafe();
-      frame.setTop(
-          StackMath.pushFromBytes(frame.stackData(), frame.stackTop(), bytes, 0, bytes.length));
+      account.getBalance().writeLimbs(s, top << 2);
+      frame.setTop(top + 1);
     }
-
     return successResponse;
   }
 }

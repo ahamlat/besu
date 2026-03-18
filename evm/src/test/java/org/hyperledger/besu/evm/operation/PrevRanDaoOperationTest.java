@@ -15,6 +15,9 @@
 package org.hyperledger.besu.evm.operation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +40,7 @@ class PrevRanDaoOperationTest {
     final BlockValues blockHeader = mock(BlockValues.class);
     when(blockHeader.getDifficultyBytes()).thenReturn(UInt256.ZERO);
     when(blockHeader.getMixHashOrPrevRandao()).thenReturn(prevRandao);
+    doCallRealMethod().when(blockHeader).writePrevRandaoLimbs(any(long[].class), anyInt());
     final MessageFrame frame = new TestMessageFrameBuilder().blockValues(blockHeader).build();
     final Operation.OperationResult r = op.executeFixedCostOperation(frame, null);
     assertThat(r.getHaltReason()).isNull();
@@ -52,6 +56,7 @@ class PrevRanDaoOperationTest {
     final BlockValues blockHeader = mock(BlockValues.class);
     when(blockHeader.getDifficultyBytes()).thenReturn(difficulty);
     when(blockHeader.getMixHashOrPrevRandao()).thenReturn(prevRandao);
+    doCallRealMethod().when(blockHeader).writePrevRandaoLimbs(any(long[].class), anyInt());
     final MessageFrame frame = new TestMessageFrameBuilder().blockValues(blockHeader).build();
     final Operation.OperationResult r = op.executeFixedCostOperation(frame, null);
     assertThat(r.getHaltReason()).isNull();
