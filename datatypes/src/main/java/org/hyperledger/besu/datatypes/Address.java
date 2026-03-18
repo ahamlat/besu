@@ -22,6 +22,9 @@ import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPException;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
 import java.util.concurrent.ExecutionException;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -33,6 +36,12 @@ import org.apache.tuweni.bytes.Bytes32;
 
 /** A 160-bits account address. */
 public class Address extends BytesHolder {
+
+  private static final VarHandle LONG_BE =
+      MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
+
+  private static final VarHandle INT_BE =
+      MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.BIG_ENDIAN);
 
   /** The constant SIZE. */
   public static final int SIZE = 20;
@@ -106,6 +115,10 @@ public class Address extends BytesHolder {
                 }
               });
 
+  private final long addrU2;
+  private final long addrU1;
+  private final long addrU0;
+
   /**
    * Instantiates a new Address.
    *
@@ -113,6 +126,10 @@ public class Address extends BytesHolder {
    */
   protected Address(final Bytes bytes) {
     super(bytes);
+    final byte[] b = bytes.toArrayUnsafe();
+    this.addrU2 = ((int) INT_BE.get(b, 0)) & 0xFFFFFFFFL;
+    this.addrU1 = (long) LONG_BE.get(b, 4);
+    this.addrU0 = (long) LONG_BE.get(b, 12);
   }
 
   /**
@@ -236,6 +253,20 @@ public class Address extends BytesHolder {
                   out.writeLongScalar(nonce);
                   out.endList();
                 })));
+  }
+
+  /**
+   * Writes the 4 big-endian long limbs of this address into the target array at the given offset.
+   * This enables zero-allocation transfer to the EVM operand stack.
+   *
+   * @param target the target long array (typically the EVM stack)
+   * @param off the offset into the array where u3 should be written
+   */
+  public void writeLimbs(final long[] target, final int off) {
+    target[off] = 0;
+    target[off + 1] = addrU2;
+    target[off + 2] = addrU1;
+    target[off + 3] = addrU0;
   }
 
   /**

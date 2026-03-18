@@ -17,7 +17,10 @@ package org.hyperledger.besu.evm.operation;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
-import org.hyperledger.besu.evm.internal.StackMath;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
@@ -25,11 +28,17 @@ import org.apache.tuweni.bytes.Bytes32;
 /** The Chain id operation. */
 public class ChainIdOperation extends AbstractFixedCostOperation {
 
+  private static final VarHandle LONG_BE =
+      MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
+
   /** The CHAINID Opcode number */
   public static final int OPCODE = 0x46;
 
   private final Bytes32 chainId;
-  private final byte[] chainIdBytes;
+  private final long chainIdU3;
+  private final long chainIdU2;
+  private final long chainIdU1;
+  private final long chainIdU0;
 
   /**
    * Instantiates a new Chain id operation.
@@ -40,7 +49,11 @@ public class ChainIdOperation extends AbstractFixedCostOperation {
   public ChainIdOperation(final GasCalculator gasCalculator, final Bytes32 chainId) {
     super(OPCODE, "CHAINID", 0, 1, gasCalculator, gasCalculator.getBaseTierGasCost());
     this.chainId = chainId;
-    this.chainIdBytes = chainId.toArrayUnsafe();
+    final byte[] b = chainId.toArrayUnsafe();
+    this.chainIdU3 = (long) LONG_BE.get(b, 0);
+    this.chainIdU2 = (long) LONG_BE.get(b, 8);
+    this.chainIdU1 = (long) LONG_BE.get(b, 16);
+    this.chainIdU0 = (long) LONG_BE.get(b, 24);
   }
 
   /**
@@ -56,8 +69,14 @@ public class ChainIdOperation extends AbstractFixedCostOperation {
   public Operation.OperationResult executeFixedCostOperation(
       final MessageFrame frame, final EVM evm) {
     if (!frame.stackHasSpace(1)) return OVERFLOW_RESPONSE;
-    frame.setTop(StackMath.pushFromBytes(frame.stackData(), frame.stackTop(), chainIdBytes, 0, 32));
-
+    final long[] s = frame.stackData();
+    final int top = frame.stackTop();
+    final int dst = top << 2;
+    s[dst] = chainIdU3;
+    s[dst + 1] = chainIdU2;
+    s[dst + 2] = chainIdU1;
+    s[dst + 3] = chainIdU0;
+    frame.setTop(top + 1);
     return successResponse;
   }
 }
