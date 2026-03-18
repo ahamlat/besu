@@ -230,9 +230,9 @@ public class EVM {
         opcode = 0;
         currentOperation = endOfScriptStop;
       }
-      frame.setCurrentOperation(currentOperation);
       if (operationTracer != null) {
-        operationTracer.tracePreExecution(frame);
+          frame.setCurrentOperation(currentOperation);
+          operationTracer.tracePreExecution(frame);
       }
 
       OperationResult result;
