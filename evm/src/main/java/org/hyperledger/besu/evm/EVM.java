@@ -31,24 +31,58 @@ import org.hyperledger.besu.evm.operation.AddModOperation;
 import org.hyperledger.besu.evm.operation.AddModOperationOptimized;
 import org.hyperledger.besu.evm.operation.AddOperation;
 import org.hyperledger.besu.evm.operation.AddOperationOptimized;
+import org.hyperledger.besu.evm.operation.AddressOperation;
 import org.hyperledger.besu.evm.operation.AndOperation;
 import org.hyperledger.besu.evm.operation.AndOperationOptimized;
+import org.hyperledger.besu.evm.operation.BalanceOperation;
+import org.hyperledger.besu.evm.operation.BaseFeeOperation;
+import org.hyperledger.besu.evm.operation.BlobBaseFeeOperation;
+import org.hyperledger.besu.evm.operation.BlobHashOperation;
+import org.hyperledger.besu.evm.operation.BlockHashOperation;
 import org.hyperledger.besu.evm.operation.ByteOperation;
+import org.hyperledger.besu.evm.operation.CallCodeOperation;
+import org.hyperledger.besu.evm.operation.CallDataCopyOperation;
+import org.hyperledger.besu.evm.operation.CallDataLoadOperation;
+import org.hyperledger.besu.evm.operation.CallDataSizeOperation;
+import org.hyperledger.besu.evm.operation.CallOperation;
+import org.hyperledger.besu.evm.operation.CallValueOperation;
+import org.hyperledger.besu.evm.operation.CallerOperation;
 import org.hyperledger.besu.evm.operation.ChainIdOperation;
+import org.hyperledger.besu.evm.operation.CodeCopyOperation;
+import org.hyperledger.besu.evm.operation.CodeSizeOperation;
+import org.hyperledger.besu.evm.operation.CoinbaseOperation;
 import org.hyperledger.besu.evm.operation.CountLeadingZerosOperation;
+import org.hyperledger.besu.evm.operation.Create2Operation;
+import org.hyperledger.besu.evm.operation.CreateOperation;
+import org.hyperledger.besu.evm.operation.DelegateCallOperation;
+import org.hyperledger.besu.evm.operation.DifficultyOperation;
 import org.hyperledger.besu.evm.operation.DivOperation;
 import org.hyperledger.besu.evm.operation.DivOperationOptimized;
 import org.hyperledger.besu.evm.operation.DupNOperation;
 import org.hyperledger.besu.evm.operation.DupOperation;
+import org.hyperledger.besu.evm.operation.EqOperation;
 import org.hyperledger.besu.evm.operation.ExchangeOperation;
 import org.hyperledger.besu.evm.operation.ExpOperation;
+import org.hyperledger.besu.evm.operation.ExtCodeCopyOperation;
+import org.hyperledger.besu.evm.operation.ExtCodeHashOperation;
+import org.hyperledger.besu.evm.operation.ExtCodeSizeOperation;
+import org.hyperledger.besu.evm.operation.GasLimitOperation;
+import org.hyperledger.besu.evm.operation.GasOperation;
+import org.hyperledger.besu.evm.operation.GasPriceOperation;
 import org.hyperledger.besu.evm.operation.GtOperation;
 import org.hyperledger.besu.evm.operation.InvalidOperation;
 import org.hyperledger.besu.evm.operation.IsZeroOperation;
 import org.hyperledger.besu.evm.operation.JumpDestOperation;
 import org.hyperledger.besu.evm.operation.JumpOperation;
 import org.hyperledger.besu.evm.operation.JumpiOperation;
+import org.hyperledger.besu.evm.operation.Keccak256Operation;
+import org.hyperledger.besu.evm.operation.LogOperation;
 import org.hyperledger.besu.evm.operation.LtOperation;
+import org.hyperledger.besu.evm.operation.MCopyOperation;
+import org.hyperledger.besu.evm.operation.MLoadOperation;
+import org.hyperledger.besu.evm.operation.MSizeOperation;
+import org.hyperledger.besu.evm.operation.MStore8Operation;
+import org.hyperledger.besu.evm.operation.MStoreOperation;
 import org.hyperledger.besu.evm.operation.ModOperation;
 import org.hyperledger.besu.evm.operation.ModOperationOptimized;
 import org.hyperledger.besu.evm.operation.MulModOperation;
@@ -56,31 +90,49 @@ import org.hyperledger.besu.evm.operation.MulModOperationOptimized;
 import org.hyperledger.besu.evm.operation.MulOperation;
 import org.hyperledger.besu.evm.operation.NotOperation;
 import org.hyperledger.besu.evm.operation.NotOperationOptimized;
+import org.hyperledger.besu.evm.operation.NumberOperation;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.hyperledger.besu.evm.operation.OperationRegistry;
 import org.hyperledger.besu.evm.operation.OrOperation;
 import org.hyperledger.besu.evm.operation.OrOperationOptimized;
+import org.hyperledger.besu.evm.operation.OriginOperation;
+import org.hyperledger.besu.evm.operation.PCOperation;
+import org.hyperledger.besu.evm.operation.PayOperation;
 import org.hyperledger.besu.evm.operation.PopOperation;
+import org.hyperledger.besu.evm.operation.PrevRanDaoOperation;
 import org.hyperledger.besu.evm.operation.Push0Operation;
 import org.hyperledger.besu.evm.operation.PushOperation;
+import org.hyperledger.besu.evm.operation.ReturnDataCopyOperation;
+import org.hyperledger.besu.evm.operation.ReturnDataSizeOperation;
+import org.hyperledger.besu.evm.operation.ReturnOperation;
+import org.hyperledger.besu.evm.operation.RevertOperation;
 import org.hyperledger.besu.evm.operation.SDivOperation;
 import org.hyperledger.besu.evm.operation.SDivOperationOptimized;
 import org.hyperledger.besu.evm.operation.SGtOperation;
+import org.hyperledger.besu.evm.operation.SLoadOperation;
 import org.hyperledger.besu.evm.operation.SLtOperation;
 import org.hyperledger.besu.evm.operation.SModOperation;
 import org.hyperledger.besu.evm.operation.SModOperationOptimized;
+import org.hyperledger.besu.evm.operation.SStoreOperation;
 import org.hyperledger.besu.evm.operation.SarOperation;
 import org.hyperledger.besu.evm.operation.SarOperationOptimized;
+import org.hyperledger.besu.evm.operation.SelfBalanceOperation;
+import org.hyperledger.besu.evm.operation.SelfDestructOperation;
 import org.hyperledger.besu.evm.operation.ShlOperation;
 import org.hyperledger.besu.evm.operation.ShlOperationOptimized;
 import org.hyperledger.besu.evm.operation.ShrOperation;
 import org.hyperledger.besu.evm.operation.ShrOperationOptimized;
 import org.hyperledger.besu.evm.operation.SignExtendOperation;
+import org.hyperledger.besu.evm.operation.SlotNumOperation;
+import org.hyperledger.besu.evm.operation.StaticCallOperation;
 import org.hyperledger.besu.evm.operation.StopOperation;
 import org.hyperledger.besu.evm.operation.SubOperation;
 import org.hyperledger.besu.evm.operation.SwapNOperation;
 import org.hyperledger.besu.evm.operation.SwapOperation;
+import org.hyperledger.besu.evm.operation.TLoadOperation;
+import org.hyperledger.besu.evm.operation.TStoreOperation;
+import org.hyperledger.besu.evm.operation.TimestampOperation;
 import org.hyperledger.besu.evm.operation.VirtualOperation;
 import org.hyperledger.besu.evm.operation.XorOperation;
 import org.hyperledger.besu.evm.operation.XorOperationOptimized;
@@ -279,6 +331,7 @@ public class EVM {
               case 0x11 -> GtOperation.staticOperation(frame);
               case 0x12 -> SLtOperation.staticOperation(frame);
               case 0x13 -> SGtOperation.staticOperation(frame);
+              case 0x14 -> EqOperation.staticOperation(frame);
               case 0x15 -> IsZeroOperation.staticOperation(frame);
               case 0x16 ->
                   evmConfiguration.enableOptimizedOpcodes()
@@ -409,9 +462,131 @@ public class EVM {
                   enableAmsterdam
                       ? ExchangeOperation.staticOperation(frame, code, pc)
                       : InvalidOperation.invalidOperationResult(opcode);
-              default -> { // unoptimized operations
+              default -> {
                 frame.setCurrentOperation(currentOperation);
-                yield currentOperation.execute(frame, this);
+                final Class<?> k = currentOperation.getClass();
+                // Memory/Storage (very hot path)
+                if (k == MLoadOperation.class) {
+                  yield ((MLoadOperation) currentOperation).execute(frame, this);
+                } else if (k == MStoreOperation.class) {
+                  yield ((MStoreOperation) currentOperation).execute(frame, this);
+                } else if (k == MStore8Operation.class) {
+                  yield ((MStore8Operation) currentOperation).execute(frame, this);
+                } else if (k == SLoadOperation.class) {
+                  yield ((SLoadOperation) currentOperation).execute(frame, this);
+                } else if (k == SStoreOperation.class) {
+                  yield ((SStoreOperation) currentOperation).execute(frame, this);
+                  // Context (frequent in function dispatch)
+                } else if (k == CallDataLoadOperation.class) {
+                  yield ((CallDataLoadOperation) currentOperation).execute(frame, this);
+                } else if (k == CallerOperation.class) {
+                  yield ((CallerOperation) currentOperation).execute(frame, this);
+                } else if (k == CallValueOperation.class) {
+                  yield ((CallValueOperation) currentOperation).execute(frame, this);
+                } else if (k == CallDataSizeOperation.class) {
+                  yield ((CallDataSizeOperation) currentOperation).execute(frame, this);
+                } else if (k == CallDataCopyOperation.class) {
+                  yield ((CallDataCopyOperation) currentOperation).execute(frame, this);
+                } else if (k == AddressOperation.class) {
+                  yield ((AddressOperation) currentOperation).execute(frame, this);
+                } else if (k == OriginOperation.class) {
+                  yield ((OriginOperation) currentOperation).execute(frame, this);
+                  // Crypto
+                } else if (k == Keccak256Operation.class) {
+                  yield ((Keccak256Operation) currentOperation).execute(frame, this);
+                  // Termination
+                } else if (k == ReturnOperation.class) {
+                  yield ((ReturnOperation) currentOperation).execute(frame, this);
+                } else if (k == RevertOperation.class) {
+                  yield ((RevertOperation) currentOperation).execute(frame, this);
+                  // Inter-contract calls
+                } else if (k == CallOperation.class) {
+                  yield ((CallOperation) currentOperation).execute(frame, this);
+                } else if (k == StaticCallOperation.class) {
+                  yield ((StaticCallOperation) currentOperation).execute(frame, this);
+                } else if (k == DelegateCallOperation.class) {
+                  yield ((DelegateCallOperation) currentOperation).execute(frame, this);
+                } else if (k == CallCodeOperation.class) {
+                  yield ((CallCodeOperation) currentOperation).execute(frame, this);
+                  // Creation
+                } else if (k == CreateOperation.class) {
+                  yield ((CreateOperation) currentOperation).execute(frame, this);
+                } else if (k == Create2Operation.class) {
+                  yield ((Create2Operation) currentOperation).execute(frame, this);
+                  // Logging
+                } else if (k == LogOperation.class) {
+                  yield ((LogOperation) currentOperation).execute(frame, this);
+                  // Stack misc
+                } else if (k == PCOperation.class) {
+                  yield ((PCOperation) currentOperation).execute(frame, this);
+                } else if (k == MSizeOperation.class) {
+                  yield ((MSizeOperation) currentOperation).execute(frame, this);
+                } else if (k == GasOperation.class) {
+                  yield ((GasOperation) currentOperation).execute(frame, this);
+                  // Block context
+                } else if (k == BlockHashOperation.class) {
+                  yield ((BlockHashOperation) currentOperation).execute(frame, this);
+                } else if (k == CoinbaseOperation.class) {
+                  yield ((CoinbaseOperation) currentOperation).execute(frame, this);
+                } else if (k == TimestampOperation.class) {
+                  yield ((TimestampOperation) currentOperation).execute(frame, this);
+                } else if (k == NumberOperation.class) {
+                  yield ((NumberOperation) currentOperation).execute(frame, this);
+                } else if (k == PrevRanDaoOperation.class) {
+                  yield ((PrevRanDaoOperation) currentOperation).execute(frame, this);
+                } else if (k == GasLimitOperation.class) {
+                  yield ((GasLimitOperation) currentOperation).execute(frame, this);
+                } else if (k == ChainIdOperation.class) {
+                  yield ((ChainIdOperation) currentOperation).execute(frame, this);
+                } else if (k == SelfBalanceOperation.class) {
+                  yield ((SelfBalanceOperation) currentOperation).execute(frame, this);
+                } else if (k == BaseFeeOperation.class) {
+                  yield ((BaseFeeOperation) currentOperation).execute(frame, this);
+                  // Ext code
+                } else if (k == ExtCodeSizeOperation.class) {
+                  yield ((ExtCodeSizeOperation) currentOperation).execute(frame, this);
+                } else if (k == ExtCodeCopyOperation.class) {
+                  yield ((ExtCodeCopyOperation) currentOperation).execute(frame, this);
+                } else if (k == ExtCodeHashOperation.class) {
+                  yield ((ExtCodeHashOperation) currentOperation).execute(frame, this);
+                } else if (k == CodeSizeOperation.class) {
+                  yield ((CodeSizeOperation) currentOperation).execute(frame, this);
+                } else if (k == CodeCopyOperation.class) {
+                  yield ((CodeCopyOperation) currentOperation).execute(frame, this);
+                  // Return data
+                } else if (k == ReturnDataSizeOperation.class) {
+                  yield ((ReturnDataSizeOperation) currentOperation).execute(frame, this);
+                } else if (k == ReturnDataCopyOperation.class) {
+                  yield ((ReturnDataCopyOperation) currentOperation).execute(frame, this);
+                  // Misc
+                } else if (k == GasPriceOperation.class) {
+                  yield ((GasPriceOperation) currentOperation).execute(frame, this);
+                } else if (k == BlobHashOperation.class) {
+                  yield ((BlobHashOperation) currentOperation).execute(frame, this);
+                } else if (k == BlobBaseFeeOperation.class) {
+                  yield ((BlobBaseFeeOperation) currentOperation).execute(frame, this);
+                } else if (k == TLoadOperation.class) {
+                  yield ((TLoadOperation) currentOperation).execute(frame, this);
+                } else if (k == TStoreOperation.class) {
+                  yield ((TStoreOperation) currentOperation).execute(frame, this);
+                } else if (k == MCopyOperation.class) {
+                  yield ((MCopyOperation) currentOperation).execute(frame, this);
+                } else if (k == SelfDestructOperation.class) {
+                  yield ((SelfDestructOperation) currentOperation).execute(frame, this);
+                } else if (k == InvalidOperation.class) {
+                  yield ((InvalidOperation) currentOperation).execute(frame, this);
+                } else if (k == BalanceOperation.class) {
+                  yield ((BalanceOperation) currentOperation).execute(frame, this);
+                } else if (k == DifficultyOperation.class) {
+                  yield ((DifficultyOperation) currentOperation).execute(frame, this);
+                } else if (k == SlotNumOperation.class) {
+                  yield ((SlotNumOperation) currentOperation).execute(frame, this);
+                } else if (k == PayOperation.class) {
+                  yield ((PayOperation) currentOperation).execute(frame, this);
+                  // Megamorphic fallback for any unlisted operation
+                } else {
+                  yield currentOperation.execute(frame, this);
+                }
               }
             };
       } catch (final OverflowException oe) {
