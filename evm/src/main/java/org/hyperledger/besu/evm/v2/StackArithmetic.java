@@ -252,4 +252,196 @@ public class StackArithmetic {
       s[off + 3] = (a0 >>> bitShift) | (a1 << inv);
     }
   }
+
+  // ── V1-style algorithms on long[] stack (for benchmark comparison) ──────
+  //
+  // These port the per-limb helper approach from ShlOperationOptimized,
+  // ShrOperationOptimized, and SarOperationOptimized onto the flat long[]
+  // stack, eliminating Bytes/byte[] allocation so the comparison isolates
+  // pure algorithm differences.
+
+  /** SHL using v1-style per-limb helper. Same semantics as {@link #shl}. */
+  public static int shlV1(final long[] s, final int top) {
+    final int a = (top - 1) << 2;
+    final int b = (top - 2) << 2;
+    if (s[a] != 0
+        || s[a + 1] != 0
+        || s[a + 2] != 0
+        || Long.compareUnsigned(s[a + 3], 256) >= 0
+        || (s[b] == 0 && s[b + 1] == 0 && s[b + 2] == 0 && s[b + 3] == 0)) {
+      s[b] = 0;
+      s[b + 1] = 0;
+      s[b + 2] = 0;
+      s[b + 3] = 0;
+      return top - 1;
+    }
+    int shift = (int) s[a + 3];
+    shlV1InPlace(s, b, shift);
+    return top - 1;
+  }
+
+  private static void shlV1InPlace(final long[] s, final int off, final int shift) {
+    if (shift == 0) return;
+    long w0 = s[off], w1 = s[off + 1], w2 = s[off + 2], w3 = s[off + 3];
+    final int wordShift = shift >>> 6;
+    final int bitShift = shift & 63;
+    switch (wordShift) {
+      case 0:
+        w0 = shiftLeftWord(w0, w1, bitShift);
+        w1 = shiftLeftWord(w1, w2, bitShift);
+        w2 = shiftLeftWord(w2, w3, bitShift);
+        w3 = shiftLeftWord(w3, 0, bitShift);
+        break;
+      case 1:
+        w0 = shiftLeftWord(w1, w2, bitShift);
+        w1 = shiftLeftWord(w2, w3, bitShift);
+        w2 = shiftLeftWord(w3, 0, bitShift);
+        w3 = 0;
+        break;
+      case 2:
+        w0 = shiftLeftWord(w2, w3, bitShift);
+        w1 = shiftLeftWord(w3, 0, bitShift);
+        w2 = 0;
+        w3 = 0;
+        break;
+      case 3:
+        w0 = shiftLeftWord(w3, 0, bitShift);
+        w1 = 0;
+        w2 = 0;
+        w3 = 0;
+        break;
+    }
+    s[off] = w0;
+    s[off + 1] = w1;
+    s[off + 2] = w2;
+    s[off + 3] = w3;
+  }
+
+  private static long shiftLeftWord(final long value, final long nextValue, final int bitShift) {
+    if (bitShift == 0) return value;
+    return (value << bitShift) | (nextValue >>> (64 - bitShift));
+  }
+
+  /** SHR using v1-style per-limb helper. Same semantics as {@link #shr}. */
+  public static int shrV1(final long[] s, final int top) {
+    final int a = (top - 1) << 2;
+    final int b = (top - 2) << 2;
+    if (s[a] != 0
+        || s[a + 1] != 0
+        || s[a + 2] != 0
+        || Long.compareUnsigned(s[a + 3], 256) >= 0
+        || (s[b] == 0 && s[b + 1] == 0 && s[b + 2] == 0 && s[b + 3] == 0)) {
+      s[b] = 0;
+      s[b + 1] = 0;
+      s[b + 2] = 0;
+      s[b + 3] = 0;
+      return top - 1;
+    }
+    int shift = (int) s[a + 3];
+    shrV1InPlace(s, b, shift);
+    return top - 1;
+  }
+
+  private static void shrV1InPlace(final long[] s, final int off, final int shift) {
+    if (shift == 0) return;
+    long w0 = s[off], w1 = s[off + 1], w2 = s[off + 2], w3 = s[off + 3];
+    final int wordShift = shift >>> 6;
+    final int bitShift = shift & 63;
+    switch (wordShift) {
+      case 0:
+        w3 = shiftRightWord(w3, w2, bitShift);
+        w2 = shiftRightWord(w2, w1, bitShift);
+        w1 = shiftRightWord(w1, w0, bitShift);
+        w0 = shiftRightWord(w0, 0, bitShift);
+        break;
+      case 1:
+        w3 = shiftRightWord(w2, w1, bitShift);
+        w2 = shiftRightWord(w1, w0, bitShift);
+        w1 = shiftRightWord(w0, 0, bitShift);
+        w0 = 0;
+        break;
+      case 2:
+        w3 = shiftRightWord(w1, w0, bitShift);
+        w2 = shiftRightWord(w0, 0, bitShift);
+        w1 = 0;
+        w0 = 0;
+        break;
+      case 3:
+        w3 = shiftRightWord(w0, 0, bitShift);
+        w2 = 0;
+        w1 = 0;
+        w0 = 0;
+        break;
+    }
+    s[off] = w0;
+    s[off + 1] = w1;
+    s[off + 2] = w2;
+    s[off + 3] = w3;
+  }
+
+  private static long shiftRightWord(final long value, final long prevValue, final int bitShift) {
+    if (bitShift == 0) return value;
+    return (value >>> bitShift) | (prevValue << (64 - bitShift));
+  }
+
+  /** SAR using v1-style per-limb helper. Same semantics as {@link #sar}. */
+  public static int sarV1(final long[] s, final int top) {
+    final int a = (top - 1) << 2;
+    final int b = (top - 2) << 2;
+    boolean negative = s[b] < 0;
+
+    if (s[a] != 0
+        || s[a + 1] != 0
+        || s[a + 2] != 0
+        || Long.compareUnsigned(s[a + 3], 256) >= 0) {
+      long fill = negative ? -1L : 0L;
+      s[b] = fill;
+      s[b + 1] = fill;
+      s[b + 2] = fill;
+      s[b + 3] = fill;
+      return top - 1;
+    }
+    int shift = (int) s[a + 3];
+    sarV1InPlace(s, b, shift, negative);
+    return top - 1;
+  }
+
+  private static void sarV1InPlace(
+      final long[] s, final int off, final int shift, final boolean negative) {
+    if (shift == 0) return;
+    long w0 = s[off], w1 = s[off + 1], w2 = s[off + 2], w3 = s[off + 3];
+    final long fill = negative ? -1L : 0L;
+    final int wordShift = shift >>> 6;
+    final int bitShift = shift & 63;
+    switch (wordShift) {
+      case 0:
+        w3 = shiftRightWord(w3, w2, bitShift);
+        w2 = shiftRightWord(w2, w1, bitShift);
+        w1 = shiftRightWord(w1, w0, bitShift);
+        w0 = shiftRightWord(w0, fill, bitShift);
+        break;
+      case 1:
+        w3 = shiftRightWord(w2, w1, bitShift);
+        w2 = shiftRightWord(w1, w0, bitShift);
+        w1 = shiftRightWord(w0, fill, bitShift);
+        w0 = fill;
+        break;
+      case 2:
+        w3 = shiftRightWord(w1, w0, bitShift);
+        w2 = shiftRightWord(w0, fill, bitShift);
+        w1 = fill;
+        w0 = fill;
+        break;
+      case 3:
+        w3 = shiftRightWord(w0, fill, bitShift);
+        w2 = fill;
+        w1 = fill;
+        w0 = fill;
+        break;
+    }
+    s[off] = w0;
+    s[off + 1] = w1;
+    s[off + 2] = w2;
+    s[off + 3] = w3;
+  }
 }
