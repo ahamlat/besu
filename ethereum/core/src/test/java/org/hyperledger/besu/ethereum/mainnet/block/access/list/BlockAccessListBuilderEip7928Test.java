@@ -69,6 +69,24 @@ class BlockAccessListBuilderEip7928Test {
         .isEqualTo(4L);
   }
 
+  @Test
+  void buildSortsAccountsByAddressBytes() {
+    final Address addrA = Address.fromHexString("0x1000000000000000000000000000000000000001");
+    final Address addrB = Address.fromHexString("0x2000000000000000000000000000000000000002");
+    final Address addrC = Address.fromHexString("0x3000000000000000000000000000000000000003");
+
+    final BlockAccessList.BlockAccessListBuilder builder = BlockAccessList.builder();
+    builder.getOrCreateAccountBuilder(addrC);
+    builder.getOrCreateAccountBuilder(addrA);
+    builder.getOrCreateAccountBuilder(addrB);
+
+    final BlockAccessList built = builder.build();
+
+    Assertions.assertThat(built.accountChanges())
+        .extracting(BlockAccessList.AccountChanges::address)
+        .containsExactly(addrA, addrB, addrC);
+  }
+
   private static PartialBlockAccessView partialWithOneAccountAndStorageWrite(final int txIndex) {
     final Address addr = Address.fromHexString(String.format("0x%040x", txIndex + 100L));
     final PartialBlockAccessView.PartialBlockAccessViewBuilder b =
