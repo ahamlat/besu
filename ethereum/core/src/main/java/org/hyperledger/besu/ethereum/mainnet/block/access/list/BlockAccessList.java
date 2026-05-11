@@ -25,13 +25,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
@@ -277,8 +276,8 @@ public record BlockAccessList(List<AccountChanges> accountChanges) {
 
     public static class AccountBuilder {
       final Address address;
-      final Map<StorageSlotKey, List<StorageChange>> slotWrites = new TreeMap<>();
-      final Set<StorageSlotKey> slotReads = new TreeSet<>();
+      final Map<StorageSlotKey, List<StorageChange>> slotWrites = new HashMap<>();
+      final Set<StorageSlotKey> slotReads = new HashSet<>();
       final List<BalanceChange> balances = new ArrayList<>();
       final List<NonceChange> nonces = new ArrayList<>();
       final List<CodeChange> codes = new ArrayList<>();
