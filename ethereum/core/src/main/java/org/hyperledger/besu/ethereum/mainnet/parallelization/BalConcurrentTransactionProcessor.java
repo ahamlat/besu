@@ -90,22 +90,21 @@ public class BalConcurrentTransactionProcessor extends ParallelBlockTransactionP
       final Optional<BlockHeader> maybeParentHeader) {
 
     maybePrefetcher.ifPresent(
-        prefetchMechanism -> {
-          if (maybeParentHeader.isEmpty()) {
-            return;
+        balPrefetchMechanism -> {
+          final Optional<BonsaiWorldState> maybeWorldState =
+              getWorldState(protocolContext, maybeParentHeader);
+          if (maybeWorldState.isPresent()) {
+            balPrefetchMechanism
+                .prefetch(maybeWorldState.get(), blockAccessList, executor)
+                .exceptionally(
+                    ex -> {
+                      LOG.error("Prefetch failed", ex);
+                      return null;
+                    })
+                .whenComplete((result, ex) -> maybeWorldState.get().close());
+          } else {
+            LOG.info("Prefetcher block header for block not loaded {}", blockHeader);
           }
-
-          getWorldState(protocolContext, maybeParentHeader.get())
-              .ifPresent(
-                  worldState ->
-                      prefetchMechanism
-                          .prefetch(worldState, blockAccessList, executor)
-                          .exceptionally(
-                              ex -> {
-                                LOG.error("Prefetch failed", ex);
-                                return null;
-                              })
-                          .whenComplete((result, ex) -> worldState.close()));
         });
     super.runAsyncBlock(
         protocolContext,
@@ -131,11 +130,7 @@ public class BalConcurrentTransactionProcessor extends ParallelBlockTransactionP
       final Optional<BlockAccessListBuilder> blockAccessListBuilder,
       final Optional<BlockHeader> maybeParentHeader) {
 
-    if (maybeParentHeader.isEmpty()) {
-      return null;
-    }
-    final BonsaiWorldState ws =
-        getWorldState(protocolContext, maybeParentHeader.get()).orElse(null);
+    final BonsaiWorldState ws = getWorldState(protocolContext, maybeParentHeader).orElse(null);
     if (ws == null) {
       return null;
     }

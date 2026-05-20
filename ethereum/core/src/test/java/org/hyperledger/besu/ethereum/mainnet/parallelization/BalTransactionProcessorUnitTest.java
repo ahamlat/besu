@@ -321,7 +321,7 @@ class BalTransactionProcessorUnitTest {
           Optional.empty(),
           env.maybeParentHeader());
 
-      verify(env.worldStateArchive(), times(1)).getWorldState(any());
+      verify(env.worldStateArchive(), times(2)).getWorldState(any());
       verify(transactionProcessor, never())
           .processTransaction(any(), any(), any(), any(), any(), any(), any(), any(), any());
       assertTrue(
@@ -359,7 +359,7 @@ class BalTransactionProcessorUnitTest {
           Optional.empty(),
           env.maybeParentHeader());
 
-      verify(env.worldStateArchive())
+      verify(env.worldStateArchive(), times(2))
           .getWorldState(argThat((WorldStateQueryParams p) -> p.getBlockHeader() == parent));
       verify(transactionProcessor, times(1))
           .processTransaction(any(), any(), any(), any(), any(), any(), any(), any(), any());

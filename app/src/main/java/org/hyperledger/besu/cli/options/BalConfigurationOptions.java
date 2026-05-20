@@ -47,6 +47,14 @@ public class BalConfigurationOptions {
   boolean balTrustStateRoot = true;
 
   @CommandLine.Option(
+      names = {"--Xbal-state-root-enabled"},
+      hidden = true,
+      negatable = true,
+      description =
+          "Use the BAL-based state root commit path when a BAL is present (default: true).")
+  boolean balStateRootEnabled = true;
+
+  @CommandLine.Option(
       names = {"--Xbal-log-bals-on-mismatch"},
       hidden = true,
       description = "Log the constructed and block's BAL when they differ.")
@@ -96,6 +104,7 @@ public class BalConfigurationOptions {
         .shouldLogBalsOnMismatch(balLogBalsOnMismatch)
         .isBalLenientOnStateRootMismatch(balLenientOnStateRootMismatch)
         .isBalStateRootTrusted(balTrustStateRoot)
+        .isBalStateRootEnabled(balStateRootEnabled)
         .isBalPreFetchReadingEnabled(balPreFetchReadingEnabled)
         .isBalPreFetchSortingEnabled(balPreFetchSortingEnabled)
         .balPreFetchBatchSize(balPreFetchBatch)
