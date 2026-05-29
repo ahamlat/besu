@@ -98,6 +98,9 @@ public class MessageCallProcessor extends AbstractMessageProcessor {
       final PrecompiledContract precompile = precompiles.get(frame.getContractAddress());
       if (precompile != null) {
         executePrecompile(precompile, frame, operationTracer);
+      } else if (frame.getCode().getSize() == 0) {
+        frame.setOutputData(Bytes.EMPTY);
+        codeSuccess(frame, operationTracer);
       } else {
         frame.setState(MessageFrame.State.CODE_EXECUTING);
       }
