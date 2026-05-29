@@ -478,12 +478,6 @@ public class EVM {
       Operation currentOperation;
       int opcode;
       int pc = frame.getPC();
-      // Explicit bounds check (replaces the previous try/catch on ArrayIndexOutOfBoundsException).
-      // operationArray is always length 256 and (code[pc] & 0xff) is always in 0..255, so the
-      // operations-array access can never throw; only the code[pc] read can run off the end (when
-      // pc has advanced past the bytecode), in which case we synthesize an implicit STOP. Avoiding
-      // the per-overrun exception keeps the JIT path branch-predictable and eliminates the
-      // exception storm seen on CALLs into short/empty code.
       if (pc < code.length) {
         opcode = code[pc] & 0xff;
         currentOperation = operationArray[opcode];
