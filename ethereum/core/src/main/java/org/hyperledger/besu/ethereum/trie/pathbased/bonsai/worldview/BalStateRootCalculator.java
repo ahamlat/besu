@@ -19,6 +19,7 @@ import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessListChanges;
+import org.hyperledger.besu.ethereum.mainnet.parallelization.BlockProcessingExecutors;
 import org.hyperledger.besu.ethereum.mainnet.staterootcommitter.BalRootComputation;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
@@ -39,13 +40,16 @@ public class BalStateRootCalculator {
       final ProtocolContext protocolContext,
       final BlockHeader blockHeader,
       final BlockAccessList bal) {
+    // Runs on a dedicated, high-priority pool (not the JVM common pool) because this computation is
+    // on the block's critical path: its result is awaited by persist().
     return CompletableFuture.supplyAsync(
         () -> {
           try (BonsaiWorldState ws = openParentWorldState(protocolContext, blockHeader)) {
             applyBalChanges(ws.getAccumulator(), bal);
             return computeRoot(ws);
           }
-        });
+        },
+        BlockProcessingExecutors.stateRootExecutor());
   }
 
   private static BonsaiWorldState openParentWorldState(

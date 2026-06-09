@@ -117,8 +117,14 @@ public class BalConcurrentTransactionProcessor extends ParallelBlockTransactionP
           final Optional<BonsaiWorldState> maybeWorldState =
               getWorldState(protocolContext, maybeParentHeader);
           if (maybeWorldState.isPresent()) {
+            // Best-effort prefetch runs entirely on the IO pool (both orchestration and the
+            // native-blocking fetches) so it can never occupy a CPU/transaction-execution thread.
             balPrefetchMechanism
-                .prefetch(maybeWorldState.get(), blockAccessList, executor)
+                .prefetch(
+                    maybeWorldState.get(),
+                    blockAccessList,
+                    BlockProcessingExecutors.ioExecutor(),
+                    BlockProcessingExecutors.ioExecutor())
                 .exceptionally(
                     ex -> {
                       LOG.error("Prefetch failed", ex);
