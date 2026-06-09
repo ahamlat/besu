@@ -73,7 +73,7 @@ public final class BlockProcessingExecutors {
    */
   private static final ExecutorService CPU_EXECUTOR =
       Executors.newFixedThreadPool(
-          CPU_THREADS, namedDaemonThreadFactory("besu-block-cpu", Thread.NORM_PRIORITY));
+          CPU_THREADS, namedDaemonThreadFactory("besu-block-cpu", Thread.NORM_PRIORITY + 1));
 
   /**
    * IO-bound work: best-effort, native-blocking RocksDB prefetch/reads. Sized to device read
@@ -82,7 +82,7 @@ public final class BlockProcessingExecutors {
    */
   private static final ExecutorService IO_EXECUTOR =
       Executors.newFixedThreadPool(
-          IO_THREADS, namedDaemonThreadFactory("besu-block-io", Thread.NORM_PRIORITY - 1));
+          IO_THREADS, namedDaemonThreadFactory("besu-block-io", Thread.NORM_PRIORITY));
 
   /**
    * Critical-path work: the asynchronous BAL state-root computation. Small dedicated pool at higher
@@ -91,7 +91,7 @@ public final class BlockProcessingExecutors {
   private static final ExecutorService STATE_ROOT_EXECUTOR =
       Executors.newFixedThreadPool(
           STATE_ROOT_THREADS,
-          namedDaemonThreadFactory("besu-block-stateroot", Thread.NORM_PRIORITY + 1));
+          namedDaemonThreadFactory("besu-block-stateroot", Thread.NORM_PRIORITY - 1));
 
   private BlockProcessingExecutors() {}
 
