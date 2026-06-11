@@ -194,183 +194,27 @@ public class Code {
    * This is used for efficiently validating dynamic jumps (`JUMP`, `JUMPI`) at runtime.
    */
   long[] calculateJumpDestBitMask() {
-    // Total number of bytes in the bytecode
-    final int size = getSize();
-
-    // Allocate enough longs to cover all bytes, one long (64 bits) per 64-byte chunk
-    final long[] bitmap = new long[(size >> 6) + 1];
-
-    // Get the raw EVM bytecode as a byte array (no copying)
     final byte[] rawCode = getBytes().toArrayUnsafe();
     final int length = rawCode.length;
-
-    // Iterate through the bytecode
+    final long[] bitmap = new long[(length + 63) >> 6];
     for (int i = 0; i < length; ) {
-      // One 64-bit entry corresponds to 64 bytecode positions
       long thisEntry = 0L;
-
-      // Compute which bitmap entry we are in (i / 64)
       final int entryPos = i >> 6;
-
-      // Compute the number of bytes we can safely examine in this 64-byte window
       final int max = Math.min(64, length - (entryPos << 6));
-
-      // j is the position within this 64-byte window
       int j = i & 0x3F;
-
-      // Scan through this 64-byte chunk of the bytecode
       for (; j < max; i++, j++) {
-        final byte operationNum = rawCode[i];
-
-        // Skip all opcodes below 0x5b (JUMPDEST), since only PUSH1–PUSH32 and JUMPDEST matter
-        if (operationNum >= JumpDestOperation.OPCODE) {
-          switch (operationNum) {
-            // JUMPDEST opcode (0x5b): mark as a valid jump destination
-            case JumpDestOperation.OPCODE:
-              thisEntry |= 1L << j; // Set the bit at position j
-              break;
-            // PUSH1–PUSH32 opcodes (0x60–0x7f): these consume 1-32 bytes of data that should be
-            // skipped
-            case 0x60:
-              i += 1;
-              j += 1;
-              break;
-            case 0x61:
-              i += 2;
-              j += 2;
-              break;
-            case 0x62:
-              i += 3;
-              j += 3;
-              break;
-            case 0x63:
-              i += 4;
-              j += 4;
-              break;
-            case 0x64:
-              i += 5;
-              j += 5;
-              break;
-            case 0x65:
-              i += 6;
-              j += 6;
-              break;
-            case 0x66:
-              i += 7;
-              j += 7;
-              break;
-            case 0x67:
-              i += 8;
-              j += 8;
-              break;
-            case 0x68:
-              i += 9;
-              j += 9;
-              break;
-            case 0x69:
-              i += 10;
-              j += 10;
-              break;
-            case 0x6a:
-              i += 11;
-              j += 11;
-              break;
-            case 0x6b:
-              i += 12;
-              j += 12;
-              break;
-            case 0x6c:
-              i += 13;
-              j += 13;
-              break;
-            case 0x6d:
-              i += 14;
-              j += 14;
-              break;
-            case 0x6e:
-              i += 15;
-              j += 15;
-              break;
-            case 0x6f:
-              i += 16;
-              j += 16;
-              break;
-            case 0x70:
-              i += 17;
-              j += 17;
-              break;
-            case 0x71:
-              i += 18;
-              j += 18;
-              break;
-            case 0x72:
-              i += 19;
-              j += 19;
-              break;
-            case 0x73:
-              i += 20;
-              j += 20;
-              break;
-            case 0x74:
-              i += 21;
-              j += 21;
-              break;
-            case 0x75:
-              i += 22;
-              j += 22;
-              break;
-            case 0x76:
-              i += 23;
-              j += 23;
-              break;
-            case 0x77:
-              i += 24;
-              j += 24;
-              break;
-            case 0x78:
-              i += 25;
-              j += 25;
-              break;
-            case 0x79:
-              i += 26;
-              j += 26;
-              break;
-            case 0x7a:
-              i += 27;
-              j += 27;
-              break;
-            case 0x7b:
-              i += 28;
-              j += 28;
-              break;
-            case 0x7c:
-              i += 29;
-              j += 29;
-              break;
-            case 0x7d:
-              i += 30;
-              j += 30;
-              break;
-            case 0x7e:
-              i += 31;
-              j += 31;
-              break;
-            case 0x7f:
-              i += 32;
-              j += 32;
-              break;
-            default:
-              // No default case needed: any unhandled opcode >= 0x5b but not PUSH or JUMPDEST is
-              // skipped
+        final byte op = rawCode[i];
+        if (op >= JumpDestOperation.OPCODE) {       // 0x5b..0x7f
+          if (op == JumpDestOperation.OPCODE) {
+            thisEntry |= 1L << j;                    // still register accumulation
+          } else if (op >= 0x60) {
+            final int skip = op - 0x5f;              // PUSH1..PUSH32
+            i += skip; j += skip;
           }
         }
       }
-
-      // Store the computed bitmask for this 64-byte chunk
-      bitmap[entryPos] = thisEntry;
+      bitmap[entryPos] = thisEntry;                  // one flush per window
     }
-
-    // Return the full jump destination bitmask
     return bitmap;
   }
 

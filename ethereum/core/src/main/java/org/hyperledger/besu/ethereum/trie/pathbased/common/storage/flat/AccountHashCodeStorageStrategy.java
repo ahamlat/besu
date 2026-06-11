@@ -29,7 +29,7 @@ public class AccountHashCodeStorageStrategy implements CodeStorageStrategy {
   public Optional<Bytes> getFlatCode(
       final Hash codeHash, final Hash accountHash, final SegmentedKeyValueStorage storage) {
     return storage
-        .get(CODE_STORAGE, accountHash.getBytes().toArrayUnsafe())
+        .getWithReusableValueBuffer(CODE_STORAGE, accountHash.getBytes().toArrayUnsafe())
         .map(Bytes::wrap)
         .filter(b -> Hash.hash(b).equals(codeHash));
   }

@@ -40,6 +40,24 @@ public interface SegmentedKeyValueStorage extends Closeable {
   Optional<byte[]> get(SegmentIdentifier segment, byte[] key) throws StorageException;
 
   /**
+   * Like {@link #get(SegmentIdentifier, byte[])}, but implementations MAY read the value into a
+   * reusable (e.g. thread-local direct) buffer to avoid allocating a Java array inside the native
+   * get. Intended for hot, bounded-size reads such as contract code.
+   *
+   * <p>The default implementation simply delegates to {@link #get(SegmentIdentifier, byte[])}, so
+   * backends that do not benefit from buffer reuse remain unaffected.
+   *
+   * @param segment the segment
+   * @param key Index into persistent data repository.
+   * @return The value persisted at the key index.
+   * @throws StorageException the storage exception
+   */
+  default Optional<byte[]> getWithReusableValueBuffer(
+      final SegmentIdentifier segment, final byte[] key) throws StorageException {
+    return get(segment, key);
+  }
+
+  /**
    * Get the values from the associated segment and keys.
    *
    * @param segment the segment

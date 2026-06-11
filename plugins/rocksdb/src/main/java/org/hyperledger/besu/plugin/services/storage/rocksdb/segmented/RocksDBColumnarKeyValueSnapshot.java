@@ -96,6 +96,20 @@ public class RocksDBColumnarKeyValueSnapshot
   }
 
   @Override
+  public Optional<byte[]> getWithReusableValueBuffer(
+      final SegmentIdentifier segment, final byte[] key) throws StorageException {
+    throwIfClosed();
+    try (final OperationTimer.TimingContext ignored = metrics.getReadLatency().startTimer()) {
+      final ColumnFamilyHandle handle = columnFamilyMapper.apply(segment);
+      // readOptions already carries this snapshot, so reading directly against the db is
+      // equivalent to snapshot.get while letting RocksDB fill a reusable direct buffer.
+      return RocksDBBufferedValueReader.get(db, readOptions, handle, key);
+    } catch (final RocksDBException e) {
+      throw new StorageException(e);
+    }
+  }
+
+  @Override
   public List<Optional<byte[]>> multiget(final SegmentIdentifier segment, final List<byte[]> keys)
       throws StorageException {
     throwIfClosed();

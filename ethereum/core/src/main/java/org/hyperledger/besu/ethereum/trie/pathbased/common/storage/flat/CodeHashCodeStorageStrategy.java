@@ -29,7 +29,9 @@ public class CodeHashCodeStorageStrategy implements CodeStorageStrategy {
   @Override
   public Optional<Bytes> getFlatCode(
       final Hash codeHash, final Hash accountHash, final SegmentedKeyValueStorage storage) {
-    return storage.get(CODE_STORAGE, codeHash.getBytes().toArrayUnsafe()).map(Bytes::wrap);
+    return storage
+        .getWithReusableValueBuffer(CODE_STORAGE, codeHash.getBytes().toArrayUnsafe())
+        .map(Bytes::wrap);
   }
 
   @Override

@@ -89,6 +89,27 @@ public class LayeredKeyValueStorage extends SegmentedInMemoryKeyValueStorage
     return get(segmentId, key, null);
   }
 
+  @Override
+  public Optional<byte[]> getWithReusableValueBuffer(
+      final SegmentIdentifier segmentId, final byte[] key) throws StorageException {
+    throwIfClosed();
+
+    final Lock lock = rwLock.readLock();
+    lock.lock();
+    try {
+      final Optional<byte[]> foundKey =
+          hashValueStore.computeIfAbsent(segmentId, __ -> newSegmentMap()).get(Bytes.wrap(key));
+
+      if (foundKey == null) {
+        // Not in this layer, delegate to parent, preserving buffer reuse down the chain.
+        return parent.getWithReusableValueBuffer(segmentId, key);
+      }
+      return foundKey;
+    } finally {
+      lock.unlock();
+    }
+  }
+
   /**
    * Get value with optional cache function.
    *

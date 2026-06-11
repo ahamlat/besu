@@ -426,6 +426,18 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
   }
 
   @Override
+  public Optional<byte[]> getWithReusableValueBuffer(
+      final SegmentIdentifier segment, final byte[] key) throws StorageException {
+    throwIfClosed();
+
+    try (final OperationTimer.TimingContext ignored = metrics.getReadLatency().startTimer()) {
+      return RocksDBBufferedValueReader.get(getDB(), readOptions, safeColumnHandle(segment), key);
+    } catch (final RocksDBException e) {
+      throw new StorageException(e);
+    }
+  }
+
+  @Override
   public List<Optional<byte[]>> multiget(final SegmentIdentifier segment, final List<byte[]> keys)
       throws StorageException {
     throwIfClosed();
