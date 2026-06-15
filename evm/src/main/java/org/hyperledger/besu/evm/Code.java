@@ -23,6 +23,10 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
 import com.google.common.base.MoreObjects;
+import jdk.incubator.vector.ByteVector;
+import jdk.incubator.vector.VectorMask;
+import jdk.incubator.vector.VectorOperators;
+import jdk.incubator.vector.VectorSpecies;
 import org.apache.tuweni.bytes.Bytes;
 
 /** Represents EVM code associated with an account. */
@@ -41,6 +45,18 @@ public class Code {
 
   /** Bit mask for jump destinations, used to optimize JUMP/JUMPI operations */
   private long[] jumpDestBitMask = null;
+
+  /**
+   * Widest byte vector the running CPU supports (64 lanes on AVX-512, 32 on AVX2, 16 on NEON). Used
+   * by the experimental {@link #calculateJumpDestBitMaskVector()} jumpdest scan.
+   */
+  private static final VectorSpecies<Byte> BYTE_SPECIES = ByteVector.SPECIES_PREFERRED;
+
+  /** Number of byte lanes in {@link #BYTE_SPECIES}. */
+  private static final int BYTE_LANES = BYTE_SPECIES.length();
+
+  /** {@code JUMPDEST} (0x5b) as a signed byte, for vector lane comparisons. */
+  private static final byte JUMPDEST_BYTE = (byte) JumpDestOperation.OPCODE;
 
   /**
    * Public constructor.
@@ -244,6 +260,96 @@ public class Code {
 
     // Return the full jump destination bitmask
     return bitmap;
+  }
+
+  /**
+   * Experimental SIMD variant of {@link #calculateJumpDestBitMask()} built on the (incubating)
+   * Vector API.
+   *
+   * <p>Jumpdest analysis cannot be vectorized naively because PUSH opcodes carry immediate data: the
+   * meaning of byte {@code i} depends on having parsed everything before it. The strategy here,
+   * following the "uniform vs. divergent" pattern from Emanuel Peter's Vector-API control-flow
+   * write-up, keeps the scalar cursor at a known opcode boundary and processes a full vector at a
+   * time:
+   *
+   * <ul>
+   *   <li><b>Uniform chunk</b> — if a vector-wide window contains no PUSH opcode, every byte is an
+   *       opcode, so comparing the lanes against {@code JUMPDEST} yields the bitmap bits directly
+   *       (one {@code compare} + {@code toLong}).
+   *   <li><b>Divergent chunk</b> — if a PUSH is present, the bits up to the first PUSH are still
+   *       trustworthy; emit them, then hand the PUSH itself to the scalar path so its immediate data
+   *       is skipped and the opcode boundary is re-established.
+   * </ul>
+   *
+   * <p>This deliberately avoids {@code compress}/masked-store operations, which degrade to slow
+   * scalar fallbacks on some platforms. It is a constant-factor optimization of the scan only; it
+   * does not change the O(n) cost and is intended for benchmarking against the scalar version.
+   *
+   * @return the jump destination bitmask, identical to {@link #calculateJumpDestBitMask()}
+   */
+  long[] calculateJumpDestBitMaskVector() {
+    final int size = getSize();
+    final long[] bitmap = new long[(size >> 6) + 1];
+    final byte[] rawCode = getBytes().toArrayUnsafe();
+    final int length = rawCode.length;
+
+    int i = 0;
+    while (i < length) {
+      // Vector fast path: only when a full vector fits. The loop only reaches this point at an
+      // opcode boundary, so every lane below is a real opcode unless a PUSH appears in the window.
+      if (i + BYTE_LANES <= length) {
+        final ByteVector window = ByteVector.fromArray(BYTE_SPECIES, rawCode, i);
+
+        // PUSH1..PUSH32 is the contiguous range 0x60..0x7f. Shifting by 0x60 turns it into 0..0x1f
+        // so a single unsigned comparison detects it (see lowerCase example in the write-up).
+        final VectorMask<Byte> isPush =
+            window.sub((byte) 0x60).compare(VectorOperators.UNSIGNED_LE, (byte) 0x1f);
+
+        final long jumpDests = window.compare(VectorOperators.EQ, JUMPDEST_BYTE).toLong();
+
+        if (!isPush.anyTrue()) {
+          // Uniform window: no PUSH, so all lanes are opcodes and the JUMPDEST mask is exact.
+          setBits(bitmap, i, jumpDests, BYTE_LANES);
+          i += BYTE_LANES;
+          continue;
+        }
+
+        // Divergent window: trust the JUMPDEST bits before the first PUSH, then let the scalar
+        // path consume the PUSH and its immediate data.
+        final int firstPush = isPush.firstTrue();
+        if (firstPush > 0) {
+          setBits(bitmap, i, jumpDests & ((1L << firstPush) - 1), firstPush);
+          i += firstPush;
+        }
+      }
+
+      // Scalar single-instruction step (also drains the final < BYTE_LANES bytes).
+      final int op = rawCode[i] & 0xff;
+      if (op == JumpDestOperation.OPCODE) {
+        bitmap[i >> 6] |= 1L << (i & 63);
+      }
+      if (op >= 0x60 && op <= 0x7f) {
+        i += (op - 0x5f) + 1; // skip the PUSH opcode and its immediate data bytes
+      } else {
+        i++;
+      }
+    }
+    return bitmap;
+  }
+
+  /**
+   * ORs {@code count} freshly computed jumpdest bits into the bitmap at absolute byte position
+   * {@code pos}. Bit {@code q} of {@code bits} corresponds to byte {@code pos + q}. The run may
+   * straddle the boundary between two 64-byte entries, in which case it is split across two longs.
+   */
+  private static void setBits(
+      final long[] bitmap, final int pos, final long bits, final int count) {
+    final int word = pos >> 6;
+    final int offset = pos & 63;
+    bitmap[word] |= bits << offset;
+    if (offset + count > 64) {
+      bitmap[word + 1] |= bits >>> (64 - offset);
+    }
   }
 
   /**

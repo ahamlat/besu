@@ -17,6 +17,22 @@
 apply plugin: 'java-library'
 apply plugin: 'idea'
 
+// Experimental: the jumpdest analysis SIMD prototype uses the incubating Vector API.
+tasks.withType(JavaCompile).configureEach {
+  options.compilerArgs += ['--add-modules', 'jdk.incubator.vector']
+  // javac emits a mandatory "using incubating module(s)" warning that the global -Werror would
+  // otherwise turn into a build failure.
+  options.compilerArgs -= ['-Werror']
+}
+tasks.withType(Test).configureEach {
+  jvmArgs += ['--add-modules', 'jdk.incubator.vector']
+}
+plugins.withId('me.champeau.jmh') {
+  jmh {
+    jvmArgs.addAll('--add-modules', 'jdk.incubator.vector')
+  }
+}
+
 jar {
   archiveBaseName = calculateArtifactId(project)
   manifest {

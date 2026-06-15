@@ -15,6 +15,7 @@
 package org.hyperledger.besu.evm;
 
 import static org.hyperledger.besu.evm.frame.MessageFrame.Type.MESSAGE_CALL;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -29,6 +30,8 @@ import org.hyperledger.besu.evm.internal.EvmConfiguration;
 import org.hyperledger.besu.evm.operation.JumpOperation;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
+
+import java.util.Random;
 
 import jakarta.validation.constraints.NotNull;
 import org.apache.tuweni.bytes.Bytes;
@@ -65,6 +68,85 @@ class CodeTest {
     result = operation.execute(frame, evm);
     assertNull(result.getHaltReason());
     Mockito.verify(getsCached, times(1)).calculateJumpDestBitMask();
+  }
+
+  /**
+   * Independent, deliberately simple reference scan: walk opcodes from byte 0, mark every JUMPDEST
+   * reached as an opcode (not as PUSH immediate data). Used to validate both the scalar
+   * {@link Code#calculateJumpDestBitMask()} and the SIMD {@link Code#calculateJumpDestBitMaskVector()}
+   * on adversarial and random inputs.
+   */
+  private static long[] referenceJumpDestBitMask(final byte[] code) {
+    final long[] bitmap = new long[(code.length >> 6) + 1];
+    int i = 0;
+    while (i < code.length) {
+      final int op = code[i] & 0xff;
+      if (op == 0x5b) {
+        bitmap[i >> 6] |= 1L << (i & 63);
+      }
+      if (op >= 0x60 && op <= 0x7f) {
+        i += (op - 0x5f) + 1; // skip the opcode and its immediate data bytes
+      } else {
+        i++;
+      }
+    }
+    return bitmap;
+  }
+
+  /** Asserts the scalar and SIMD jumpdest scans both equal the independent reference. */
+  private static void assertJumpDestBitMask(final byte[] code) {
+    final long[] expected = referenceJumpDestBitMask(code);
+    final Code subject = new Code(Bytes.wrap(code));
+    assertArrayEquals(
+        expected, subject.calculateJumpDestBitMask(), () -> "scalar mismatch: " + hex(code));
+    assertArrayEquals(
+        expected, subject.calculateJumpDestBitMaskVector(), () -> "vector mismatch: " + hex(code));
+  }
+
+  private static String hex(final byte[] code) {
+    return Bytes.wrap(code).toHexString();
+  }
+
+  @Test
+  void jumpDestBitMaskMatchesReferenceForAdversarialContract() {
+    // PUSH2 0x5FFF; JUMP; then 0x5b padding up to the last byte at 0x5FFF (EIP-170 max size).
+    final byte[] code = new byte[0x6000];
+    java.util.Arrays.fill(code, (byte) 0x5b);
+    code[0] = 0x61; // PUSH2
+    code[1] = 0x5f;
+    code[2] = (byte) 0xff;
+    code[3] = 0x56; // JUMP
+    assertJumpDestBitMask(code);
+  }
+
+  @Test
+  void jumpDestBitMaskMatchesReferenceForRandomBytecode() {
+    final Random random = new Random(0xB16B00B5L); // fixed seed for reproducibility
+    for (int trial = 0; trial < 50_000; trial++) {
+      final int length = random.nextInt(300);
+      final byte[] code = new byte[length];
+      for (int k = 0; k < length; k++) {
+        final double r = random.nextDouble();
+        if (r < 0.4) {
+          code[k] = 0x5b; // bias toward JUMPDEST to exercise the vector fast path
+        } else if (r < 0.6) {
+          code[k] = (byte) (0x60 + random.nextInt(32)); // PUSH1..PUSH32
+        } else {
+          code[k] = (byte) random.nextInt(256);
+        }
+      }
+      assertJumpDestBitMask(code);
+    }
+  }
+
+  @Test
+  void jumpDestBitMaskMatchesReferenceAroundChunkBoundaries() {
+    // Exercise lengths around 64-byte window and vector-lane edges with a JUMPDEST run.
+    for (int length = 1; length <= 200; length++) {
+      final byte[] code = new byte[length];
+      java.util.Arrays.fill(code, (byte) 0x5b);
+      assertJumpDestBitMask(code);
+    }
   }
 
   @NotNull
