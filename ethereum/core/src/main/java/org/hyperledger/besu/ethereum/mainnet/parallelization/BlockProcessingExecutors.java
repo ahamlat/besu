@@ -31,7 +31,7 @@ public final class BlockProcessingExecutors {
 
   private static final int CPU_THREADS = intProperty("besu.block.cpuThreads", NCPU);
   private static final int IO_THREADS = intProperty("besu.block.ioThreads", NCPU * 2);
-  private static final int STATE_ROOT_THREADS = intProperty("besu.block.stateRootThreads", 2);
+  private static final int STATE_ROOT_THREADS = intProperty("besu.block.stateRootThreads", 1);
 
   // CPU work: parallel tx execution (EVM, keccak, RLP). Bounded to cores.
   private static final ExecutorService CPU_EXECUTOR =
@@ -41,13 +41,13 @@ public final class BlockProcessingExecutors {
   // IO work: best-effort RocksDB prefetch/reads. Sized to device, not cores.
   private static final ExecutorService IO_EXECUTOR =
       Executors.newFixedThreadPool(
-          IO_THREADS, namedDaemonThreadFactory("besu-block-io", Thread.NORM_PRIORITY));
+          IO_THREADS, namedDaemonThreadFactory("besu-block-io", Thread.NORM_PRIORITY - 1));
 
   // BAL state-root: small dedicated pool, not the common pool.
   private static final ExecutorService STATE_ROOT_EXECUTOR =
       Executors.newFixedThreadPool(
           STATE_ROOT_THREADS,
-          namedDaemonThreadFactory("besu-block-stateroot", Thread.NORM_PRIORITY - 1));
+          namedDaemonThreadFactory("besu-block-stateroot", Thread.NORM_PRIORITY));
 
   private BlockProcessingExecutors() {}
 
