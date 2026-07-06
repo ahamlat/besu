@@ -25,6 +25,7 @@
 - Reverted: Return `SYNCING` from `engine_newPayload` when the parent block's world state is not immediately available in the Bonsai cache, preventing worker thread blocking during CL backfill or post-restart catch-up. [#10600](https://github.com/besu-eth/besu/pull/10600) since replaced by [#10731](https://github.com/besu-eth/besu/pull/10731)
 
 ### Additions and Improvements
+- Speed up state reads (SLOAD and account access): share the storage-slot keccak memoization across transactions and blocks, prefetch the state referenced by a block access list before execution, batch same-account slot reads with RocksDB MultiGet, and enable memtable bloom filters plus data-block hash indexes on the world-state column families
 - Upgrade web3j dependencies to 5.0.3 [#10627](https://github.com/besu-eth/besu/pull/10627)
 - Upgrade netty dependencies to 4.2.15.Final [#10693](https://github.com/besu-eth/besu/pull/10693) 
 - Besu now falls back to Proof of Stake when the genesis file declares no consensus mechanism (e.g. an empty `"config": {}`). [#10266](https://github.com/besu-eth/besu/pull/10266)

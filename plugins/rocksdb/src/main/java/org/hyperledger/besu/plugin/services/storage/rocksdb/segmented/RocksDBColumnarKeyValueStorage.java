@@ -15,7 +15,11 @@
 package org.hyperledger.besu.plugin.services.storage.rocksdb.segmented;
 
 import static java.util.stream.Collectors.toUnmodifiableSet;
+import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.ACCOUNT_INFO_STATE;
+import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.ACCOUNT_STORAGE_STORAGE;
 import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.BLOCKCHAIN;
+import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.CODE_STORAGE;
+import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier.TRIE_BRANCH_STORAGE;
 
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.exception.StorageException;
@@ -32,6 +36,7 @@ import org.hyperledger.besu.plugin.services.storage.rocksdb.configuration.RocksD
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +59,7 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompressionType;
 import org.rocksdb.ConfigOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.DataBlockIndexType;
 import org.rocksdb.Env;
 import org.rocksdb.LRUCache;
 import org.rocksdb.Options;
@@ -75,6 +81,26 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
   private static final Logger LOG = LoggerFactory.getLogger(RocksDBColumnarKeyValueStorage.class);
   private static final int ROCKSDB_FORMAT_VERSION = 5;
   private static final long ROCKSDB_BLOCK_SIZE = 32768;
+
+  /**
+   * Fraction of the memtable reserved for its bloom filter. Combined with whole-key filtering it
+   * lets point lookups skip the memtable skip-list probe when the key is not present, which is the
+   * common case for state reads (the memtable only holds the most recent writes).
+   */
+  private static final double MEMTABLE_BLOOM_SIZE_RATIO = 0.02;
+
+  /** Utilization ratio of the in-data-block hash index used by point-lookup heavy segments. */
+  private static final double DATA_BLOCK_HASH_TABLE_UTIL_RATIO = 0.75;
+
+  /**
+   * Segments dominated by single-key point lookups on the block-processing hot path (world state
+   * reads). These get an additional hash index inside each data block, replacing the binary search
+   * per lookup with an O(1) probe at a ~1% space cost.
+   */
+  private static final Set<String> POINT_LOOKUP_SEGMENT_NAMES =
+      Stream.of(ACCOUNT_INFO_STATE, ACCOUNT_STORAGE_STORAGE, CODE_STORAGE, TRIE_BRANCH_STORAGE)
+          .map(SegmentIdentifier::getName)
+          .collect(toUnmodifiableSet());
 
   /** RocksDb blockcache size when using the high spec option */
   protected static final long ROCKSDB_BLOCKCACHE_SIZE_HIGH_SPEC = 1_073_741_824L;
@@ -234,6 +260,13 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
             .setCompressionType(CompressionType.LZ4_COMPRESSION)
             .setTableFormatConfig(basedTableConfig)
             .setLevelCompactionDynamicLevelBytes(dynamicLevelBytes);
+    if (POINT_LOOKUP_SEGMENT_NAMES.contains(segment.getName())) {
+      // Memtable bloom with whole-key filtering: point lookups can skip the memtable skip-list
+      // probe when the key is not in the memtable, which is the common case for state reads.
+      cfOptions
+          .setMemtablePrefixBloomSizeRatio(MEMTABLE_BLOOM_SIZE_RATIO)
+          .setMemtableWholeKeyFiltering(true);
+    }
     columnFamilyOptionsList.add(cfOptions);
     if (segment.containsStaticData()) {
       configureBlobDBForSegment(segment, configuration, cfOptions);
@@ -294,13 +327,23 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
                 ? ROCKSDB_BLOCKCACHE_SIZE_HIGH_SPEC
                 : config.getCacheCapacity());
     blockCaches.add(cache);
-    return new BlockBasedTableConfig()
-        .setFormatVersion(ROCKSDB_FORMAT_VERSION)
-        .setBlockCache(cache)
-        .setFilterPolicy(new BloomFilter(10, false))
-        .setPartitionFilters(true)
-        .setCacheIndexAndFilterBlocks(segment.isCacheIndexAndFilterBlocks())
-        .setBlockSize(ROCKSDB_BLOCK_SIZE);
+    final BlockBasedTableConfig tableConfig =
+        new BlockBasedTableConfig()
+            .setFormatVersion(ROCKSDB_FORMAT_VERSION)
+            .setBlockCache(cache)
+            .setFilterPolicy(new BloomFilter(10, false))
+            .setPartitionFilters(true)
+            .setCacheIndexAndFilterBlocks(segment.isCacheIndexAndFilterBlocks())
+            .setBlockSize(ROCKSDB_BLOCK_SIZE);
+    if (POINT_LOOKUP_SEGMENT_NAMES.contains(segment.getName())) {
+      // Hash index inside each data block: a point lookup becomes an O(1) probe instead of a
+      // binary search over the 32 KiB block. Only applies to newly written SST files; readers
+      // fall back to binary search for files without the index.
+      tableConfig
+          .setDataBlockIndexType(DataBlockIndexType.kDataBlockBinaryAndHash)
+          .setDataBlockHashTableUtilRatio(DATA_BLOCK_HASH_TABLE_UTIL_RATIO);
+    }
+    return tableConfig;
   }
 
   /***
@@ -425,6 +468,28 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
 
     try (final OperationTimer.TimingContext ignored = metrics.getReadLatency().startTimer()) {
       return Optional.ofNullable(getDB().get(safeColumnHandle(segment), readOptions, key));
+    } catch (final RocksDBException e) {
+      throw new StorageException(e);
+    }
+  }
+
+  @Override
+  public List<Optional<byte[]>> multiGet(final SegmentIdentifier segment, final List<byte[]> keys)
+      throws StorageException {
+    throwIfClosed();
+    if (keys.isEmpty()) {
+      return List.of();
+    }
+
+    try (final OperationTimer.TimingContext ignored = metrics.getReadLatency().startTimer()) {
+      final List<ColumnFamilyHandle> handles =
+          Collections.nCopies(keys.size(), safeColumnHandle(segment));
+      final List<byte[]> values = getDB().multiGetAsList(readOptions, handles, keys);
+      final List<Optional<byte[]>> results = new ArrayList<>(values.size());
+      for (final byte[] value : values) {
+        results.add(Optional.ofNullable(value));
+      }
+      return results;
     } catch (final RocksDBException e) {
       throw new StorageException(e);
     }

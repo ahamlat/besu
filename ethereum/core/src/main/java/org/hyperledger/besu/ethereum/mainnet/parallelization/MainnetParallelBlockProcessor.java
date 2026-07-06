@@ -143,6 +143,12 @@ public class MainnetParallelBlockProcessor extends MainnetBlockProcessor {
       final MutableWorldState worldState,
       final Block block,
       final Optional<BlockAccessList> blockAccessList) {
+    if (worldState instanceof BonsaiWorldState bonsaiWorldState) {
+      // Warm the flat-db read path for the block's working set before execution needs it, so
+      // SLOAD/account reads on the critical path hit memory instead of RocksDB/disk.
+      blockAccessList.ifPresent(
+          bal -> BalStatePrefetcher.prefetch(bal, bonsaiWorldState.getWorldStateStorage()));
+    }
     final BlockProcessingResult blockProcessingResult =
         super.processBlock(
             protocolContext,

@@ -17,6 +17,8 @@ package org.hyperledger.besu.plugin.services.storage;
 import org.hyperledger.besu.plugin.services.exception.StorageException;
 
 import java.io.Closeable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -37,6 +39,26 @@ public interface SegmentedKeyValueStorage extends Closeable {
    * @throws StorageException the storage exception
    */
   Optional<byte[]> get(SegmentIdentifier segment, byte[] key) throws StorageException;
+
+  /**
+   * Get the values associated with a batch of keys from the same segment. Implementations backed by
+   * stores with a native batched read (e.g. RocksDB MultiGet) should override this method: a
+   * batched read amortizes the per-call overhead and lets the store share index/filter block
+   * accesses between keys that land in the same file.
+   *
+   * @param segment the segment
+   * @param keys the keys to look up
+   * @return one optional value per key, in the same order as the keys
+   * @throws StorageException the storage exception
+   */
+  default List<Optional<byte[]>> multiGet(final SegmentIdentifier segment, final List<byte[]> keys)
+      throws StorageException {
+    final List<Optional<byte[]>> values = new ArrayList<>(keys.size());
+    for (final byte[] key : keys) {
+      values.add(get(segment, key));
+    }
+    return values;
+  }
 
   /**
    * Finds the key and corresponding value that is "nearest before" the specified key. "Nearest

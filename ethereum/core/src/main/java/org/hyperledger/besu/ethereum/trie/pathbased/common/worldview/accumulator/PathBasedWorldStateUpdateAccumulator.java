@@ -47,6 +47,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
@@ -73,7 +75,13 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends PathB
   private final Map<Address, StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>>>
       storageToUpdate = new ConcurrentHashMap<>();
 
-  private final Map<UInt256, Hash> storageKeyHashLookup = new ConcurrentHashMap<>();
+  // Slot keys hash to the same value forever, and the same slots (0, 1, mapping bases, popular
+  // contract slots) recur constantly across transactions and blocks, so the keccak memoization is
+  // shared globally instead of per accumulator: parallel transaction accumulators and successive
+  // blocks all hit the same cache, saving one keccak-256 per warm SLOAD/SSTORE.
+  private static final Cache<UInt256, Hash> SLOT_KEY_HASH_CACHE =
+      Caffeine.newBuilder().maximumSize(100_000).build();
+
   protected boolean isAccumulatorStateChanged;
 
   public PathBasedWorldStateUpdateAccumulator(
@@ -209,7 +217,6 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends PathB
                   });
             });
 
-    storageKeyHashLookup.putAll(source.storageKeyHashLookup);
     this.isAccumulatorStateChanged = true;
   }
 
@@ -906,7 +913,6 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends PathB
     resetAccumulatorStateChanged();
     updatedAccounts.clear();
     deletedAccounts.clear();
-    storageKeyHashLookup.clear();
   }
 
   protected Hash hashAndSaveAccountPreImage(final Address address) {
@@ -915,12 +921,7 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends PathB
   }
 
   protected Hash hashAndSaveSlotPreImage(final UInt256 slotKey) {
-    Hash hash = storageKeyHashLookup.get(slotKey);
-    if (hash == null) {
-      hash = Hash.hash(slotKey);
-      storageKeyHashLookup.put(slotKey, hash);
-    }
-    return hash;
+    return SLOT_KEY_HASH_CACHE.get(slotKey, Hash::hash);
   }
 
   public abstract PathBasedWorldStateUpdateAccumulator<ACCOUNT> copy();

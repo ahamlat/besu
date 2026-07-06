@@ -184,6 +184,50 @@ public class BonsaiWorldStateKeyValueStorage extends PathBasedWorldStateKeyValue
                     composedWorldStateStorage));
   }
 
+  /**
+   * Batched variant of {@link #getStorageValueByStorageSlotKey(Hash, StorageSlotKey)} for reading
+   * several slots of the same account at once. On full flat databases the slots are fetched with a
+   * single batched storage read (RocksDB MultiGet), which amortizes the per-lookup overhead and
+   * shares index/filter block accesses between slots of the account (which are adjacent in the
+   * storage segment thanks to the shared account-hash key prefix). Results are cached in the flat
+   * database cache the same way as single reads.
+   *
+   * @param accountHash the hash of the account
+   * @param slotKeys the storage slot keys to read
+   * @return one optional value per slot key, in the same order as the slot keys
+   */
+  public List<Optional<Bytes>> getStorageValuesByStorageSlotKeys(
+      final Hash accountHash, final List<StorageSlotKey> slotKeys) {
+    if (slotKeys.isEmpty()) {
+      return List.of();
+    }
+    if (getFlatDbMode() != FlatDbMode.FULL) {
+      // partial flat db falls back to the trie per slot; keep the single-read path which
+      // implements that fallback
+      return slotKeys.stream()
+          .map(slotKey -> getStorageValueByStorageSlotKey(accountHash, slotKey))
+          .toList();
+    }
+    final List<Bytes> keys =
+        slotKeys.stream()
+            .map(
+                slotKey ->
+                    Bytes.concatenate(accountHash.getBytes(), slotKey.getSlotHash().getBytes()))
+            .toList();
+    return cacheManager.getMultipleFromCacheOrStorage(
+        ACCOUNT_STORAGE_STORAGE,
+        keys,
+        getCurrentVersion(),
+        keysToFetch ->
+            composedWorldStateStorage
+                .multiGet(
+                    ACCOUNT_STORAGE_STORAGE,
+                    keysToFetch.stream().map(Bytes::toArrayUnsafe).toList())
+                .stream()
+                .map(value -> value.map(Bytes::wrap))
+                .toList());
+  }
+
   public Optional<Bytes> getCode(final Hash codeHash, final Hash accountHash) {
     if (codeHash.equals(Hash.EMPTY)) {
       return Optional.of(Bytes.EMPTY);
