@@ -32,6 +32,7 @@ import org.hyperledger.besu.ethereum.mainnet.block.access.list.AccessLocationTra
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 import org.hyperledger.besu.ethereum.mainnet.systemcall.BlockProcessingContext;
 import org.hyperledger.besu.ethereum.processing.TransactionProcessingResult;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview.BonsaiWorldState;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview.accumulator.BonsaiWorldStateUpdateAccumulator;
 import org.hyperledger.besu.evm.blockhash.BlockHashLookup;
@@ -145,9 +146,14 @@ public class MainnetParallelBlockProcessor extends MainnetBlockProcessor {
       final Optional<BlockAccessList> blockAccessList) {
     if (worldState instanceof BonsaiWorldState bonsaiWorldState) {
       // Warm the flat-db read path for the block's working set before execution needs it, so
-      // SLOAD/account reads on the critical path hit memory instead of RocksDB/disk.
-      blockAccessList.ifPresent(
-          bal -> BalStatePrefetcher.prefetch(bal, bonsaiWorldState.getWorldStateStorage()));
+      // SLOAD/account reads on the critical path hit memory instead of RocksDB/disk. The block
+      // access list gives the complete working set when present; otherwise fall back to what the
+      // transactions themselves reveal (senders, recipients, coinbase, tx access lists).
+      final BonsaiWorldStateKeyValueStorage worldStateStorage =
+          bonsaiWorldState.getWorldStateStorage();
+      blockAccessList.ifPresentOrElse(
+          bal -> BlockStatePrefetcher.prefetch(bal, worldStateStorage),
+          () -> BlockStatePrefetcher.prefetch(block, worldStateStorage));
     }
     final BlockProcessingResult blockProcessingResult =
         super.processBlock(
