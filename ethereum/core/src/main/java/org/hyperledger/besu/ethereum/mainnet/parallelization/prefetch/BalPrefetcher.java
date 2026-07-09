@@ -20,6 +20,7 @@ import static org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIden
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.StorageSlotKey;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
+import org.hyperledger.besu.ethereum.mainnet.parallelization.BlockProcessingExecutors;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview.BonsaiWorldState;
 import org.hyperledger.besu.plugin.services.storage.SegmentIdentifier;
 import org.hyperledger.besu.plugin.services.storage.SegmentedKeyValueStorage;
@@ -31,7 +32,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ForkJoinPool;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.slf4j.Logger;
@@ -48,7 +48,7 @@ public class BalPrefetcher {
 
   private static final Logger LOG = LoggerFactory.getLogger(BalPrefetcher.class);
 
-  private static final Executor DEFAULT_PREFETCH_EXECUTOR = ForkJoinPool.commonPool();
+  private static final Executor DEFAULT_PREFETCH_EXECUTOR = BlockProcessingExecutors.ioExecutor();
 
   private final boolean isSortingEnabled;
   private final int batchSize;
