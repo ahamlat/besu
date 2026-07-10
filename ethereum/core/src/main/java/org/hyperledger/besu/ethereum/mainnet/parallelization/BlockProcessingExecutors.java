@@ -19,6 +19,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Typed thread pools for block processing: one for CPU work (tx execution), one for IO (RocksDB
  * prefetch), one for BAL state-root. Sizes can be set with system properties {@code
@@ -26,6 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * threads are daemon.
  */
 public final class BlockProcessingExecutors {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BlockProcessingExecutors.class);
 
   private static final int NCPU = Runtime.getRuntime().availableProcessors();
 
@@ -84,6 +89,8 @@ public final class BlockProcessingExecutors {
       final int parsed = Integer.parseInt(raw.trim());
       return parsed > 0 ? parsed : defaultValue;
     } catch (final NumberFormatException e) {
+      LOG.warn(
+          "Invalid value '{}' for system property '{}', using default {}", raw, key, defaultValue);
       return defaultValue;
     }
   }
