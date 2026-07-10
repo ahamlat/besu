@@ -48,7 +48,6 @@ public class BalPrefetcher {
 
   private static final Logger LOG = LoggerFactory.getLogger(BalPrefetcher.class);
 
-  private static final Executor DEFAULT_PREFETCH_EXECUTOR = BlockProcessingExecutors.ioExecutor();
   private static final Comparator<byte[]> STORAGE_KEY_COMPARATOR = Arrays::compareUnsigned;
   private final boolean isSortingEnabled;
   private final int batchSize;
