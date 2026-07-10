@@ -35,19 +35,16 @@ public final class BlockProcessingExecutors {
 
   // CPU work: parallel tx execution (EVM, keccak, RLP). Bounded to cores.
   private static final ExecutorService CPU_EXECUTOR =
-      Executors.newFixedThreadPool(
-          CPU_THREADS, namedDaemonThreadFactory("besu-block-cpu", Thread.NORM_PRIORITY + 1));
+      Executors.newFixedThreadPool(CPU_THREADS, namedDaemonThreadFactory("besu-block-cpu"));
 
   // IO work: best-effort RocksDB prefetch/reads. Sized to device, not cores.
   private static final ExecutorService IO_EXECUTOR =
-      Executors.newFixedThreadPool(
-          IO_THREADS, namedDaemonThreadFactory("besu-block-io", Thread.NORM_PRIORITY));
+      Executors.newFixedThreadPool(IO_THREADS, namedDaemonThreadFactory("besu-block-io"));
 
   // BAL state-root: small dedicated pool, not the common pool.
   private static final ExecutorService STATE_ROOT_EXECUTOR =
       Executors.newFixedThreadPool(
-          STATE_ROOT_THREADS,
-          namedDaemonThreadFactory("besu-block-stateroot", Thread.NORM_PRIORITY - 1));
+          STATE_ROOT_THREADS, namedDaemonThreadFactory("besu-block-stateroot"));
 
   private BlockProcessingExecutors() {}
 
@@ -91,16 +88,11 @@ public final class BlockProcessingExecutors {
     }
   }
 
-  // Error Prone don't like setPriority
-  @SuppressWarnings("ThreadPriorityCheck")
-  private static ThreadFactory namedDaemonThreadFactory(final String prefix, final int priority) {
-    final int clampedPriority =
-        Math.max(Thread.MIN_PRIORITY, Math.min(Thread.MAX_PRIORITY, priority));
+  private static ThreadFactory namedDaemonThreadFactory(final String prefix) {
     final AtomicInteger counter = new AtomicInteger();
     return runnable -> {
       final Thread thread = new Thread(runnable, prefix + "-" + counter.getAndIncrement());
       thread.setDaemon(true);
-      thread.setPriority(clampedPriority);
       return thread;
     };
   }
