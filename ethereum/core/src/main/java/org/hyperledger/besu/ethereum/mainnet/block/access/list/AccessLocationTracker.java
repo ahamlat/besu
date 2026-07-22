@@ -96,9 +96,7 @@ public class AccessLocationTracker implements Eip7928AccessList {
 
     final Collection<Address> deletedAddressesCol = stackedUpdater.getDeletedAccountAddresses();
     final Set<Address> deletedAddresses =
-        deletedAddressesCol.isEmpty()
-            ? Collections.emptySet()
-            : newSizedHashSet(deletedAddressesCol);
+        deletedAddressesCol.isEmpty() ? Collections.emptySet() : new HashSet<>(deletedAddressesCol);
 
     final Collection<? extends UpdateTrackingAccount<?>> updatedAccountsCol =
         stackedUpdater.getUpdatedAccounts();
@@ -203,15 +201,5 @@ public class AccessLocationTracker implements Eip7928AccessList {
       current = current.parentUpdater().orElse(null);
     }
     return null;
-  }
-
-  private static Set<Address> newSizedHashSet(final Collection<Address> src) {
-    final HashSet<Address> set = new HashSet<>(expectedCapacity(src.size()));
-    set.addAll(src);
-    return set;
-  }
-
-  private static int expectedCapacity(final int expectedSize) {
-    return (int) (expectedSize / 0.75f) + 1;
   }
 }
