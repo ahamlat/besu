@@ -106,7 +106,7 @@ public class AccessLocationTracker implements Eip7928AccessList {
     if (updatedAccountsCol.isEmpty()) {
       updatedAddresses = Collections.emptySet();
     } else {
-      updatedAddresses = new HashSet<>(expectedCapacity(updatedAccountsCol.size()));
+      updatedAddresses = HashSet.newHashSet(updatedAccountsCol.size());
       for (final UpdateTrackingAccount<?> u : updatedAccountsCol) {
         updatedAddresses.add(u.getAddress());
       }
