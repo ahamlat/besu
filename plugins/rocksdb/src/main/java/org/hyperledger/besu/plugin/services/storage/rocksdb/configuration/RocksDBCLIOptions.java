@@ -30,7 +30,7 @@ public class RocksDBCLIOptions {
   public static final int DEFAULT_MAX_OPEN_FILES = 1024;
 
   /** Number of bytes in one gibibyte (GiB), {@code 1024^3}. */
-  private static final long GIB = 1024L * 1024L * 1024L;
+  public static final long GIB = 1024L * 1024L * 1024L;
 
   /** Minimum max-open-files value used when deriving from available memory. */
   private static final int MIN_MAX_OPEN_FILES = 1024;
