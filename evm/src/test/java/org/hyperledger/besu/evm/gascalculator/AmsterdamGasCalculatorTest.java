@@ -24,6 +24,7 @@ import org.hyperledger.besu.datatypes.AccessListEntry;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Transaction;
 import org.hyperledger.besu.datatypes.Wei;
+import org.hyperledger.besu.evm.account.Account;
 
 import java.util.List;
 import java.util.Optional;
@@ -137,10 +138,10 @@ class AmsterdamGasCalculatorTest {
         Arguments.of("ETH to delegated account", RECIPIENT, Wei.ONE, 21_000L),
         Arguments.of("self-transfer, sender delegated", SENDER, Wei.ONE, 12_000L),
         Arguments.of("ETH creating a new account", RECIPIENT, Wei.ONE, 21_000L),
-        // to == null: contract creation. Value-bearing and target-pre-exists rows are identical —
-        // the recipient balance write is already covered by CREATE_ACCESS.
+        // to == null: contract creation. The recipient balance write is already covered by
+        // CREATE_ACCESS, but a value-bearing creation still pays the EIP-7708 transfer log (1,756).
         Arguments.of("create, value = 0", null, Wei.ZERO, 23_000L),
-        Arguments.of("create, value > 0", null, Wei.ONE, 23_000L),
+        Arguments.of("create, value > 0", null, Wei.ONE, 24_756L),
         Arguments.of("create, target pre-exists", null, Wei.ZERO, 23_000L));
   }
 
@@ -170,23 +171,23 @@ class AmsterdamGasCalculatorTest {
   }
 
   @Test
-  void eip2780AuthorizationIntrinsicExcludesAccountWrite() {
-    // EIP-2780: only REGULAR_PER_AUTH_BASE_COST (7,816) is intrinsic — the ACCOUNT_WRITE an
-    // authorization may perform is state-dependent and charged at runtime instead.
-    assertThat(amsterdamGasCalculator.delegateCodeGasCost(1)).isEqualTo(7_816L);
-    assertThat(amsterdamGasCalculator.delegateCodeGasCost(3)).isEqualTo(23_448L);
+  void eip2780AuthorizationIntrinsicReservesAccountWrite() {
+    // EIP-2780: ACCOUNT_WRITE (8,000) + REGULAR_PER_AUTH_BASE_COST (7,816) = 15,816 is reserved
+    // per authorization at the intrinsic phase.
+    assertThat(amsterdamGasCalculator.delegateCodeGasCost(1)).isEqualTo(15_816L);
+    assertThat(amsterdamGasCalculator.delegateCodeGasCost(3)).isEqualTo(47_448L);
 
-    // A zero-value 7702 transaction with one authorization: 15,000 + 7,816 = 22,816.
+    // A zero-value 7702 transaction with one authorization: 15,000 + 15,816 = 30,816.
     final Transaction tx = transactionWith(RECIPIENT, Wei.ZERO, Bytes.EMPTY, 1);
-    assertThat(amsterdamGasCalculator.transactionIntrinsicRegularGas(tx)).isEqualTo(22_816L);
+    assertThat(amsterdamGasCalculator.transactionIntrinsicRegularGas(tx)).isEqualTo(30_816L);
   }
 
   @Test
-  void eip2780AuthorityWriteIsChargedAtRuntime() {
-    assertThat(amsterdamGasCalculator.delegateCodeAccountWriteGasCost(0)).isZero();
-    assertThat(amsterdamGasCalculator.delegateCodeAccountWriteGasCost(2)).isEqualTo(16_000L);
-    // Nothing is over-reserved up front, so there is no per-authorization refund.
-    assertThat(amsterdamGasCalculator.calculateDelegateCodeGasRefund(2)).isZero();
+  void eip2780AuthorityWriteIsRefundedWhenNoAccountGrows() {
+    // The worst-case ACCOUNT_WRITE reserved per authorization is refunded for authorities that
+    // already existed (and for invalid authorizations, which the processor folds into that count).
+    assertThat(amsterdamGasCalculator.calculateDelegateCodeGasRefund(0)).isZero();
+    assertThat(amsterdamGasCalculator.calculateDelegateCodeGasRefund(2)).isEqualTo(16_000L);
   }
 
   private Transaction transactionWith(
@@ -255,5 +256,38 @@ class AmsterdamGasCalculatorTest {
     when(transaction.getAccessList()).thenReturn(Optional.of(List.of(entryA, entryB, entryC)));
 
     assertThat(amsterdamGasCalculator.transactionFloorCost(transaction)).isEqualTo(24288L);
+  }
+
+  @Test
+  void eip8246SelfDestructBalancePreserved() {
+    // EIP-8246: Amsterdam preserves the originator's balance on SELFDESTRUCT instead of burning it.
+    assertThat(amsterdamGasCalculator.isSelfDestructBalancePreserved()).isTrue();
+  }
+
+  @Test
+  void eip8246SelfDestructOperationGasCost() {
+    // EIP-8038/EIP-8246: static SELFDESTRUCT cost is 5,000; sending a positive balance to a new
+    // (non-existent or empty) beneficiary adds ACCOUNT_WRITE (8,000) => 13,000. The cold-access
+    // surcharge and NEW_ACCOUNT state gas are charged elsewhere (in SelfDestructOperation).
+
+    // null beneficiary + positive balance => 5,000 + 8,000 = 13,000
+    assertThat(amsterdamGasCalculator.selfDestructOperationGasCost(null, Wei.ONE))
+        .isEqualTo(13_000L);
+
+    // empty beneficiary + positive balance => 5,000 + 8,000 = 13,000
+    final Account emptyBeneficiary = mock(Account.class);
+    when(emptyBeneficiary.isEmpty()).thenReturn(true);
+    assertThat(amsterdamGasCalculator.selfDestructOperationGasCost(emptyBeneficiary, Wei.ONE))
+        .isEqualTo(13_000L);
+
+    // existing (non-empty) beneficiary + positive balance => static 5,000 only
+    final Account aliveBeneficiary = mock(Account.class);
+    when(aliveBeneficiary.isEmpty()).thenReturn(false);
+    assertThat(amsterdamGasCalculator.selfDestructOperationGasCost(aliveBeneficiary, Wei.ONE))
+        .isEqualTo(5_000L);
+
+    // null beneficiary + zero balance (nothing sent) => static 5,000 only
+    assertThat(amsterdamGasCalculator.selfDestructOperationGasCost(null, Wei.ZERO))
+        .isEqualTo(5_000L);
   }
 }
