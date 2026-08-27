@@ -651,6 +651,82 @@ public class MergeCoordinatorTest implements MergeGenesisConfigHelper {
   }
 
   @Test
+  public void shouldStoreBetterPayloadWhenSkippingProposedBlockValidation()
+      throws InterruptedException, ExecutionException {
+    miningConfiguration =
+        ImmutableMiningConfiguration.builder()
+            .from(miningConfiguration)
+            .unstable(
+                Unstable.builder()
+                    .from(miningConfiguration.getUnstable())
+                    .isSkipProposedBlockValidation(true)
+                    .build())
+            .build();
+    this.coordinator =
+        new MergeCoordinator(
+            protocolContext,
+            protocolSchedule,
+            ethScheduler,
+            transactionPool,
+            miningConfiguration,
+            backwardSyncContext);
+
+    doAnswer(
+            invocation -> {
+              if (!invocation
+                  .getArgument(0, PayloadWrapper.class)
+                  .blockWithReceipts()
+                  .getBlock()
+                  .getBody()
+                  .getTransactions()
+                  .isEmpty()) {
+                coordinator.finalizeProposalById(
+                    invocation.getArgument(0, PayloadWrapper.class).payloadIdentifier());
+              }
+              return null;
+            })
+        .when(mergeContext)
+        .putPayloadById(any());
+
+    transactions.addTransaction(createLocalTransaction(0), Optional.empty());
+
+    var payloadId =
+        coordinator.preparePayload(
+            new PreparePayloadArgsBuilder()
+                .parentHeader(genesisState.getBlock().getHeader())
+                .timestamp(System.currentTimeMillis() / 1000)
+                .prevRandao(Bytes32.ZERO)
+                .feeRecipient(suggestedFeeRecipient)
+                .build());
+
+    blockCreationTask.get();
+
+    ArgumentCaptor<PayloadWrapper> payloadWrapper = ArgumentCaptor.forClass(PayloadWrapper.class);
+
+    verify(mergeContext, times(2)).putPayloadById(payloadWrapper.capture());
+    assertThat(payloadWrapper.getValue().payloadIdentifier()).isEqualTo(payloadId);
+    assertThat(payloadWrapper.getAllValues().size()).isEqualTo(2);
+    assertThat(
+            payloadWrapper
+                .getAllValues()
+                .get(0)
+                .blockWithReceipts()
+                .getBlock()
+                .getBody()
+                .getTransactions())
+        .hasSize(0);
+    assertThat(
+            payloadWrapper
+                .getAllValues()
+                .get(1)
+                .blockWithReceipts()
+                .getBlock()
+                .getBody()
+                .getTransactions())
+        .hasSize(1);
+  }
+
+  @Test
   public void shouldStopRetryBlockCreationIfTimeExpired() throws InterruptedException {
     final AtomicLong retries = new AtomicLong(0);
     miningConfiguration =

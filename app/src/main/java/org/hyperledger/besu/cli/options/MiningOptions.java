@@ -25,6 +25,7 @@ import static org.hyperledger.besu.ethereum.core.MiningConfiguration.MutableInit
 import static org.hyperledger.besu.ethereum.core.MiningConfiguration.Unstable.DEFAULT_POS_BLOCK_CREATION_MAX_TIME;
 import static org.hyperledger.besu.ethereum.core.MiningConfiguration.Unstable.DEFAULT_POS_BLOCK_CREATION_REPETITION_MIN_DURATION;
 import static org.hyperledger.besu.ethereum.core.MiningConfiguration.Unstable.DEFAULT_POS_BLOCK_FINALIZATION_TIMEOUT_MS;
+import static org.hyperledger.besu.ethereum.core.MiningConfiguration.Unstable.DEFAULT_POS_SKIP_PROPOSED_BLOCK_VALIDATION;
 import static org.hyperledger.besu.ethereum.core.MiningConfiguration.Unstable.DEFAULT_POS_SLOT_DURATION_SECS;
 
 import org.hyperledger.besu.cli.converter.PositiveNumberConverter;
@@ -154,6 +155,14 @@ public class MiningOptions implements CLIOptions<MiningConfiguration> {
         description =
             "Specifies the maximum time, in milliseconds, to wait for block building to complete when only an empty block is available (default: ${DEFAULT-VALUE} milliseconds)")
     private Long posBlockFinalizationTimeoutMs = DEFAULT_POS_BLOCK_FINALIZATION_TIMEOUT_MS;
+
+    @CommandLine.Option(
+        hidden = true,
+        names = {"--Xpos-skip-proposed-block-validation"},
+        arity = "1",
+        description =
+            "Skip re-validation of a proposed PoS block after it is built. The payload is stored from block creation results. Empty-block validation is unchanged. (default: ${DEFAULT-VALUE})")
+    private Boolean skipProposedBlockValidation = DEFAULT_POS_SKIP_PROPOSED_BLOCK_VALIDATION;
   }
 
   private TransactionSelectionService transactionSelectionService;
@@ -289,6 +298,8 @@ public class MiningOptions implements CLIOptions<MiningConfiguration> {
         miningConfiguration.getUnstable().getPosSlotDuration();
     miningOptions.unstableOptions.posBlockFinalizationTimeoutMs =
         miningConfiguration.getUnstable().getPosBlockFinalizationTimeoutMs();
+    miningOptions.unstableOptions.skipProposedBlockValidation =
+        miningConfiguration.getUnstable().isSkipProposedBlockValidation();
 
     miningConfiguration.getTargetGasLimit().ifPresent(tgl -> miningOptions.targetGasLimit = tgl);
     return miningOptions;
@@ -329,6 +340,7 @@ public class MiningOptions implements CLIOptions<MiningConfiguration> {
                     unstableOptions.posBlockCreationRepetitionMinDuration)
                 .posSlotDuration(unstableOptions.posSlotDuration)
                 .posBlockFinalizationTimeoutMs(unstableOptions.posBlockFinalizationTimeoutMs)
+                .isSkipProposedBlockValidation(unstableOptions.skipProposedBlockValidation)
                 .build())
         .build();
   }

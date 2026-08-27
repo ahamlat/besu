@@ -186,6 +186,22 @@ public class MiningOptionsTest extends AbstractCLIOptionsTest<MiningConfiguratio
   }
 
   @Test
+  public void skipProposedBlockValidationDefaultValue() {
+    internalTestSuccess(
+        miningParams ->
+            assertThat(miningParams.getUnstable().isSkipProposedBlockValidation()).isFalse());
+  }
+
+  @Test
+  public void skipProposedBlockValidationOption() {
+    internalTestSuccess(
+        miningParams ->
+            assertThat(miningParams.getUnstable().isSkipProposedBlockValidation()).isTrue(),
+        "--Xpos-skip-proposed-block-validation",
+        "true");
+  }
+
+  @Test
   public void blockTxsSelectionMaxTimeDefaultValue() {
     internalTestSuccess(
         this::runtimeConfiguration,

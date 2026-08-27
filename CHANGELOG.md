@@ -44,6 +44,7 @@
 - Complete QBFT votes in a reasonable time when `empyblockperiodseconds` is set by treating QBFT votes as "non empty blocks" [#11111](https://github.com/besu-eth/besu/pull/11111)
 
 ### Additions and Improvements
+- Add `--Xpos-skip-proposed-block-validation` to skip re-validation of a built PoS payload in `MergeCoordinator.evaluateNewBlock`. The payload is still stored from block creation results. Empty-block validation is unchanged.
 - Add JMH `GasProfiler` that emits `mgas_per_s` as a secondary metric on each benchmark iteration using Besu's own `GasCalculator`. Enable with `-PgasProfiler=true`; override the EVM fork with `-PgasProfilerFork=<fork>` (defaults to Osaka). [#10807](https://github.com/besu-eth/besu/pull/10807)
 - Align Kotlin runtime dependencies to 2.4.0 to support plugins compiled against the Kotlin 2.4 API. [#10983](https://github.com/besu-eth/besu/pull/10983)
 - Upgrade log4j to 2.25.5 [#11075](https://github.com/besu-eth/besu/pull/11075)

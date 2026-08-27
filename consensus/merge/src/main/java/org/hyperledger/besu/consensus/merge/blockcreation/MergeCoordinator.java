@@ -537,6 +537,25 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
       final PayloadIdentifier payloadIdentifier,
       final long startedAt) {
     final var bestBlock = blockCreationResult.getBlock();
+    if (miningConfiguration.getUnstable().isSkipProposedBlockValidation()) {
+      mergeContext.putPayloadById(
+          new PayloadWrapper(
+              payloadIdentifier,
+              new BlockWithReceipts(
+                  bestBlock, blockCreationResult.getTransactionSelectionResults().getReceipts()),
+              blockCreationResult.getBlockAccessList(),
+              blockCreationResult.getRequests(),
+              blockCreationResult.getBlockCreationTimings()));
+      LOG.atDebug()
+          .setMessage(
+              "Skipped proposed-block validation for payload id {}, stored block {} with {} transactions, in {}ms")
+          .addArgument(payloadIdentifier)
+          .addArgument(bestBlock::toLogString)
+          .addArgument(bestBlock.getBody().getTransactions()::size)
+          .addArgument(() -> System.currentTimeMillis() - startedAt)
+          .log();
+      return;
+    }
     final var resultBest =
         validateProposedBlock(bestBlock, blockCreationResult.getBlockAccessList());
     if (resultBest.isSuccessful()) {
