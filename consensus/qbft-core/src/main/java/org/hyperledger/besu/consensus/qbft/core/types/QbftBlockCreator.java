@@ -15,9 +15,11 @@
 package org.hyperledger.besu.consensus.qbft.core.types;
 
 import org.hyperledger.besu.crypto.SECPSignature;
+import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /** Responsible for creating a block. */
@@ -28,8 +30,24 @@ public interface QbftBlockCreator {
    *
    * @param block the block
    * @param blockAccessList optional block access list
+   * @param receipts transaction receipts from local block creation
    */
-  public record BlockCreationResult(QbftBlock block, Optional<BlockAccessList> blockAccessList) {}
+  public record BlockCreationResult(
+      QbftBlock block,
+      Optional<BlockAccessList> blockAccessList,
+      List<TransactionReceipt> receipts) {
+
+    /**
+     * Instantiates a block creation result without receipts.
+     *
+     * @param block the block
+     * @param blockAccessList optional block access list
+     */
+    public BlockCreationResult(
+        final QbftBlock block, final Optional<BlockAccessList> blockAccessList) {
+      this(block, blockAccessList, List.of());
+    }
+  }
 
   /**
    * Create a block.

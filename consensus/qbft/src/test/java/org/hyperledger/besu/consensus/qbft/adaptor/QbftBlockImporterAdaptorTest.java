@@ -18,16 +18,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hyperledger.besu.ethereum.mainnet.BlockImportResult.BlockImportStatus.ALREADY_IMPORTED;
 import static org.hyperledger.besu.ethereum.mainnet.BlockImportResult.BlockImportStatus.IMPORTED;
 import static org.hyperledger.besu.ethereum.mainnet.BlockImportResult.BlockImportStatus.NOT_IMPORTED;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
 import org.hyperledger.besu.ethereum.ProtocolContext;
+import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockDataGenerator;
 import org.hyperledger.besu.ethereum.core.BlockImporter;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
+import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
+import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -85,5 +92,56 @@ class QbftBlockImporterAdaptorTest {
     QbftBlockImporterAdaptor qbftBlockImporter =
         new QbftBlockImporterAdaptor(blockImporter, protocolContext);
     assertThat(qbftBlockImporter.importBlock(block, Optional.empty())).isEqualTo(false);
+  }
+
+  @Test
+  void importsLocallyCreatedBlockWithoutReExecution() throws Exception {
+    final MutableBlockchain blockchain = org.mockito.Mockito.mock(MutableBlockchain.class);
+    final WorldStateArchive worldStateArchive = org.mockito.Mockito.mock(WorldStateArchive.class);
+    final MutableWorldState worldState = org.mockito.Mockito.mock(MutableWorldState.class);
+    when(protocolContext.getBlockchain()).thenReturn(blockchain);
+    when(protocolContext.getWorldStateArchive()).thenReturn(worldStateArchive);
+    when(blockchain.contains(besuBlock.getHash())).thenReturn(false);
+
+    final QbftLocalBlockExecutionCache cache = new QbftLocalBlockExecutionCache();
+    cache.store(
+        new QbftLocalBlockExecutionCache.CachedExecution(block.getHash(), worldState, List.of()));
+
+    final QbftBlockImporterAdaptor qbftBlockImporter =
+        new QbftBlockImporterAdaptor(blockImporter, protocolContext, Optional.of(cache));
+    assertThat(
+            qbftBlockImporter.importLocallyCreatedBlock(block, block, Optional.empty(), List.of()))
+        .isTrue();
+
+    verify(worldState).persist(besuBlock.getHeader());
+    verify(blockchain).appendBlock(besuBlock, List.of(), Optional.empty());
+    verify(worldStateArchive).getWorldState(any());
+    verify(worldState).close();
+    verify(blockImporter, never()).importBlock(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void fallsBackToFullImportWhenLocalExecutionIsNotCached() {
+    when(blockImporter.importBlock(
+            protocolContext,
+            besuBlock,
+            HeaderValidationMode.FULL,
+            HeaderValidationMode.FULL,
+            Optional.empty()))
+        .thenReturn(new BlockImportResult(IMPORTED));
+
+    final QbftBlockImporterAdaptor qbftBlockImporter =
+        new QbftBlockImporterAdaptor(
+            blockImporter, protocolContext, Optional.of(new QbftLocalBlockExecutionCache()));
+    assertThat(
+            qbftBlockImporter.importLocallyCreatedBlock(block, block, Optional.empty(), List.of()))
+        .isTrue();
+    verify(blockImporter)
+        .importBlock(
+            protocolContext,
+            besuBlock,
+            HeaderValidationMode.FULL,
+            HeaderValidationMode.FULL,
+            Optional.empty());
   }
 }

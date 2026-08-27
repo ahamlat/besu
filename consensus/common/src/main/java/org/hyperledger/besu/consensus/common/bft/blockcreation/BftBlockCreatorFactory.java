@@ -71,6 +71,7 @@ public class BftBlockCreatorFactory<T extends BftConfigOptions> {
   protected final EthScheduler ethScheduler;
 
   private final Address localAddress;
+  private boolean retainWorldStateForImport = false;
 
   /**
    * Instantiates a new Bft block creator factory.
@@ -110,16 +111,28 @@ public class BftBlockCreatorFactory<T extends BftConfigOptions> {
    * @return the block creator
    */
   public BlockCreator create(final int round) {
-    return new BftBlockCreator(
-        miningConfiguration,
-        forksSchedule,
-        localAddress,
-        ph -> createExtraData(round, ph),
-        transactionPool,
-        protocolContext,
-        protocolSchedule,
-        bftExtraDataCodec,
-        ethScheduler);
+    final BftBlockCreator blockCreator =
+        new BftBlockCreator(
+            miningConfiguration,
+            forksSchedule,
+            localAddress,
+            ph -> createExtraData(round, ph),
+            transactionPool,
+            protocolContext,
+            protocolSchedule,
+            bftExtraDataCodec,
+            ethScheduler);
+    blockCreator.setRetainWorldStateForImport(retainWorldStateForImport);
+    return blockCreator;
+  }
+
+  /**
+   * Keep the world state from block creation so a later import can persist it without re-execution.
+   *
+   * @param retainWorldStateForImport true to retain the world state after createBlock
+   */
+  public void setRetainWorldStateForImport(final boolean retainWorldStateForImport) {
+    this.retainWorldStateForImport = retainWorldStateForImport;
   }
 
   /**

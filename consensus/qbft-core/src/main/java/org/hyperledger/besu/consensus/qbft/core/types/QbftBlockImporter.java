@@ -14,8 +14,10 @@
  */
 package org.hyperledger.besu.consensus.qbft.core.types;
 
+import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Imports a block into the chain. */
@@ -29,4 +31,22 @@ public interface QbftBlockImporter {
    * @return true if the block was successfully imported, false otherwise
    */
   boolean importBlock(QbftBlock block, Optional<BlockAccessList> blockAccessList);
+
+  /**
+   * Import a block that this node created locally. Implementations may skip re-execution when the
+   * world state from block creation is still available.
+   *
+   * @param sealedBlock the sealed block to import
+   * @param proposedBlock the unsealed proposed block
+   * @param blockAccessList block access list
+   * @param receipts receipts from local block creation
+   * @return true if the block was successfully imported, false otherwise
+   */
+  default boolean importLocallyCreatedBlock(
+      final QbftBlock sealedBlock,
+      final QbftBlock proposedBlock,
+      final Optional<BlockAccessList> blockAccessList,
+      final List<TransactionReceipt> receipts) {
+    return importBlock(sealedBlock, blockAccessList);
+  }
 }

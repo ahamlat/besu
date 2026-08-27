@@ -93,6 +93,7 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
   private final EthScheduler ethScheduler;
   private final AtomicBoolean isCancelled = new AtomicBoolean(false);
   private volatile BlockTransactionSelector selector;
+  private boolean retainWorldStateForImport = false;
 
   protected AbstractBlockCreator(
       final MiningConfiguration miningConfiguration,
@@ -110,6 +111,15 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
     this.protocolSchedule = protocolSchedule;
     this.ethScheduler = ethScheduler;
     blockHeaderFunctions = ScheduleBasedBlockHeaderFunctions.create(protocolSchedule);
+  }
+
+  /**
+   * Keep the world state from block creation so a later import can persist it without re-execution.
+   *
+   * @param retainWorldStateForImport true to return the world state in {@link BlockCreationResult}
+   */
+  public void setRetainWorldStateForImport(final boolean retainWorldStateForImport) {
+    this.retainWorldStateForImport = retainWorldStateForImport;
   }
 
   /**
@@ -201,7 +211,9 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
 
     final var timings = new BlockCreationTiming();
 
-    try (final MutableWorldState disposableWorldState = duplicateWorldStateAtParent(parentHeader)) {
+    final MutableWorldState disposableWorldState = duplicateWorldStateAtParent(parentHeader);
+    boolean retainWorldState = false;
+    try {
       timings.register("duplicateWorldState");
       final ProtocolSpec newProtocolSpec =
           protocolSchedule.getForNextBlockHeader(parentHeader, timestamp);
@@ -364,8 +376,14 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
 
       operationTracer.traceEndBlock(blockHeader, blockBody);
       timings.register("blockAssembled");
+      retainWorldState = retainWorldStateForImport;
       return new BlockCreationResult(
-          block, transactionResults, timings, blockAccessList, maybeRequests);
+          block,
+          transactionResults,
+          timings,
+          blockAccessList,
+          maybeRequests,
+          retainWorldState ? Optional.of(disposableWorldState) : Optional.empty());
     } catch (final SecurityModuleException ex) {
       throw new IllegalStateException("Failed to create block signature", ex);
     } catch (final CancellationException | StorageException ex) {
@@ -373,6 +391,14 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
     } catch (final Exception ex) {
       throw new IllegalStateException(
           "Block creation failed unexpectedly. Will restart on next block added to chain.", ex);
+    } finally {
+      if (!retainWorldState) {
+        try {
+          disposableWorldState.close();
+        } catch (final Exception e) {
+          LOG.debug("Failed to close disposable world state after block creation", e);
+        }
+      }
     }
   }
 

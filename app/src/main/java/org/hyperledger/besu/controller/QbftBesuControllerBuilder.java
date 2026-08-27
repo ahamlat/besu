@@ -57,6 +57,7 @@ import org.hyperledger.besu.consensus.qbft.adaptor.QbftBlockCreatorFactoryAdapto
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftBlockInterfaceAdaptor;
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftBlockchainAdaptor;
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftFinalStateImpl;
+import org.hyperledger.besu.consensus.qbft.adaptor.QbftLocalBlockExecutionCache;
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftProtocolScheduleAdaptor;
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftValidatorModeTransitionLoggerAdaptor;
 import org.hyperledger.besu.consensus.qbft.adaptor.QbftValidatorProviderAdaptor;
@@ -205,8 +206,12 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
     final Address localAddress = Util.publicKeyToAddress(nodeKey.getPublicKey());
     final BftProtocolSchedule bftProtocolSchedule = (BftProtocolSchedule) protocolSchedule;
+    final Optional<QbftLocalBlockExecutionCache> localExecutionCache =
+        isSingleValidatorFastPathEnabled
+            ? Optional.of(new QbftLocalBlockExecutionCache())
+            : Optional.empty();
     QbftProtocolSchedule qbftProtocolSchedule =
-        new QbftProtocolScheduleAdaptor(bftProtocolSchedule, protocolContext);
+        new QbftProtocolScheduleAdaptor(bftProtocolSchedule, protocolContext, localExecutionCache);
     final QbftBlockCreatorFactory blockCreatorFactory =
         new QbftBlockCreatorFactory(
             transactionPool,
@@ -217,6 +222,7 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
             localAddress,
             qbftExtraDataCodec,
             ethProtocolManager.ethContext().getScheduler());
+    blockCreatorFactory.setRetainWorldStateForImport(isSingleValidatorFastPathEnabled);
 
     final ValidatorProvider validatorProvider;
     if (qbftConfig.getStartBlock().isPresent()) {
@@ -258,7 +264,8 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
                     Duration.ofSeconds(qbftConfig.getRequestTimeoutSeconds())),
                 bftExecutors),
             new BlockTimer(bftEventQueue, qbftForksSchedule, bftExecutors, clock),
-            new QbftBlockCreatorFactoryAdaptor(blockCreatorFactory, qbftExtraDataCodec),
+            new QbftBlockCreatorFactoryAdaptor(
+                blockCreatorFactory, qbftExtraDataCodec, localExecutionCache),
             clock);
 
     final MessageValidatorFactory messageValidatorFactory =
@@ -306,6 +313,8 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
                 new ValidatorModeTransitionLogger(qbftForksSchedule)));
 
     qbftBlockHeightManagerFactory.isEarlyRoundChangeEnabled(isEarlyRoundChangeEnabled);
+    qbftBlockHeightManagerFactory.setSingleValidatorFastPathEnabled(
+        isSingleValidatorFastPathEnabled);
 
     final QbftEventHandler qbftController =
         new QbftController(

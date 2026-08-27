@@ -22,6 +22,8 @@ import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSpec;
 
+import java.util.Optional;
+
 /**
  * Adaptor class to allow a {@link ProtocolSchedule} to be used as a {@link QbftProtocolSchedule}.
  */
@@ -29,6 +31,7 @@ public class QbftProtocolScheduleAdaptor implements QbftProtocolSchedule {
 
   private final ProtocolSchedule besuProtocolSchedule;
   private final ProtocolContext context;
+  private final Optional<QbftLocalBlockExecutionCache> executionCache;
 
   /**
    * Constructs a new Qbft protocol schedule.
@@ -38,14 +41,29 @@ public class QbftProtocolScheduleAdaptor implements QbftProtocolSchedule {
    */
   public QbftProtocolScheduleAdaptor(
       final ProtocolSchedule besuProtocolSchedule, final ProtocolContext context) {
+    this(besuProtocolSchedule, context, Optional.empty());
+  }
+
+  /**
+   * Constructs a new Qbft protocol schedule.
+   *
+   * @param besuProtocolSchedule The Besu protocol schedule.
+   * @param context The protocol context.
+   * @param executionCache optional cache of local block execution results
+   */
+  public QbftProtocolScheduleAdaptor(
+      final ProtocolSchedule besuProtocolSchedule,
+      final ProtocolContext context,
+      final Optional<QbftLocalBlockExecutionCache> executionCache) {
     this.besuProtocolSchedule = besuProtocolSchedule;
     this.context = context;
+    this.executionCache = executionCache;
   }
 
   @Override
   public QbftBlockImporter getBlockImporter(final QbftBlockHeader header) {
     return new QbftBlockImporterAdaptor(
-        getProtocolSpecByBlockHeader(header).getBlockImporter(), context);
+        getProtocolSpecByBlockHeader(header).getBlockImporter(), context, executionCache);
   }
 
   @Override

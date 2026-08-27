@@ -73,6 +73,7 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
   private Optional<PreparedCertificate> latestPreparedCertificate = Optional.empty();
   private Optional<QbftRound> currentRound = Optional.empty();
   private boolean isEarlyRoundChangeEnabled = false;
+  private boolean skipBlockValidation = false;
 
   /**
    * Instantiates a new Qbft block height manager.
@@ -114,7 +115,8 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
             new RoundState(
                 roundIdentifier,
                 finalState.getQuorum(),
-                messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader));
+                messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader),
+                skipBlockValidation);
 
     final long nextBlockHeight = parentHeader.getNumber() + 1;
     final ConsensusRoundIdentifier nextBlockRoundId =
@@ -157,6 +159,15 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
         messageFactory,
         validatorProvider);
     this.isEarlyRoundChangeEnabled = isEarlyRoundChangeEnabled;
+  }
+
+  /**
+   * Skip full block execution during proposal validation for rounds at this height.
+   *
+   * @param skipBlockValidation true to skip block execution during proposal validation
+   */
+  public void setSkipBlockValidation(final boolean skipBlockValidation) {
+    this.skipBlockValidation = skipBlockValidation;
   }
 
   @Override

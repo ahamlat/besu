@@ -20,6 +20,7 @@ import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.Request;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
+import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,7 @@ public interface BlockCreator {
     private final BlockCreationTiming blockCreationTiming;
     private final Optional<BlockAccessList> blockAccessList;
     private final Optional<List<Request>> requests;
+    private final Optional<MutableWorldState> worldState;
 
     public BlockCreationResult(
         final Block block,
@@ -46,11 +48,23 @@ public interface BlockCreator {
         final BlockCreationTiming timings,
         final Optional<BlockAccessList> blockAccessList,
         final Optional<List<Request>> requests) {
+      this(
+          block, transactionSelectionResults, timings, blockAccessList, requests, Optional.empty());
+    }
+
+    public BlockCreationResult(
+        final Block block,
+        final TransactionSelectionResults transactionSelectionResults,
+        final BlockCreationTiming timings,
+        final Optional<BlockAccessList> blockAccessList,
+        final Optional<List<Request>> requests,
+        final Optional<MutableWorldState> worldState) {
       this.block = block;
       this.transactionSelectionResults = transactionSelectionResults;
       this.blockCreationTiming = timings;
       this.blockAccessList = blockAccessList;
       this.requests = requests;
+      this.worldState = worldState;
     }
 
     public Block getBlock() {
@@ -71,6 +85,10 @@ public interface BlockCreator {
 
     public Optional<List<Request>> getRequests() {
       return requests;
+    }
+
+    public Optional<MutableWorldState> getWorldState() {
+      return worldState;
     }
   }
 

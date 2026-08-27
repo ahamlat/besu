@@ -100,6 +100,23 @@ public class RoundStateTest {
   }
 
   @Test
+  public void skipBlockValidationDoesNotExecuteTheBlock() {
+    when(messageValidator.validateProposalWithoutBlockValidation(any())).thenReturn(true);
+
+    final RoundState roundState = new RoundState(roundIdentifier, 1, messageValidator, true);
+
+    final Proposal proposal =
+        validatorMessageFactories
+            .getFirst()
+            .createProposal(
+                roundIdentifier, block, Collections.emptyList(), Collections.emptyList());
+
+    assertThat(roundState.setProposedBlock(proposal)).isTrue();
+    verify(messageValidator).validateProposalWithoutBlockValidation(any());
+    verify(messageValidator, never()).validateProposal(any());
+  }
+
+  @Test
   public void singleValidatorRequiresCommitMessageToBeCommitted() {
     when(messageValidator.validateProposal(any())).thenReturn(true);
     when(messageValidator.validateCommit(any())).thenReturn(true);

@@ -23,11 +23,14 @@ import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockHeader;
 import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.ethereum.blockcreation.BlockCreationTiming;
 import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
+import org.hyperledger.besu.ethereum.blockcreation.txselection.TransactionSelectionResults;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockHeaderBuilder;
+import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /** Adaptor class to allow a {@link BlockCreator} to be used as a {@link QbftBlockCreator}. */
@@ -35,6 +38,7 @@ public class QbftBlockCreatorAdaptor implements QbftBlockCreator {
 
   private final BlockCreator besuBlockCreator;
   private final BftExtraDataCodec bftExtraDataCodec;
+  private final Optional<QbftLocalBlockExecutionCache> executionCache;
 
   /**
    * Constructs a new QbftBlockCreator
@@ -44,8 +48,23 @@ public class QbftBlockCreatorAdaptor implements QbftBlockCreator {
    */
   public QbftBlockCreatorAdaptor(
       final BlockCreator besuBftBlockCreator, final BftExtraDataCodec bftExtraDataCodec) {
+    this(besuBftBlockCreator, bftExtraDataCodec, Optional.empty());
+  }
+
+  /**
+   * Constructs a new QbftBlockCreator
+   *
+   * @param besuBftBlockCreator the Besu BFT block creator
+   * @param bftExtraDataCodec the bftExtraDataCodec used to encode extra data for the new header
+   * @param executionCache optional cache of local block execution results
+   */
+  public QbftBlockCreatorAdaptor(
+      final BlockCreator besuBftBlockCreator,
+      final BftExtraDataCodec bftExtraDataCodec,
+      final Optional<QbftLocalBlockExecutionCache> executionCache) {
     this.besuBlockCreator = besuBftBlockCreator;
     this.bftExtraDataCodec = bftExtraDataCodec;
+    this.executionCache = executionCache;
   }
 
   @Override
@@ -54,10 +73,24 @@ public class QbftBlockCreatorAdaptor implements QbftBlockCreator {
     var blockResult =
         besuBlockCreator.createBlock(
             headerTimeStampSeconds, AdaptorUtil.toBesuBlockHeader(parentHeader));
+    final List<TransactionReceipt> receipts =
+        Optional.ofNullable(blockResult.getTransactionSelectionResults())
+            .map(TransactionSelectionResults::getReceipts)
+            .orElse(List.of());
+    blockResult
+        .getWorldState()
+        .ifPresent(
+            worldState ->
+                executionCache.ifPresent(
+                    cache ->
+                        cache.store(
+                            new QbftLocalBlockExecutionCache.CachedExecution(
+                                blockResult.getBlock().getHash(), worldState, receipts))));
     return new BlockCreationResult(
         new QbftBlockAdaptor(
             blockResult.getBlock(), Optional.of(blockResult.getBlockCreationTimings())),
-        blockResult.getBlockAccessList());
+        blockResult.getBlockAccessList(),
+        receipts);
   }
 
   @Override

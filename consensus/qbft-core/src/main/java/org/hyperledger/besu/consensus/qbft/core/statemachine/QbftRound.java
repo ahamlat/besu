@@ -38,6 +38,7 @@ import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
 import org.hyperledger.besu.util.Subscribers;
@@ -74,6 +75,7 @@ public class QbftRound {
   private final QbftMessageTransmitter transmitter;
 
   private final QbftBlockHeader parentHeader;
+  private Optional<List<TransactionReceipt>> locallyCreatedReceipts = Optional.empty();
 
   /**
    * Instantiates a new Qbft round.
@@ -141,7 +143,7 @@ public class QbftRound {
    */
   public BlockCreationResult createBlock(final long headerTimeStampSeconds) {
     LOG.debug("Creating proposed block. round={}", roundState.getRoundIdentifier());
-    return blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader);
+    return trackLocalCreation(blockCreator.createBlock(headerTimeStampSeconds, this.parentHeader));
   }
 
   /**
@@ -160,7 +162,7 @@ public class QbftRound {
     if (bestPreparedCertificate.isEmpty()) {
       LOG.debug("Sending proposal with new block. round={}", roundState.getRoundIdentifier());
       final BlockCreationResult blockCreationResult =
-          blockCreator.createBlock(headerTimestamp, this.parentHeader);
+          trackLocalCreation(blockCreator.createBlock(headerTimestamp, this.parentHeader));
       blockToPublish = blockCreationResult.block();
       blockAccessList = blockCreationResult.blockAccessList();
     } else {
@@ -370,8 +372,17 @@ public class QbftRound {
 
     final QbftBlockImporter blockImporter =
         protocolSchedule.getBlockImporter(blockToImport.getHeader());
-    final boolean result =
-        blockImporter.importBlock(blockToImport, roundState.getProposedBlockAccessList());
+    final boolean result;
+    if (roundState.skipBlockValidation() && locallyCreatedReceipts.isPresent()) {
+      result =
+          blockImporter.importLocallyCreatedBlock(
+              blockToImport,
+              roundState.getProposedBlock().get(),
+              roundState.getProposedBlockAccessList(),
+              locallyCreatedReceipts.get());
+    } else {
+      result = blockImporter.importBlock(blockToImport, roundState.getProposedBlockAccessList());
+    }
     if (!result) {
       LOG.error(
           "Failed to import proposed block to chain. block={} blockHeader={}",
@@ -380,6 +391,11 @@ public class QbftRound {
     } else {
       notifyNewBlockListeners(blockToImport);
     }
+  }
+
+  private BlockCreationResult trackLocalCreation(final BlockCreationResult result) {
+    locallyCreatedReceipts = Optional.of(result.receipts());
+    return result;
   }
 
   private SECPSignature createCommitSeal(final QbftBlock block) {

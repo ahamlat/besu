@@ -53,6 +53,7 @@ public class RoundState {
 
   private boolean prepared = false;
   private boolean committed = false;
+  private final boolean skipBlockValidation;
 
   /**
    * Instantiates a new Round state.
@@ -65,9 +66,26 @@ public class RoundState {
       final ConsensusRoundIdentifier roundIdentifier,
       final int quorum,
       final MessageValidator validator) {
+    this(roundIdentifier, quorum, validator, false);
+  }
+
+  /**
+   * Instantiates a new Round state.
+   *
+   * @param roundIdentifier the round identifier
+   * @param quorum the quorum
+   * @param validator the validator
+   * @param skipBlockValidation skip full block execution during proposal validation
+   */
+  public RoundState(
+      final ConsensusRoundIdentifier roundIdentifier,
+      final int quorum,
+      final MessageValidator validator,
+      final boolean skipBlockValidation) {
     this.roundIdentifier = roundIdentifier;
     this.quorum = quorum;
     this.validator = validator;
+    this.skipBlockValidation = skipBlockValidation;
   }
 
   /**
@@ -97,7 +115,11 @@ public class RoundState {
   public boolean setProposedBlock(final Proposal msg) {
 
     if (proposalMessage.isEmpty()) {
-      if (validator.validateProposal(msg)) {
+      final boolean proposalValid =
+          skipBlockValidation
+              ? validator.validateProposalWithoutBlockValidation(msg)
+              : validator.validateProposal(msg);
+      if (proposalValid) {
         proposalMessage = Optional.of(msg);
         prepareMessages.entrySet().removeIf(e -> !validator.validatePrepare(e.getValue()));
         commitMessages.entrySet().removeIf(e -> !validator.validateCommit(e.getValue()));
@@ -183,6 +205,15 @@ public class RoundState {
    */
   public boolean isCommitted() {
     return committed;
+  }
+
+  /**
+   * Whether proposal validation skips block execution.
+   *
+   * @return true if block execution is skipped during proposal validation
+   */
+  public boolean skipBlockValidation() {
+    return skipBlockValidation;
   }
 
   /**

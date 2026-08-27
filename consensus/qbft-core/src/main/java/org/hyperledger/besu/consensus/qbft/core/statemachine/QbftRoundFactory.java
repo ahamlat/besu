@@ -37,6 +37,7 @@ public class QbftRoundFactory {
   private final Subscribers<QbftMinedBlockObserver> minedBlockObservers;
   private final MessageValidatorFactory messageValidatorFactory;
   private final MessageFactory messageFactory;
+  private boolean skipBlockValidation = false;
 
   /**
    * Instantiates a new Qbft round factory.
@@ -65,6 +66,15 @@ public class QbftRoundFactory {
   }
 
   /**
+   * Skip full block execution during proposal validation for this factory's rounds.
+   *
+   * @param skipBlockValidation true to skip block execution during proposal validation
+   */
+  public void setSkipBlockValidation(final boolean skipBlockValidation) {
+    this.skipBlockValidation = skipBlockValidation;
+  }
+
+  /**
    * Create new round qbft round.
    *
    * @param parentHeader the parent header
@@ -80,7 +90,8 @@ public class QbftRoundFactory {
         new RoundState(
             roundIdentifier,
             finalState.getQuorum(),
-            messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader));
+            messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader),
+            skipBlockValidation);
 
     return createNewRoundWithState(parentHeader, roundState);
   }

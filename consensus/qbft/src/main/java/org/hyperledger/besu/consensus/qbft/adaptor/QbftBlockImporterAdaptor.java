@@ -17,18 +17,29 @@ package org.hyperledger.besu.consensus.qbft.adaptor;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockImporter;
 import org.hyperledger.besu.ethereum.ProtocolContext;
+import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockImporter;
+import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams;
+import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
+import java.util.List;
 import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Adaptor class to allow a {@link BlockImporter} to be used as a {@link QbftBlockImporter}. */
 public class QbftBlockImporterAdaptor implements QbftBlockImporter {
 
+  private static final Logger LOG = LoggerFactory.getLogger(QbftBlockImporterAdaptor.class);
+
   private final BlockImporter blockImporter;
   private final ProtocolContext context;
+  private final Optional<QbftLocalBlockExecutionCache> executionCache;
 
   /**
    * Constructs a new Qbft block importer.
@@ -38,8 +49,23 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
    */
   public QbftBlockImporterAdaptor(
       final BlockImporter blockImporter, final ProtocolContext context) {
+    this(blockImporter, context, Optional.empty());
+  }
+
+  /**
+   * Constructs a new Qbft block importer.
+   *
+   * @param blockImporter The Besu block importer
+   * @param context The protocol context
+   * @param executionCache optional cache of local block execution results
+   */
+  public QbftBlockImporterAdaptor(
+      final BlockImporter blockImporter,
+      final ProtocolContext context,
+      final Optional<QbftLocalBlockExecutionCache> executionCache) {
     this.blockImporter = blockImporter;
     this.context = context;
+    this.executionCache = executionCache;
   }
 
   @Override
@@ -53,5 +79,51 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
             HeaderValidationMode.FULL,
             blockAccessList);
     return blockImportResult.isImported();
+  }
+
+  @Override
+  public boolean importLocallyCreatedBlock(
+      final QbftBlock sealedBlock,
+      final QbftBlock proposedBlock,
+      final Optional<BlockAccessList> blockAccessList,
+      final List<TransactionReceipt> receipts) {
+    if (executionCache.isEmpty()) {
+      return importBlock(sealedBlock, blockAccessList);
+    }
+
+    final Optional<QbftLocalBlockExecutionCache.CachedExecution> cached =
+        executionCache.get().take(proposedBlock.getHash());
+    if (cached.isEmpty()) {
+      LOG.debug(
+          "No cached local execution for proposed block {}, using full import",
+          proposedBlock.getHash());
+      return importBlock(sealedBlock, blockAccessList);
+    }
+
+    final Block sealedBesuBlock = AdaptorUtil.toBesuBlock(sealedBlock);
+    final MutableWorldState worldState = cached.get().worldState();
+    try {
+      if (context.getBlockchain().contains(sealedBesuBlock.getHash())) {
+        return true;
+      }
+      worldState.persist(sealedBesuBlock.getHeader());
+      context.getBlockchain().appendBlock(sealedBesuBlock, receipts, blockAccessList);
+      context
+          .getWorldStateArchive()
+          .getWorldState(
+              WorldStateQueryParams.withBlockHeaderAndUpdateNodeHead(sealedBesuBlock.getHeader()));
+      LOG.debug(
+          "Imported locally created QBFT block {} without re-execution", sealedBesuBlock.getHash());
+      return true;
+    } catch (final Exception e) {
+      LOG.warn("Fast import of locally created QBFT block failed, using full import", e);
+      return importBlock(sealedBlock, blockAccessList);
+    } finally {
+      try {
+        worldState.close();
+      } catch (final Exception e) {
+        LOG.debug("Failed to close retained world state after import", e);
+      }
+    }
   }
 }

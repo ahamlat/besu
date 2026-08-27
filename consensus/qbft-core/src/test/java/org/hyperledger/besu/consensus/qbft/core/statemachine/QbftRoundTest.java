@@ -370,6 +370,40 @@ public class QbftRoundTest {
   }
 
   @Test
+  public void locallyCreatedBlockIsImportedWithoutReExecutionWhenFastPathIsEnabled() {
+    final ConsensusRoundIdentifier roundIdentifier = new ConsensusRoundIdentifier(1, 0);
+    final RoundState roundState = new RoundState(roundIdentifier, 1, messageValidator, true);
+    final QbftRound round =
+        new QbftRound(
+            roundState,
+            blockCreator,
+            blockInterface,
+            protocolSchedule,
+            subscribers,
+            nodeKey,
+            localAddress,
+            messageFactory,
+            transmitter,
+            roundTimer,
+            parentHeader);
+
+    when(blockInterface.replaceRoundForCommitBlock(eq(proposedBlock), eq(0)))
+        .thenReturn(proposedBlock);
+    when(blockCreator.createSealedBlock(eq(proposedBlock), eq(0), any())).thenReturn(proposedBlock);
+    when(blockImporter.importLocallyCreatedBlock(any(), any(), any(), any())).thenReturn(true);
+    when(messageValidator.validateProposalWithoutBlockValidation(any())).thenReturn(true);
+
+    round.createBlock(15);
+    round.updateStateWithProposalAndTransmit(
+        proposedBlock, Optional.empty(), emptyList(), emptyList());
+
+    verify(blockImporter)
+        .importLocallyCreatedBlock(
+            eq(proposedBlock), eq(proposedBlock), any(), eq(java.util.Collections.emptyList()));
+    verify(blockImporter, never()).importBlock(any(), any());
+  }
+
+  @Test
   public void exceptionDuringNodeKeySigningDoesNotEscape() {
     final int QUORUM_SIZE = 1;
     final RoundState roundState = new RoundState(roundIdentifier, QUORUM_SIZE, messageValidator);

@@ -38,6 +38,13 @@ public class QBFTOptions {
       hidden = true)
   private boolean enableEarlyRoundChange = false;
 
+  @CommandLine.Option(
+      names = {"--Xqbft-single-validator-fast-path"},
+      description =
+          "Skip redundant QBFT block execution when this node is the only validator. The block is executed once during transaction selection. Proposal validation and import do not re-execute the block. Use only on a 1-validator network (experimental)",
+      hidden = true)
+  private boolean singleValidatorFastPath = false;
+
   /**
    * Is early round change enabled boolean.
    *
@@ -45,5 +52,14 @@ public class QBFTOptions {
    */
   public boolean isEarlyRoundChangeEnabled() {
     return enableEarlyRoundChange;
+  }
+
+  /**
+   * Whether the single-validator fast path is enabled.
+   *
+   * @return true if redundant QBFT block execution should be skipped for a 1-validator network
+   */
+  public boolean isSingleValidatorFastPathEnabled() {
+    return singleValidatorFastPath;
   }
 }

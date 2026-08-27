@@ -37,6 +37,8 @@ public class QbftBlockHeightManagerFactory {
   private final QbftValidatorProvider validatorProvider;
   private final QbftValidatorModeTransitionLogger validatorModeTransitionLogger;
   private boolean isEarlyRoundChangeEnabled = false;
+  private boolean isSingleValidatorFastPathEnabled = false;
+  private boolean loggedFastPathEnabled = false;
 
   /**
    * Instantiates a new Qbft block height manager factory.
@@ -91,6 +93,15 @@ public class QbftBlockHeightManagerFactory {
   }
 
   /**
+   * Enable the single-validator fast path. The path is used only when the validator set size is 1.
+   *
+   * @param isSingleValidatorFastPathEnabled true to enable the fast path
+   */
+  public void setSingleValidatorFastPathEnabled(final boolean isSingleValidatorFastPathEnabled) {
+    this.isSingleValidatorFastPathEnabled = isSingleValidatorFastPathEnabled;
+  }
+
+  /**
    * Creates a no-op height manager
    *
    * @param parentHeader the parent header
@@ -103,6 +114,9 @@ public class QbftBlockHeightManagerFactory {
 
   private BaseQbftBlockHeightManager createFullBlockHeightManager(
       final QbftBlockHeader parentHeader) {
+
+    final boolean skipBlockValidation = shouldUseSingleValidatorFastPath(parentHeader);
+    roundFactory.setSkipBlockValidation(skipBlockValidation);
 
     QbftBlockHeightManager qbftBlockHeightManager;
     RoundChangeManager roundChangeManager;
@@ -144,6 +158,26 @@ public class QbftBlockHeightManagerFactory {
               validatorProvider);
     }
 
+    qbftBlockHeightManager.setSkipBlockValidation(skipBlockValidation);
     return qbftBlockHeightManager;
+  }
+
+  private boolean shouldUseSingleValidatorFastPath(final QbftBlockHeader parentHeader) {
+    if (!isSingleValidatorFastPathEnabled) {
+      return false;
+    }
+    final int validatorCount = validatorProvider.getValidatorsAfterBlock(parentHeader).size();
+    if (validatorCount != 1) {
+      LOG.warn(
+          "QBFT single-validator fast path is enabled, but validator count is {}. Fast path is off for this height.",
+          validatorCount);
+      return false;
+    }
+    if (!loggedFastPathEnabled) {
+      LOG.info(
+          "QBFT single-validator fast path is on. The block is executed once during transaction selection.");
+      loggedFastPathEnabled = true;
+    }
+    return true;
   }
 }

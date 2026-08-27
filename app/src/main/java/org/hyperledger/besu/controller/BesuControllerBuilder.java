@@ -236,6 +236,12 @@ public abstract class BesuControllerBuilder implements MiningConfigurationOverri
   protected boolean isEarlyRoundChangeEnabled = false;
 
   /**
+   * When enabled, a 1-validator QBFT node executes the block once during creation and skips
+   * proposal and import re-execution.
+   */
+  protected boolean isSingleValidatorFastPathEnabled = false;
+
+  /**
    * When enabled, BFT (QBFT and IBFT2) encoders emit the 25.x wire format when blockAccessList is
    * absent. Required only for rolling upgrades from Besu 25.x peers; no effect when blockAccessList
    * is active on the chain.
@@ -626,6 +632,18 @@ public abstract class BesuControllerBuilder implements MiningConfigurationOverri
    */
   public BesuControllerBuilder isEarlyRoundChangeEnabled(final boolean isEarlyRoundChangeEnabled) {
     this.isEarlyRoundChangeEnabled = isEarlyRoundChangeEnabled;
+    return this;
+  }
+
+  /**
+   * Enable the QBFT single-validator fast path.
+   *
+   * @param isSingleValidatorFastPathEnabled whether to skip redundant block execution
+   * @return the besu controller builder
+   */
+  public BesuControllerBuilder isSingleValidatorFastPathEnabled(
+      final boolean isSingleValidatorFastPathEnabled) {
+    this.isSingleValidatorFastPathEnabled = isSingleValidatorFastPathEnabled;
     return this;
   }
 

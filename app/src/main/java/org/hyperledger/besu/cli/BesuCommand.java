@@ -2180,6 +2180,8 @@ public class BesuCommand implements DefaultCommandValues, Runnable {
             .clock(Clock.systemUTC())
             .storageProvider(storageProvider)
             .isEarlyRoundChangeEnabled(unstableQbftOptions.isEarlyRoundChangeEnabled())
+            .isSingleValidatorFastPathEnabled(
+                unstableQbftOptions.isSingleValidatorFastPathEnabled())
             .isLegacyBftProtocolEncodingEnabled(
                 unstableBftOptions.isLegacyProtocolEncodingEnabled())
             .requiredBlocks(requiredBlocks)

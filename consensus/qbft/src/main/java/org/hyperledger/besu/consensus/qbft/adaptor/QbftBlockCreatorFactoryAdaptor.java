@@ -20,6 +20,8 @@ import org.hyperledger.besu.consensus.common.bft.blockcreation.BftBlockCreatorFa
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCreator;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCreatorFactory;
 
+import java.util.Optional;
+
 /**
  * Adaptor class to allow a {@link BftBlockCreatorFactory} to be used as a {@link
  * QbftBlockCreatorFactory}.
@@ -28,6 +30,7 @@ public class QbftBlockCreatorFactoryAdaptor implements QbftBlockCreatorFactory {
 
   private final BftBlockCreatorFactory<QbftConfigOptions> qbftBlockCreatorFactory;
   private final BftExtraDataCodec bftExtraDataCodec;
+  private final Optional<QbftLocalBlockExecutionCache> executionCache;
 
   /**
    * Constructs a new QbftBlockCreatorFactory
@@ -38,13 +41,28 @@ public class QbftBlockCreatorFactoryAdaptor implements QbftBlockCreatorFactory {
   public QbftBlockCreatorFactoryAdaptor(
       final BftBlockCreatorFactory<QbftConfigOptions> bftBlockCreatorFactory,
       final BftExtraDataCodec bftExtraDataCodec) {
+    this(bftBlockCreatorFactory, bftExtraDataCodec, Optional.empty());
+  }
+
+  /**
+   * Constructs a new QbftBlockCreatorFactory
+   *
+   * @param bftBlockCreatorFactory The Besu QBFT block creator factory
+   * @param bftExtraDataCodec the bftExtraDataCodec used to encode extra data for the new header
+   * @param executionCache optional cache of local block execution results
+   */
+  public QbftBlockCreatorFactoryAdaptor(
+      final BftBlockCreatorFactory<QbftConfigOptions> bftBlockCreatorFactory,
+      final BftExtraDataCodec bftExtraDataCodec,
+      final Optional<QbftLocalBlockExecutionCache> executionCache) {
     this.qbftBlockCreatorFactory = bftBlockCreatorFactory;
     this.bftExtraDataCodec = bftExtraDataCodec;
+    this.executionCache = executionCache;
   }
 
   @Override
   public QbftBlockCreator create(final int roundNumber) {
     return new QbftBlockCreatorAdaptor(
-        qbftBlockCreatorFactory.create(roundNumber), bftExtraDataCodec);
+        qbftBlockCreatorFactory.create(roundNumber), bftExtraDataCodec, executionCache);
   }
 }
