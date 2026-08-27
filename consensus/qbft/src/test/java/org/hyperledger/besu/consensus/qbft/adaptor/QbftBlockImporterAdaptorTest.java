@@ -31,6 +31,7 @@ import org.hyperledger.besu.ethereum.core.BlockDataGenerator;
 import org.hyperledger.besu.ethereum.core.BlockImporter;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
@@ -101,6 +102,7 @@ class QbftBlockImporterAdaptorTest {
     final MutableWorldState worldState = org.mockito.Mockito.mock(MutableWorldState.class);
     when(protocolContext.getBlockchain()).thenReturn(blockchain);
     when(protocolContext.getWorldStateArchive()).thenReturn(worldStateArchive);
+    when(worldStateArchive.getWorldState()).thenReturn(worldState);
     when(blockchain.contains(besuBlock.getHash())).thenReturn(false);
 
     final QbftLocalBlockExecutionCache cache = new QbftLocalBlockExecutionCache();
@@ -115,7 +117,8 @@ class QbftBlockImporterAdaptorTest {
 
     verify(worldState).persist(besuBlock.getHeader());
     verify(blockchain).appendBlock(besuBlock, List.of(), Optional.empty());
-    verify(worldStateArchive).getWorldState(any());
+    verify(worldStateArchive).getWorldState();
+    verify(worldStateArchive, never()).getWorldState(any(WorldStateQueryParams.class));
     verify(worldState).close();
     verify(blockImporter, never()).importBlock(any(), any(), any(), any(), any());
   }

@@ -23,8 +23,8 @@ import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
-import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.accumulator.PathBasedWorldStateUpdateAccumulator;
 import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
 import java.util.List;
@@ -102,25 +102,13 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
     }
 
     final Block sealedBesuBlock = AdaptorUtil.toBesuBlock(sealedBlock);
-    final MutableWorldState worldState = cached.get().worldState();
+    final MutableWorldState retainedWorldState = cached.get().worldState();
     try {
       if (context.getBlockchain().contains(sealedBesuBlock.getHash())) {
         return true;
       }
-      // Frozen Bonsai persist must start from the parent trie root. Block creation may have
-      // already computed the new root in memory without storing those trie nodes.
-      if (worldState instanceof PathBasedWorldState pathBasedWorldState) {
-        context
-            .getBlockchain()
-            .getBlockHeader(sealedBesuBlock.getHeader().getParentHash())
-            .ifPresent(pathBasedWorldState::resetWorldStateTo);
-      }
-      worldState.persist(sealedBesuBlock.getHeader());
+      persistLocalExecutionToHead(sealedBesuBlock, retainedWorldState);
       context.getBlockchain().appendBlock(sealedBesuBlock, receipts, blockAccessList);
-      context
-          .getWorldStateArchive()
-          .getWorldState(
-              WorldStateQueryParams.withBlockHeaderAndUpdateNodeHead(sealedBesuBlock.getHeader()));
       LOG.debug(
           "Imported locally created QBFT block {} without re-execution", sealedBesuBlock.getHash());
       return true;
@@ -129,10 +117,37 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
       return importBlock(sealedBlock, blockAccessList);
     } finally {
       try {
-        worldState.close();
+        retainedWorldState.close();
       } catch (final Exception e) {
         LOG.debug("Failed to close retained world state after import", e);
       }
+    }
+  }
+
+  /**
+   * Writes the locally executed updates onto the head world state.
+   *
+   * <p>Block creation uses a frozen Bonsai copy. Persist of that copy does not update head storage,
+   * and a later head roll through trie logs is slow. Copy the accumulator onto the live head and
+   * persist there instead, matching normal import after a successful process step.
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private void persistLocalExecutionToHead(
+      final Block sealedBesuBlock, final MutableWorldState retainedWorldState) {
+    final MutableWorldState headWorldState = context.getWorldStateArchive().getWorldState();
+    if (headWorldState instanceof PathBasedWorldState pathBasedHead
+        && retainedWorldState instanceof PathBasedWorldState pathBasedRetained) {
+      if (!pathBasedHead.blockHash().equals(sealedBesuBlock.getHeader().getParentHash())) {
+        throw new IllegalStateException(
+            "Head world state is not at parent "
+                + sealedBesuBlock.getHeader().getParentHash()
+                + ", cannot persist local QBFT execution");
+      }
+      final PathBasedWorldStateUpdateAccumulator headAccumulator = pathBasedHead.getAccumulator();
+      headAccumulator.cloneFromUpdater(pathBasedRetained.getAccumulator());
+      pathBasedHead.persist(sealedBesuBlock.getHeader());
+    } else {
+      retainedWorldState.persist(sealedBesuBlock.getHeader());
     }
   }
 }
