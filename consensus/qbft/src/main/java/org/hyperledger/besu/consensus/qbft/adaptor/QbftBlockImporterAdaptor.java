@@ -24,6 +24,7 @@ import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.provider.WorldStateQueryParams;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
 import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
 import java.util.List;
@@ -105,6 +106,14 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
     try {
       if (context.getBlockchain().contains(sealedBesuBlock.getHash())) {
         return true;
+      }
+      // Frozen Bonsai persist must start from the parent trie root. Block creation may have
+      // already computed the new root in memory without storing those trie nodes.
+      if (worldState instanceof PathBasedWorldState pathBasedWorldState) {
+        context
+            .getBlockchain()
+            .getBlockHeader(sealedBesuBlock.getHeader().getParentHash())
+            .ifPresent(pathBasedWorldState::resetWorldStateTo);
       }
       worldState.persist(sealedBesuBlock.getHeader());
       context.getBlockchain().appendBlock(sealedBesuBlock, receipts, blockAccessList);

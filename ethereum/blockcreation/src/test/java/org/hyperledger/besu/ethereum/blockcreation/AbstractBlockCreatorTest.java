@@ -85,11 +85,13 @@ import org.hyperledger.besu.ethereum.mainnet.requests.DepositRequestProcessor;
 import org.hyperledger.besu.ethereum.mainnet.requests.RequestProcessingContext;
 import org.hyperledger.besu.ethereum.mainnet.systemcall.BlockProcessingContext;
 import org.hyperledger.besu.ethereum.transaction.TransactionInvalidReason;
+import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldState;
 import org.hyperledger.besu.ethereum.util.TrustedSetupClassLoaderExtension;
 import org.hyperledger.besu.evm.account.Account;
 import org.hyperledger.besu.evm.internal.EvmConfiguration;
 import org.hyperledger.besu.metrics.noop.NoOpMetricsSystem;
 import org.hyperledger.besu.plugin.services.storage.DataStorageFormat;
+import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 import org.hyperledger.besu.testutil.DeterministicEthScheduler;
 
 import java.math.BigInteger;
@@ -392,6 +394,42 @@ class AbstractBlockCreatorTest extends TrustedSetupClassLoaderExtension {
             miningOn.parentHeader);
     final Optional<BlockAccessList> maybeBlockAccessList = blockCreationResult.getBlockAccessList();
     assertThat(maybeBlockAccessList).isEmpty();
+  }
+
+  @Test
+  public void retainedWorldStateKeepsParentRootAndCanPersist() throws Exception {
+    final CreateOn miningOn = blockCreatorWithBlobGasSupport();
+    final AbstractBlockCreator blockCreator = miningOn.blockCreator;
+    blockCreator.setRetainWorldStateForImport(true);
+    final GenesisAccount sender = accounts.get(1);
+    final GenesisAccount recipient = accounts.get(2);
+    final KeyPair keyPair =
+        SIGNATURE_ALGORITHM.createKeyPair(SECPPrivateKey.create(sender.privateKey(), "ECDSA"));
+    final Transaction txn =
+        new TransactionTestFixture()
+            .sender(sender.address())
+            .to(Optional.of(recipient.address()))
+            .value(Wei.fromEth(1))
+            .gasLimit(21_000L)
+            .nonce(sender.nonce())
+            .createTransaction(keyPair);
+
+    final BlockCreationResult blockCreationResult =
+        blockCreator.createBlock(
+            Optional.of(List.of(txn)),
+            Optional.empty(),
+            System.currentTimeMillis(),
+            miningOn.parentHeader);
+
+    final MutableWorldState worldState = blockCreationResult.getWorldState().orElseThrow();
+    try {
+      assertThat(worldState).isInstanceOf(PathBasedWorldState.class);
+      assertThat(((PathBasedWorldState) worldState).getWorldStateRootHash())
+          .isEqualTo(miningOn.parentHeader.getStateRoot());
+      worldState.persist(blockCreationResult.getBlock().getHeader());
+    } finally {
+      worldState.close();
+    }
   }
 
   private CreateOn blockCreatorWithWithdrawalsProcessor() {

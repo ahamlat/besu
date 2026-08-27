@@ -341,7 +341,13 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
           BlockHeaderBuilder.create()
               .populateFrom(processableBlockHeader)
               .ommersHash(BodyValidation.ommersHash(ommers))
-              .stateRoot(disposableWorldState.rootHash())
+              // Frozen Bonsai copies must keep the parent trie root in memory. rootHash() replaces
+              // that root with the new hash without storing trie nodes, so a later persist() cannot
+              // load the new root. frontierRootHash() returns the same hash without that mutation.
+              .stateRoot(
+                  retainWorldStateForImport
+                      ? disposableWorldState.frontierRootHash()
+                      : disposableWorldState.rootHash())
               .transactionsRoot(
                   BodyValidation.transactionsRoot(transactionResults.getSelectedTransactions()))
               .receiptsRoot(BodyValidation.receiptsRoot(transactionResults.getReceipts()))
