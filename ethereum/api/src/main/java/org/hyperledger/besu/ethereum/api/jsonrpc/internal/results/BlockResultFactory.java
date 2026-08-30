@@ -40,7 +40,7 @@ public class BlockResultFactory {
       final BlockWithMetadata<TransactionWithMetadata, Hash> blockWithMetadata,
       final boolean includeCoinbase) {
     final List<TransactionResult> txs =
-        blockWithMetadata.getTransactions().stream()
+        blockWithMetadata.getTransactions().parallelStream()
             .map(TransactionWithMetadataResult::new)
             .collect(Collectors.toList());
     final List<JsonNode> ommers =
