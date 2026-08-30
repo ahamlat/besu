@@ -127,6 +127,7 @@ public enum RpcErrorType implements RpcMethodError {
   TX_POOL_DISABLED(
       -32002,
       "Transaction pool not enabled. (Either txpool explicitly disabled, or node not yet in sync)."),
+  TX_POOL_FULL(-32000, "Transaction pool is full"),
 
   // eth_getBlockByNumber specific error message
   UNKNOWN_BLOCK(-39001, "Unknown block"),

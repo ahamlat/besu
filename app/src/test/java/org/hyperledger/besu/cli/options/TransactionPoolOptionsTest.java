@@ -15,6 +15,7 @@
 package org.hyperledger.besu.cli.options;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.FIFO;
 import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.LAYERED;
 import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.LEGACY;
 import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.SEQUENCED;
@@ -265,24 +266,38 @@ public class TransactionPoolOptionsTest
   }
 
   @Test
+  public void selectFifoImplementationByArg() {
+    internalTestSuccess(
+        config -> assertThat(config.getTxPoolImplementation()).isEqualTo(FIFO), "--tx-pool=fifo");
+  }
+
+  @Test
   public void failIfLegacyOptionsWhenLayeredSelectedByDefault() {
     internalTestFailure(
-        "Could not use legacy or sequenced transaction pool options with layered implementation",
+        "Could not use the tx pool max size option with layered implementation",
         "--tx-pool-max-size=1000");
   }
 
   @Test
   public void failIfLegacyOptionsWhenLayeredSelectedByArg() {
     internalTestFailure(
-        "Could not use legacy or sequenced transaction pool options with layered implementation",
+        "Could not use the tx pool max size option with layered implementation",
         "--tx-pool=layered",
         "--tx-pool-max-size=1000");
   }
 
   @Test
+  public void failIfRetentionHoursWhenLayeredSelectedByArg() {
+    internalTestFailure(
+        "Could not use legacy or sequenced transaction pool options with layered or fifo implementation",
+        "--tx-pool=layered",
+        "--tx-pool-retention-hours=1");
+  }
+
+  @Test
   public void failIfLayeredOptionsWhenLegacySelectedByArg() {
     internalTestFailure(
-        "Could not use layered transaction pool options with legacy or sequenced implementation",
+        "Could not use layered transaction pool options with legacy, sequenced or fifo implementation",
         "--tx-pool=legacy",
         "--tx-pool-max-prioritized=1000");
   }
@@ -290,9 +305,63 @@ public class TransactionPoolOptionsTest
   @Test
   public void failIfLayeredOptionsWhenSequencedSelectedByArg() {
     internalTestFailure(
-        "Could not use layered transaction pool options with legacy or sequenced implementation",
+        "Could not use layered transaction pool options with legacy, sequenced or fifo implementation",
         "--tx-pool=sequenced",
         "--tx-pool-max-prioritized=1000");
+  }
+
+  @Test
+  public void failIfLayeredOptionsWhenFifoSelectedByArg() {
+    internalTestFailure(
+        "Could not use layered transaction pool options with legacy, sequenced or fifo implementation",
+        "--tx-pool=fifo",
+        "--tx-pool-max-prioritized=1000");
+  }
+
+  @Test
+  public void failIfSequencedOnlyOptionsWhenFifoSelectedByArg() {
+    internalTestFailure(
+        "Could not use legacy or sequenced transaction pool options with layered or fifo implementation",
+        "--tx-pool=fifo",
+        "--tx-pool-retention-hours=1");
+  }
+
+  @Test
+  public void defaultForgetEvictedTxsWithFifoIsTrue() {
+    internalTestSuccess(
+        config -> assertThat(config.getUnstable().getPeerTrackerForgetEvictedTxs()).isTrue(),
+        "--tx-pool",
+        FIFO.name().toLowerCase(Locale.ROOT));
+  }
+
+  @Test
+  public void fifoAcceptsMaxSize() {
+    internalTestSuccess(
+        config -> {
+          assertThat(config.getTxPoolImplementation()).isEqualTo(FIFO);
+          assertThat(config.getTxPoolMaxSize()).isEqualTo(100_000);
+        },
+        "--tx-pool=fifo",
+        "--tx-pool-max-size=100000");
+  }
+
+  @Test
+  public void fifoAcceptsMaxFutureBySender() {
+    internalTestSuccess(
+        config -> {
+          assertThat(config.getTxPoolImplementation()).isEqualTo(FIFO);
+          assertThat(config.getMaxFutureBySender()).isEqualTo(512);
+        },
+        "--tx-pool=fifo",
+        "--tx-pool-max-future-by-sender=512");
+  }
+
+  @Test
+  public void failIfMaxFutureBySenderWhenSequencedSelectedByArg() {
+    internalTestFailure(
+        "Could not use the max future by sender option with legacy or sequenced implementation",
+        "--tx-pool=sequenced",
+        "--tx-pool-max-future-by-sender=512");
   }
 
   @Test

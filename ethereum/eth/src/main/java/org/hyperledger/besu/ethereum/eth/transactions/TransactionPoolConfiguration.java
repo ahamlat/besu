@@ -82,7 +82,8 @@ public interface TransactionPoolConfiguration {
   enum Implementation {
     LEGACY, // Remove in future version
     LAYERED,
-    SEQUENCED; // Synonym for LEGACY
+    SEQUENCED, // Synonym for LEGACY
+    FIFO; // Arrival-order pool for free-gas/permissioned networks
   }
 
   String DEFAULT_SAVE_FILE_NAME = "txpool.dump";

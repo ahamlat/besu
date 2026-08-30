@@ -17,6 +17,7 @@ package org.hyperledger.besu.cli.options;
 import static org.hyperledger.besu.cli.DefaultCommandValues.MANDATORY_DOUBLE_FORMAT_HELP;
 import static org.hyperledger.besu.cli.DefaultCommandValues.MANDATORY_INTEGER_FORMAT_HELP;
 import static org.hyperledger.besu.cli.DefaultCommandValues.MANDATORY_LONG_FORMAT_HELP;
+import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.FIFO;
 import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.LAYERED;
 import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.LEGACY;
 import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.SEQUENCED;
@@ -400,15 +401,34 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
       final CommandLine commandLine, final GenesisConfigOptions genesisConfigOptions) {
     CommandLineUtils.failIfOptionDoesntMeetRequirement(
         commandLine,
-        "Could not use legacy or sequenced transaction pool options with layered implementation",
-        !txPoolImplementation.equals(LAYERED),
-        CommandLineUtils.getCLIOptionNames(Sequenced.class));
+        "Could not use legacy or sequenced transaction pool options with layered or fifo implementation",
+        txPoolImplementation.equals(LEGACY) || txPoolImplementation.equals(SEQUENCED),
+        List.of(Sequenced.TX_POOL_RETENTION_HOURS, Sequenced.TX_POOL_LIMIT_BY_ACCOUNT_PERCENTAGE));
 
     CommandLineUtils.failIfOptionDoesntMeetRequirement(
         commandLine,
-        "Could not use layered transaction pool options with legacy or sequenced implementation",
+        "Could not use the tx pool max size option with layered implementation",
+        !txPoolImplementation.equals(LAYERED),
+        List.of(Sequenced.TX_POOL_MAX_SIZE));
+
+    CommandLineUtils.failIfOptionDoesntMeetRequirement(
+        commandLine,
+        "Could not use layered transaction pool options with legacy, sequenced or fifo implementation",
+        !txPoolImplementation.equals(LEGACY)
+            && !txPoolImplementation.equals(SEQUENCED)
+            && !txPoolImplementation.equals(FIFO),
+        List.of(
+            Layered.TX_POOL_LAYER_MAX_CAPACITY,
+            Layered.TX_POOL_MAX_PRIORITIZED,
+            Layered.TX_POOL_MAX_PRIORITIZED_BY_TYPE,
+            Layered.TX_POOL_MIN_SCORE,
+            Layered.TX_POOL_ENABLE_BALANCE_CHECK));
+
+    CommandLineUtils.failIfOptionDoesntMeetRequirement(
+        commandLine,
+        "Could not use the max future by sender option with legacy or sequenced implementation",
         !txPoolImplementation.equals(LEGACY) && !txPoolImplementation.equals(SEQUENCED),
-        CommandLineUtils.getCLIOptionNames(Layered.class));
+        List.of(Layered.TX_POOL_MAX_FUTURE_BY_SENDER));
 
     CommandLineUtils.failIfOptionDoesntMeetRequirement(
         commandLine,
@@ -458,7 +478,7 @@ public class TransactionPoolOptions implements CLIOptions<TransactionPoolConfigu
   private static boolean deriveDefaultPeersTrackerForgetEvictedTxs(
       final TransactionPoolConfiguration.Implementation txPoolImplementation) {
     return switch (txPoolImplementation) {
-      case LEGACY, SEQUENCED -> true;
+      case LEGACY, SEQUENCED, FIFO -> true;
       case LAYERED -> false;
     };
   }

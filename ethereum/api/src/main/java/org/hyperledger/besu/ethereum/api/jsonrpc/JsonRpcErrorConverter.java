@@ -47,6 +47,7 @@ public class JsonRpcErrorConverter {
       case NONCE_TOO_FAR_IN_FUTURE_FOR_SENDER -> RpcErrorType.NONCE_TOO_FAR_IN_FUTURE_FOR_SENDER;
       case TOTAL_BLOB_GAS_TOO_HIGH -> RpcErrorType.TOTAL_BLOB_GAS_TOO_HIGH;
       case TX_POOL_DISABLED -> RpcErrorType.TX_POOL_DISABLED;
+      case TX_POOL_FULL -> RpcErrorType.TX_POOL_FULL;
       case PLUGIN_TX_VALIDATOR -> RpcErrorType.PLUGIN_TX_VALIDATOR;
       case PLUGIN_TX_POOL_VALIDATOR -> RpcErrorType.PLUGIN_TX_POOL_VALIDATOR;
       case INVALID_BLOBS -> RpcErrorType.INVALID_BLOBS;

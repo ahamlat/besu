@@ -35,6 +35,8 @@ public final class TransactionAddedResult {
       new TransactionAddedResult(TransactionInvalidReason.TRANSACTION_REPLACEMENT_UNDERPRICED);
   public static final TransactionAddedResult NONCE_TOO_FAR_IN_FUTURE_FOR_SENDER =
       new TransactionAddedResult(TransactionInvalidReason.NONCE_TOO_FAR_IN_FUTURE_FOR_SENDER);
+  public static final TransactionAddedResult TX_POOL_FULL =
+      new TransactionAddedResult(TransactionInvalidReason.TX_POOL_FULL);
 
   public static final TransactionAddedResult ADDED = new TransactionAddedResult(Status.ADDED);
   public static final TransactionAddedResult TRY_NEXT_LAYER =

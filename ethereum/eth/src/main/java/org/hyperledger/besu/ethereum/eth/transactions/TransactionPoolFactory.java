@@ -14,6 +14,7 @@
  */
 package org.hyperledger.besu.ethereum.eth.transactions;
 
+import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.FIFO;
 import static org.hyperledger.besu.ethereum.eth.transactions.TransactionPoolConfiguration.Implementation.LAYERED;
 
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -23,6 +24,7 @@ import org.hyperledger.besu.ethereum.eth.manager.EthContext;
 import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
 import org.hyperledger.besu.ethereum.eth.messages.EthProtocolMessages;
 import org.hyperledger.besu.ethereum.eth.sync.state.SyncState;
+import org.hyperledger.besu.ethereum.eth.transactions.fifo.FifoPendingTransactions;
 import org.hyperledger.besu.ethereum.eth.transactions.layered.AbstractPrioritizedTransactions;
 import org.hyperledger.besu.ethereum.eth.transactions.layered.BaseFeePrioritizedTransactions;
 import org.hyperledger.besu.ethereum.eth.transactions.layered.EndLayer;
@@ -264,7 +266,9 @@ public class TransactionPoolFactory {
         protocolSchedule.anyMatch(
             scheduledSpec -> scheduledSpec.spec().getFeeMarket().implementsBaseFee());
 
-    if (transactionPoolConfiguration.getTxPoolImplementation().equals(LAYERED)) {
+    if (transactionPoolConfiguration.getTxPoolImplementation().equals(FIFO)) {
+      return new FifoPendingTransactions(transactionPoolConfiguration, metrics.getMetricsSystem());
+    } else if (transactionPoolConfiguration.getTxPoolImplementation().equals(LAYERED)) {
       return createLayeredPendingTransactions(
           protocolSchedule,
           protocolContext,
