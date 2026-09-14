@@ -14,9 +14,10 @@
  */
 package org.hyperledger.besu.ethereum.vm.operations.v2;
 
-import org.hyperledger.besu.datatypes.Hash;
+import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.CURRENT_BLOCK;
+import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.VALID_BLOCK;
+
 import org.hyperledger.besu.evm.UInt256;
-import org.hyperledger.besu.evm.frame.BlockValues;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.PetersburgGasCalculator;
 import org.hyperledger.besu.evm.v2.operation.BlockHashOperationV2;
@@ -43,11 +44,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.AverageTime)
 public class BlockHashOperationBenchmarkV2 {
 
-  private static final long CURRENT_BLOCK = 1_000;
-  private static final long VALID_BLOCK = CURRENT_BLOCK - 1;
-  private static final Hash VALID_BLOCK_HASH =
-      Hash.fromHexString("0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
-
   public enum Scenario {
     VALID,
     CURRENT,
@@ -64,18 +60,10 @@ public class BlockHashOperationBenchmarkV2 {
   @Setup
   public void setup() {
     operation = new BlockHashOperationV2(new PetersburgGasCalculator());
-    final BlockValues blockValues =
-        new BlockValues() {
-          @Override
-          public long getNumber() {
-            return CURRENT_BLOCK;
-          }
-        };
+    final BlockHashBenchmarkChain chain = BlockHashBenchmarkChain.create();
     frame =
         BenchmarkHelperV2.createMessageCallFrame(
-            blockValues,
-            (__, blockNumber) -> blockNumber == VALID_BLOCK ? VALID_BLOCK_HASH : Hash.ZERO,
-            Optional.empty());
+            chain.currentHeader(), chain.blockHashLookup(), Optional.empty());
     requestedBlock =
         switch (scenario) {
           case VALID -> UInt256.fromLong(VALID_BLOCK);
