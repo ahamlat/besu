@@ -24,6 +24,7 @@ import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockHeaderTestFixture;
 import org.hyperledger.besu.ethereum.vm.BlockchainBasedBlockHashLookup;
 import org.hyperledger.besu.evm.blockhash.BlockHashLookup;
+import org.hyperledger.besu.evm.frame.MessageFrame;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,16 +37,20 @@ import java.util.Optional;
  */
 final class BlockHashBenchmarkChain {
 
+  /** Default {@link BlockHashLookup#getLookback()} window. */
+  static final long LOOKBACK = 256;
+
   static final long CURRENT_BLOCK = 1_000;
   static final long VALID_BLOCK = CURRENT_BLOCK - 1;
+  /** Oldest block still inside the lookback window ({@code CURRENT_BLOCK - LOOKBACK}). */
+  static final long LAST_AVAILABLE_BLOCK = CURRENT_BLOCK - LOOKBACK;
 
   private final BlockHeader currentHeader;
-  private final BlockHashLookup blockHashLookup;
+  private final Blockchain blockchain;
 
-  private BlockHashBenchmarkChain(
-      final BlockHeader currentHeader, final BlockHashLookup blockHashLookup) {
+  private BlockHashBenchmarkChain(final BlockHeader currentHeader, final Blockchain blockchain) {
     this.currentHeader = currentHeader;
-    this.blockHashLookup = blockHashLookup;
+    this.blockchain = blockchain;
   }
 
   static BlockHashBenchmarkChain create() {
@@ -62,17 +67,44 @@ final class BlockHashBenchmarkChain {
         .thenAnswer(invocation -> Optional.ofNullable(headersByHash.get(invocation.getArgument(0))));
 
     final BlockHeader currentHeader = createHeader((int) CURRENT_BLOCK, parentHeader);
-    final BlockHashLookup blockHashLookup =
-        new BlockchainBasedBlockHashLookup(currentHeader, blockchain);
-    return new BlockHashBenchmarkChain(currentHeader, blockHashLookup);
+    return new BlockHashBenchmarkChain(currentHeader, blockchain);
   }
 
   BlockHeader currentHeader() {
     return currentHeader;
   }
 
-  BlockHashLookup blockHashLookup() {
-    return blockHashLookup;
+  BlockHashLookup newLookup() {
+    return new BlockchainBasedBlockHashLookup(currentHeader, blockchain);
+  }
+
+  /**
+   * Lookup that can drop its hash cache so the next {@code apply} walks headers again. Used for
+   * {@code LAST_AVAILABLE_BLOCK}.
+   */
+  ResettableBlockHashLookup newResettableLookup() {
+    return new ResettableBlockHashLookup(currentHeader, blockchain);
+  }
+
+  static final class ResettableBlockHashLookup implements BlockHashLookup {
+    private final BlockHeader currentHeader;
+    private final Blockchain blockchain;
+    private BlockHashLookup delegate;
+
+    ResettableBlockHashLookup(final BlockHeader currentHeader, final Blockchain blockchain) {
+      this.currentHeader = currentHeader;
+      this.blockchain = blockchain;
+      reset();
+    }
+
+    void reset() {
+      delegate = new BlockchainBasedBlockHashLookup(currentHeader, blockchain);
+    }
+
+    @Override
+    public Hash apply(final MessageFrame frame, final Long blockNumber) {
+      return delegate.apply(frame, blockNumber);
+    }
   }
 
   private static BlockHeader createHeader(final int blockNumber, final BlockHeader parentHeader) {
