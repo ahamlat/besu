@@ -219,10 +219,6 @@ public class MessageFrame {
   private Code createdCode = null;
   private final boolean isStatic;
 
-  // EIP-8037: an already-alive CREATE/CREATE2 target adds no leaf, so its NEW_ACCOUNT state gas
-  // is refunded on success.
-  private boolean createTargetWasAlive = false;
-
   // EIP-8037: state gas drawn from gasRemaining once the reservoir ran dry. Frame-local, so
   // refunds and failures can unwind it separately.
   private long stateGasSpilled = 0L;
@@ -1045,6 +1041,26 @@ public class MessageFrame {
     decrementStateGasUsed(amount);
   }
 
+  /**
+   * EIP-8037: settle state gas into gas_left after a successful child frame merges its spill.
+   *
+   * <p>When a child succeeds, its {@code state_gas_from_gas_left} is absorbed into the parent's
+   * before this step runs. The reservoir may now hold gas that was originally drawn from {@code
+   * gas_left} (charged in a different frame), so it has to be moved from the reservoir to the
+   * parent's execution gas. {@code evm_state_gas_used} is unchanged — no state creation is undone
+   * by this step.
+   */
+  public void settleStateGasOnChildSuccess() {
+    final long reservoir = txValues.stateGasReservoir().get();
+    final long spilled = stateGasSpilled;
+    final long d = Math.min(reservoir, spilled);
+    if (d > 0L) {
+      gasRemaining += d;
+      txValues.stateGasReservoir().set(reservoir - d);
+      stateGasSpilled = spilled - d;
+    }
+  }
+
   // ============================================================
   // End EIP-8037 state gas accounting
   // ============================================================
@@ -1264,26 +1280,6 @@ public class MessageFrame {
    */
   public Address getContractAddress() {
     return contract;
-  }
-
-  /**
-   * Records whether the CREATE/CREATE2 spawned from this frame targets an already-alive (existing,
-   * non-empty) address.
-   *
-   * @param wasAlive true if the create target was already alive
-   */
-  public void setCreateTargetWasAlive(final boolean wasAlive) {
-    this.createTargetWasAlive = wasAlive;
-  }
-
-  /**
-   * Whether the most recent CREATE/CREATE2 targeted an already-alive address, in which case no leaf
-   * is added and its NEW_ACCOUNT state gas is refunded.
-   *
-   * @return true if the create target was already alive
-   */
-  public boolean wasCreateTargetAlive() {
-    return createTargetWasAlive;
   }
 
   /**
@@ -1511,7 +1507,7 @@ public class MessageFrame {
 
   /**
    * Advances the undo mark, so that a rollback of the initial frame cannot undo the transaction's
-   * intrinsic state-gas charges.
+   * top-frame preparation charges, which persist regardless of the execution outcome.
    */
   public void advanceUndoMark() {
     this.undoMark = txValues.transientStorage().mark();
@@ -1573,7 +1569,6 @@ public class MessageFrame {
     private Optional<List<VersionedHash>> versionedHashes = Optional.empty();
 
     private long initialStateGasReservoir = 0L;
-    private long initialStateGasUsed = 0L;
 
     private boolean enableEvmV2 = false;
 
@@ -1893,19 +1888,6 @@ public class MessageFrame {
       return this;
     }
 
-    /**
-     * EIP-8037: initial {@code stateGasUsed} for the transaction's top-level frame, used to bake
-     * intrinsic state gas charges into the frame before execution begins. Ignored for child frames.
-     * Default 0.
-     *
-     * @param initialStateGasUsed the cumulative state gas already charged at frame entry
-     * @return the builder
-     */
-    public Builder initialStateGasUsed(final long initialStateGasUsed) {
-      this.initialStateGasUsed = initialStateGasUsed;
-      return this;
-    }
-
     private void validate() {
       if (parentMessageFrame == null) {
         checkState(worldUpdater != null, "Missing message frame world updater");
@@ -1958,7 +1940,6 @@ public class MessageFrame {
                 blockValues,
                 miningBeneficiary,
                 versionedHashes,
-                initialStateGasUsed,
                 initialStateGasReservoir);
         updater = worldUpdater;
         newStatic = isStatic;
