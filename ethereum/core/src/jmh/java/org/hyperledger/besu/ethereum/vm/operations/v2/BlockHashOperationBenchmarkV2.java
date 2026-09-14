@@ -15,12 +15,9 @@
 package org.hyperledger.besu.ethereum.vm.operations.v2;
 
 import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.CURRENT_BLOCK;
-import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.LAST_AVAILABLE_BLOCK;
-import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.LOOKBACK;
 import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.VALID_BLOCK;
 
 import org.hyperledger.besu.evm.UInt256;
-import org.hyperledger.besu.evm.blockhash.BlockHashLookup;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.PetersburgGasCalculator;
 import org.hyperledger.besu.evm.v2.operation.BlockHashOperationV2;
@@ -49,7 +46,6 @@ public class BlockHashOperationBenchmarkV2 {
 
   public enum Scenario {
     VALID,
-    LAST_AVAILABLE_BLOCK,
     CURRENT,
     OUTSIDE_LOOKBACK,
     TOO_LARGE
@@ -60,37 +56,25 @@ public class BlockHashOperationBenchmarkV2 {
   private BlockHashOperationV2 operation;
   private MessageFrame frame;
   private UInt256 requestedBlock;
-  private BlockHashBenchmarkChain.ResettableBlockHashLookup resettableLookup;
 
   @Setup
   public void setup() {
     operation = new BlockHashOperationV2(new PetersburgGasCalculator());
     final BlockHashBenchmarkChain chain = BlockHashBenchmarkChain.create();
-    final BlockHashLookup lookup;
-    if (scenario == Scenario.LAST_AVAILABLE_BLOCK) {
-      resettableLookup = chain.newResettableLookup();
-      lookup = resettableLookup;
-    } else {
-      lookup = chain.newLookup();
-    }
     frame =
         BenchmarkHelperV2.createMessageCallFrame(
-            chain.currentHeader(), lookup, Optional.empty());
+            chain.currentHeader(), chain.blockHashLookup(), Optional.empty());
     requestedBlock =
         switch (scenario) {
           case VALID -> UInt256.fromLong(VALID_BLOCK);
-          case LAST_AVAILABLE_BLOCK -> UInt256.fromLong(LAST_AVAILABLE_BLOCK);
           case CURRENT -> UInt256.fromLong(CURRENT_BLOCK);
-          case OUTSIDE_LOOKBACK -> UInt256.fromLong(CURRENT_BLOCK - LOOKBACK - 1);
+          case OUTSIDE_LOOKBACK -> UInt256.fromLong(CURRENT_BLOCK - 257);
           case TOO_LARGE -> new UInt256(1, 0, 0, 0);
         };
   }
 
   @Benchmark
   public void executeOperation(final Blackhole blackhole) {
-    if (resettableLookup != null) {
-      resettableLookup.reset();
-    }
     BenchmarkHelperV2.pushUInt256(frame, requestedBlock);
     blackhole.consume(operation.execute(frame, null));
     frame.setTopV2(0);

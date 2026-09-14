@@ -15,11 +15,8 @@
 package org.hyperledger.besu.ethereum.vm.operations.v2;
 
 import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.CURRENT_BLOCK;
-import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.LAST_AVAILABLE_BLOCK;
-import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.LOOKBACK;
 import static org.hyperledger.besu.ethereum.vm.operations.v2.BlockHashBenchmarkChain.VALID_BLOCK;
 
-import org.hyperledger.besu.evm.blockhash.BlockHashLookup;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.PetersburgGasCalculator;
 import org.hyperledger.besu.evm.operation.BlockHashOperation;
@@ -53,37 +50,25 @@ public class BlockHashOperationBenchmarkV1 {
   private BlockHashOperation operation;
   private MessageFrame frame;
   private Bytes32 requestedBlock;
-  private BlockHashBenchmarkChain.ResettableBlockHashLookup resettableLookup;
 
   @Setup
   public void setup() {
     operation = new BlockHashOperation(new PetersburgGasCalculator());
     final BlockHashBenchmarkChain chain = BlockHashBenchmarkChain.create();
-    final BlockHashLookup lookup;
-    if (scenario == BlockHashOperationBenchmarkV2.Scenario.LAST_AVAILABLE_BLOCK) {
-      resettableLookup = chain.newResettableLookup();
-      lookup = resettableLookup;
-    } else {
-      lookup = chain.newLookup();
-    }
     frame =
         BenchmarkHelperV2.createMessageCallFrame(
-            false, chain.currentHeader(), lookup, Optional.empty());
+            false, chain.currentHeader(), chain.blockHashLookup(), Optional.empty());
     requestedBlock =
         switch (scenario) {
           case VALID -> Bytes32.leftPad(Bytes.ofUnsignedLong(VALID_BLOCK));
-          case LAST_AVAILABLE_BLOCK -> Bytes32.leftPad(Bytes.ofUnsignedLong(LAST_AVAILABLE_BLOCK));
           case CURRENT -> Bytes32.leftPad(Bytes.ofUnsignedLong(CURRENT_BLOCK));
-          case OUTSIDE_LOOKBACK -> Bytes32.leftPad(Bytes.ofUnsignedLong(CURRENT_BLOCK - LOOKBACK - 1));
+          case OUTSIDE_LOOKBACK -> Bytes32.leftPad(Bytes.ofUnsignedLong(CURRENT_BLOCK - 257));
           case TOO_LARGE -> Bytes32.fromHexString("0x010000000000000000");
         };
   }
 
   @Benchmark
   public void executeOperation(final Blackhole blackhole) {
-    if (resettableLookup != null) {
-      resettableLookup.reset();
-    }
     frame.pushStackItem(requestedBlock);
     blackhole.consume(operation.execute(frame, null));
     frame.popStackItem();
