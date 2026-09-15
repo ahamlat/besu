@@ -59,7 +59,8 @@ final class BlockHashBenchmarkChain {
 
     final Blockchain blockchain = mock(Blockchain.class);
     when(blockchain.getBlockHeader(any(Hash.class)))
-        .thenAnswer(invocation -> Optional.ofNullable(headersByHash.get(invocation.getArgument(0))));
+        .thenAnswer(
+            invocation -> Optional.ofNullable(headersByHash.get(invocation.getArgument(0))));
 
     final BlockHeader currentHeader = createHeader((int) CURRENT_BLOCK, parentHeader);
     final BlockHashLookup blockHashLookup =
