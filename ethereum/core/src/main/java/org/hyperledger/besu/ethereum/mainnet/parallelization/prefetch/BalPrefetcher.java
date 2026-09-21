@@ -82,9 +82,8 @@ public class BalPrefetcher {
             () -> {
               worldState.disableCacheMerkleTrieLoader();
 
-              // Collect and optionally sort account changes. Compute each address hash once
-              // before sorting: hashing in the comparator would repeat the (cached but
-              // contended) hash lookup on every comparison.
+              // Collect and optionally sort account changes.
+              // Compute each address hash once, not on every comparison.
               final List<BlockAccessList.AccountChanges> accounts =
                   isSortingEnabled
                       ? blockAccessList.accountChanges().stream()

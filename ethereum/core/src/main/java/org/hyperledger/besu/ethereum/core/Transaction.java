@@ -466,9 +466,8 @@ public class Transaction
   @Override
   public Address getSender() {
     if (sender == null) {
-      // Synchronize so concurrent callers (e.g. async sender precompute and transaction
-      // validation) do not both perform the expensive signature recovery for the same
-      // transaction instance.
+      // Per-instance lock: stops duplicate signature recovery on this transaction.
+      // Two different transactions can still recover their senders in parallel.
       synchronized (this) {
         if (sender == null) {
           final Address cachedSender = senderCache.getIfPresent(getHash());
