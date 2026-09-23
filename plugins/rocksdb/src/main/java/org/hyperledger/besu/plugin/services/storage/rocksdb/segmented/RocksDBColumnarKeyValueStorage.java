@@ -431,6 +431,8 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
    * IO-bound. Best-effort: any failure is logged and never fails startup.
    */
   protected void warmUpTableCache() {
+    ExecutorService pool = null;
+    ReadOptions warmUpReadOptions = null;
     try {
       final long start = System.currentTimeMillis();
       final List<LiveFileMetaData> files = getDB().getLiveFilesMetaData();
@@ -450,7 +452,7 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
         handlesByName.put(Bytes.of(handle.getName()), handle);
       }
       final AtomicInteger seeks = new AtomicInteger();
-      final ExecutorService pool =
+      pool =
           Executors.newFixedThreadPool(
               TABLE_CACHE_WARMUP_THREAD_COUNT,
               runnable -> {
@@ -458,7 +460,8 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
                 thread.setDaemon(true);
                 return thread;
               });
-      final ReadOptions warmUpReadOptions = new ReadOptions().setVerifyChecksums(false);
+      warmUpReadOptions = new ReadOptions().setVerifyChecksums(false);
+      final ReadOptions readOptionsForWarmup = warmUpReadOptions;
       for (final LiveFileMetaData file : files) {
         final ColumnFamilyHandle handle = handlesByName.get(Bytes.of(file.columnFamilyName()));
         if (handle == null) {
@@ -466,7 +469,7 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
         }
         pool.submit(
             () -> {
-              try (final RocksIterator it = getDB().newIterator(handle, warmUpReadOptions)) {
+              try (final RocksIterator it = getDB().newIterator(handle, readOptionsForWarmup)) {
                 it.seek(file.smallestKey());
               }
               final int done = seeks.incrementAndGet();
@@ -476,24 +479,27 @@ public abstract class RocksDBColumnarKeyValueStorage implements SegmentedKeyValu
             });
       }
       pool.shutdown();
-      if (pool.awaitTermination(30, TimeUnit.MINUTES)) {
-        warmUpReadOptions.close();
-      } else {
-        // straggler tasks may still hold the native ReadOptions: leak it rather than risk a
-        // use-after-free in JNI
+      if (!pool.awaitTermination(30, TimeUnit.MINUTES)) {
         LOG.warn("Table cache warm-up did not complete in time, continuing startup");
-        pool.shutdownNow();
+      } else {
+        LOG.debug(
+            "Table cache warm-up complete: {} files in {} ms; table readers mem: {}",
+            seeks.get(),
+            System.currentTimeMillis() - start,
+            getDB().getProperty("rocksdb.estimate-table-readers-mem"));
       }
-      LOG.debug(
-          "Table cache warm-up complete: {} files in {} ms; table readers mem: {}",
-          seeks.get(),
-          System.currentTimeMillis() - start,
-          getDB().getProperty("rocksdb.estimate-table-readers-mem"));
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
       LOG.warn("Table cache warm-up interrupted, continuing startup");
     } catch (final Throwable t) {
       LOG.error("Table cache warm-up failed", t);
+    } finally {
+      if (pool != null) {
+        pool.shutdownNow();
+      }
+      if (warmUpReadOptions != null && (pool == null || pool.isTerminated())) {
+        warmUpReadOptions.close();
+      }
     }
   }
 
