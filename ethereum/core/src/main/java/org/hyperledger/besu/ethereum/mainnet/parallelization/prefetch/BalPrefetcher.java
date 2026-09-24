@@ -22,13 +22,13 @@ import org.hyperledger.besu.datatypes.StorageSlotKey;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview.BonsaiWorldState;
 import org.hyperledger.besu.plugin.services.storage.SegmentIdentifier;
+import org.hyperledger.besu.plugin.services.storage.SegmentedKeyValueStorage;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -81,18 +81,6 @@ public class BalPrefetcher {
     return CompletableFuture.supplyAsync(
             () -> {
               worldState.disableCacheMerkleTrieLoader();
-
-              // Collect and optionally sort account changes.
-              // Compute each address hash once, not on every comparison.
-              final List<BlockAccessList.AccountChanges> accounts =
-                  isSortingEnabled
-                      ? blockAccessList.accountChanges().stream()
-                          .map(ac -> Map.entry(ac.address().addressHash().getBytes(), ac))
-                          .sorted(Map.Entry.comparingByKey())
-                          .map(Map.Entry::getValue)
-                          .toList()
-                      : new ArrayList<>(blockAccessList.accountChanges());
-
 
               // Collect all keys to prefetch
               final PrefetchKeys keys = collectKeys(blockAccessList.accountChanges());
@@ -247,7 +235,9 @@ public class BalPrefetcher {
 
   private void prefetchKeys(
       final BonsaiWorldState worldState, final SegmentIdentifier segment, final List<byte[]> keys) {
-    worldState.getWorldStateStorage().getMultipleFlat(segment, keys);
+    final SegmentedKeyValueStorage storage =
+        worldState.getWorldStateStorage().getComposedWorldStateStorage();
+    keys.forEach(key -> storage.get(segment, key));
   }
 
   private boolean shouldBatch() {
