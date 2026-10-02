@@ -208,7 +208,24 @@ public class LogsBloomFilter extends BytesHolder {
      * @return the builder
      */
     public Builder insertLogs(final Collection<Log> logs) {
-      logs.forEach(this::insertLog);
+      // Consecutive logs often come from the same contract and repeat topics, and inserting a value
+      // again leaves the filter unchanged, so a value equal to the one at the same position in the
+      // previous log is not hashed again.
+      Log previous = null;
+      for (final Log log : logs) {
+        if (previous == null || !log.getLogger().equals(previous.getLogger())) {
+          insertBytes(log.getLogger().getBytes());
+        }
+        final List<LogTopic> topics = log.getTopics();
+        final List<LogTopic> previousTopics = previous == null ? List.of() : previous.getTopics();
+        for (int i = 0; i < topics.size(); i++) {
+          final LogTopic topic = topics.get(i);
+          if (i >= previousTopics.size() || !topic.equals(previousTopics.get(i))) {
+            insertBytes(topic.getBytes());
+          }
+        }
+        previous = log;
+      }
       return this;
     }
 

@@ -21,8 +21,10 @@ import org.hyperledger.besu.datatypes.LogsBloomFilter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -60,5 +62,29 @@ class LogsBloomFilterTest {
         .isEqualTo(
             Bytes.fromHexString(
                 "0x00000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000040000000000000000000000000000000000000000000000000000000"));
+  }
+
+  @Test
+  void insertLogsMatchesInsertingEachLog() {
+    final Address token = Address.fromHexString("0x095e7baea6a6c7c4c2dfeb977efac326af552d87");
+    final LogTopic transfer =
+        LogTopic.fromHexString(
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+    final LogTopic from = LogTopic.wrap(Bytes32.leftPad(Bytes.of(0x11)));
+    final List<Log> logs =
+        IntStream.range(0, 100)
+            .mapToObj(
+                i ->
+                    new Log(
+                        i % 10 == 0 ? Address.fromHexString("0x" + "%040x".formatted(i)) : token,
+                        Bytes.of(i),
+                        List.of(transfer, from, LogTopic.wrap(Bytes32.leftPad(Bytes.of(i % 7))))))
+            .toList();
+
+    final LogsBloomFilter.Builder oneByOne = LogsBloomFilter.builder();
+    logs.forEach(oneByOne::insertLog);
+
+    Assertions.assertThat(LogsBloomFilter.builder().insertLogs(logs).build().getBytes())
+        .isEqualTo(oneByOne.build().getBytes());
   }
 }
