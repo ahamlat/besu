@@ -15,15 +15,21 @@
 package org.hyperledger.besu.consensus.qbft.adaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockValidator;
+import org.hyperledger.besu.ethereum.BlockProcessingOutputs;
 import org.hyperledger.besu.ethereum.BlockProcessingResult;
 import org.hyperledger.besu.ethereum.BlockValidator;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.core.Block;
+import org.hyperledger.besu.ethereum.core.BlockDataGenerator;
+import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
+import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -37,6 +43,7 @@ class QbftBlockValidatorAdaptorTest {
   @Mock private ProtocolContext protocolContext;
   @Mock private Block besuBlock;
   @Mock private QbftBlockAdaptor qbftBlock;
+  private final ValidatedBlockCache validatedBlockCache = new ValidatedBlockCache();
 
   @Test
   void validateSuccessfullyWhenBesuValidatorSuccessful() {
@@ -51,7 +58,7 @@ class QbftBlockValidatorAdaptorTest {
         .thenReturn(new BlockProcessingResult(Optional.empty()));
 
     QbftBlockValidatorAdaptor qbftBlockValidator =
-        new QbftBlockValidatorAdaptor(blockValidator, protocolContext);
+        new QbftBlockValidatorAdaptor(blockValidator, protocolContext, validatedBlockCache);
     QbftBlockValidator.ValidationResult validationResult =
         qbftBlockValidator.validateBlock(qbftBlock, Optional.empty());
     assertThat(validationResult.success()).isTrue();
@@ -71,10 +78,53 @@ class QbftBlockValidatorAdaptorTest {
         .thenReturn(new BlockProcessingResult("failed"));
 
     QbftBlockValidatorAdaptor qbftBlockValidator =
-        new QbftBlockValidatorAdaptor(blockValidator, protocolContext);
+        new QbftBlockValidatorAdaptor(blockValidator, protocolContext, validatedBlockCache);
     QbftBlockValidator.ValidationResult validationResult =
         qbftBlockValidator.validateBlock(qbftBlock, Optional.empty());
     assertThat(validationResult.success()).isFalse();
     assertThat(validationResult.errorMessage()).contains("failed");
+  }
+
+  @Test
+  void recordsOutputsOfSuccessfullyValidatedBlock() {
+    final BlockDataGenerator generator = new BlockDataGenerator();
+    final Block block = generator.block();
+    final List<TransactionReceipt> receipts = generator.receipts(block);
+    when(blockValidator.validateAndProcessBlock(
+            protocolContext,
+            block,
+            HeaderValidationMode.LIGHT,
+            HeaderValidationMode.FULL,
+            Optional.empty(),
+            false))
+        .thenReturn(
+            new BlockProcessingResult(
+                Optional.of(new BlockProcessingOutputs(mock(MutableWorldState.class), receipts))));
+
+    new QbftBlockValidatorAdaptor(blockValidator, protocolContext, validatedBlockCache)
+        .validateBlock(new QbftBlockAdaptor(block), Optional.empty());
+
+    assertThat(validatedBlockCache.take(block.getHash(), block.getHeader().getNumber()))
+        .contains(
+            new ValidatedBlockCache.ValidatedBlock(
+                block.getHeader().getNumber(), receipts, Optional.empty()));
+  }
+
+  @Test
+  void doesNotRecordBlockThatFailedValidation() {
+    final Block block = new BlockDataGenerator().block();
+    when(blockValidator.validateAndProcessBlock(
+            protocolContext,
+            block,
+            HeaderValidationMode.LIGHT,
+            HeaderValidationMode.FULL,
+            Optional.empty(),
+            false))
+        .thenReturn(new BlockProcessingResult("failed"));
+
+    new QbftBlockValidatorAdaptor(blockValidator, protocolContext, validatedBlockCache)
+        .validateBlock(new QbftBlockAdaptor(block), Optional.empty());
+
+    assertThat(validatedBlockCache.take(block.getHash(), block.getHeader().getNumber())).isEmpty();
   }
 }
