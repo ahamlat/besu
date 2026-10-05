@@ -36,6 +36,7 @@
 - The transaction pool is no longer disabled, leaving built blocks empty and `engine_getBlobs` returning null, when peers on a different chain report a higher head than the one the consensus client is driving. [#11424](https://github.com/besu-eth/besu/pull/11424)
 - `trace_callMany` now answers a bundle with an invalid call with a JSON-RPC error. Previously it returned the complete error response (`{"jsonrpc":"2.0","id":1,"error":{...}}`) as the `result` of a successful response. An unavailable world state now returns `World state unavailable` instead of a `null` result. [#11401](https://github.com/besu-eth/besu/pull/11401)
 - `txpool_besuPendingTransactions`: the `gasPrice` filter no longer fails on EIP-1559 transactions, and a negative `limit` is rejected as an invalid parameter. [#11374](https://github.com/besu-eth/besu/pull/11374)
+- `engine_getPayload` no longer waits up to 500ms before returning an empty block when no block is being built. [#11426](https://github.com/besu-eth/besu/pull/11426)
 
 ### Additions and Improvements
 - Update `Bouncycastle` to 1.85 to address CVEs `CVE-2026-8763` and `CVE-2026-13506`. [#11336](https://github.com/besu-eth/besu/pull/11336)
@@ -44,6 +45,7 @@
 - Add `engine_newPayloadWithWitnessV5` whose VALID response also carries the EIP-8025 execution witness [#11181](https://github.com/besu-eth/besu/pull/11181)
 - Add `--include-bals` option to `besu blocks export`, writing a `<to>.bals` sidecar with BALs for each exported block. [#11042](https://github.com/besu-eth/besu/pull/11042)
 - QBFT validators import a committed block without executing it again when they validated it as a proposal, removing one block execution from the critical path of every block.
+- `callTracer` now honours the `withLog` tracer option. Each call frame that emitted logs carries a `logs` array of `{address, topics, data, position, index}`, where `index` equals the receipt `logIndex` of the same log and `position` is the number of subcalls the frame had made when the log was emitted. Logs of reverted frames are omitted, as specified in [execution-apis#855](https://github.com/ethereum/execution-apis/pull/855). [#11342](https://github.com/besu-eth/besu/pull/11342)
 
 ## 26.9.0
 
