@@ -99,23 +99,28 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
       final Block block, final ValidatedBlockCache.ValidatedBlock validatedBlock) {
     final MutableBlockchain blockchain = context.getBlockchain();
     final BlockHeader header = block.getHeader();
-    if (!header.getParentHash().equals(blockchain.getChainHeadHash())
-        || !hasTrieLog(context.getWorldStateArchive(), header)) {
-      return false;
-    }
-    final Optional<BlockHeader> parentHeader = blockchain.getBlockHeader(header.getParentHash());
-    if (parentHeader.isEmpty()
-        || !blockHeaderValidator.validateHeader(
-            header, parentHeader.get(), context, HeaderValidationMode.FULL)) {
-      return false;
-    }
+    // MainnetBlockImporter.importBlock is synchronized on the importer, which is shared with full
+    // sync. Take the same lock so the head check, append and world state move are not interleaved
+    // with another import. The adaptor itself is created per import, so it cannot be the lock.
+    synchronized (blockImporter) {
+      if (!header.getParentHash().equals(blockchain.getChainHeadHash())
+          || !hasTrieLog(context.getWorldStateArchive(), header)) {
+        return false;
+      }
+      final Optional<BlockHeader> parentHeader = blockchain.getBlockHeader(header.getParentHash());
+      if (parentHeader.isEmpty()
+          || !blockHeaderValidator.validateHeader(
+              header, parentHeader.get(), context, HeaderValidationMode.FULL)) {
+        return false;
+      }
 
-    blockchain.appendBlock(block, validatedBlock.receipts(), validatedBlock.blockAccessList());
-    if (context
-        .getWorldStateArchive()
-        .getWorldState(withBlockHeaderAndUpdateNodeHead(header))
-        .isEmpty()) {
-      LOG.warn("Unable to move the head world state to imported block {}", block.toLogString());
+      blockchain.appendBlock(block, validatedBlock.receipts(), validatedBlock.blockAccessList());
+      if (context
+          .getWorldStateArchive()
+          .getWorldState(withBlockHeaderAndUpdateNodeHead(header))
+          .isEmpty()) {
+        LOG.warn("Unable to move the head world state to imported block {}", block.toLogString());
+      }
     }
     LOG.debug("Imported block {} from its proposal validation", block.toLogString());
     return true;

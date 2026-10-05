@@ -15,6 +15,7 @@
 package org.hyperledger.besu.consensus.qbft.adaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.hyperledger.besu.ethereum.mainnet.BlockImportResult.BlockImportStatus.ALREADY_IMPORTED;
 import static org.hyperledger.besu.ethereum.mainnet.BlockImportResult.BlockImportStatus.IMPORTED;
 import static org.hyperledger.besu.ethereum.mainnet.BlockImportResult.BlockImportStatus.NOT_IMPORTED;
@@ -40,8 +41,10 @@ import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.trielog.TrieLogManage
 import org.hyperledger.besu.plugin.services.trielogs.TrieLog;
 import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -180,6 +183,33 @@ class QbftBlockImporterAdaptorTest {
     stubRegularImport(ALREADY_IMPORTED);
     assertThat(importer.importBlock(block, Optional.empty())).isTrue();
 
+    verify(blockchain).appendBlock(besuBlock, receipts, Optional.empty());
+  }
+
+  @Test
+  void validatedBlockImportWaitsForTheBlockImporterLock() throws InterruptedException {
+    recordValidation();
+    stubFastPathPreconditions();
+    final QbftBlockImporterAdaptor importer = newImporter();
+    final AtomicBoolean imported = new AtomicBoolean();
+    final Thread importThread =
+        new Thread(() -> imported.set(importer.importBlock(block, Optional.empty())));
+    final BlockImporter importerLock = blockImporter;
+
+    synchronized (importerLock) {
+      importThread.start();
+      await()
+          .atMost(Duration.ofSeconds(10))
+          .until(
+              () ->
+                  importThread.getState() == Thread.State.BLOCKED
+                      || importThread.getState() == Thread.State.TERMINATED);
+      assertThat(importThread.getState()).isEqualTo(Thread.State.BLOCKED);
+      verify(blockchain, never()).appendBlock(any(), any(), any());
+    }
+
+    importThread.join(Duration.ofSeconds(10));
+    assertThat(imported).isTrue();
     verify(blockchain).appendBlock(besuBlock, receipts, Optional.empty());
   }
 
