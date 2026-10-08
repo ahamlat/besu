@@ -37,8 +37,7 @@ import org.hyperledger.besu.ethereum.mainnet.BlockHeaderValidator;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.provider.PathBasedWorldStateProvider;
-import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.trielog.TrieLogManager;
-import org.hyperledger.besu.plugin.services.trielogs.TrieLog;
+import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
 import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
 import java.time.Duration;
@@ -58,8 +57,7 @@ class QbftBlockImporterAdaptorTest {
   @Mock private ProtocolContext protocolContext;
   @Mock private MutableBlockchain blockchain;
   @Mock private PathBasedWorldStateProvider worldStateArchive;
-  @Mock private TrieLogManager trieLogManager;
-  @Mock private TrieLog trieLog;
+  @Mock private BonsaiWorldStateKeyValueStorage worldStateStorage;
   @Mock private MutableWorldState headWorldState;
   private final BlockDataGenerator generator = new BlockDataGenerator();
   private final Block parentBlock = generator.block();
@@ -148,7 +146,7 @@ class QbftBlockImporterAdaptorTest {
   void processesValidatedBlockAgainWhenTrieLogIsMissing() {
     recordValidation();
     stubFastPathPreconditions();
-    when(trieLogManager.getTrieLogLayer(besuBlock.getHash())).thenReturn(Optional.empty());
+    when(worldStateStorage.getTrieLog(besuBlock.getHash())).thenReturn(Optional.empty());
     stubRegularImport(IMPORTED);
 
     assertThat(newImporter().importBlock(block, Optional.empty())).isTrue();
@@ -232,10 +230,10 @@ class QbftBlockImporterAdaptorTest {
     lenient()
         .when(blockchain.getBlockHeader(parentBlock.getHash()))
         .thenReturn(Optional.of(parentBlock.getHeader()));
-    lenient().when(worldStateArchive.getTrieLogManager()).thenReturn(trieLogManager);
+    lenient().when(worldStateArchive.getWorldStateKeyValueStorage()).thenReturn(worldStateStorage);
     lenient()
-        .when(trieLogManager.getTrieLogLayer(besuBlock.getHash()))
-        .thenReturn(Optional.of(trieLog));
+        .when(worldStateStorage.getTrieLog(besuBlock.getHash()))
+        .thenReturn(Optional.of(new byte[0]));
     lenient()
         .when(
             blockHeaderValidator.validateHeader(

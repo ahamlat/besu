@@ -128,6 +128,6 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
   private static boolean hasTrieLog(
       final WorldStateArchive worldStateArchive, final BlockHeader header) {
     return worldStateArchive instanceof PathBasedWorldStateProvider provider
-        && provider.getWorldStateKeyValueStorage().getTrieLog(header.getHash()).isPresent()
+        && provider.getWorldStateKeyValueStorage().getTrieLog(header.getHash()).isPresent();
   }
 }

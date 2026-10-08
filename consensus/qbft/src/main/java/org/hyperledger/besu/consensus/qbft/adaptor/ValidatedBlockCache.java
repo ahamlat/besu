@@ -14,11 +14,11 @@
  */
 package org.hyperledger.besu.consensus.qbft.adaptor;
 
+import org.hyperledger.besu.consensus.common.bft.SizeLimitedMap;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,13 +47,7 @@ public class ValidatedBlockCache {
       List<TransactionReceipt> receipts,
       Optional<BlockAccessList> blockAccessList) {}
 
-  private final Map<Hash, ValidatedBlock> entries =
-      new LinkedHashMap<>() {
-        @Override
-        protected boolean removeEldestEntry(final Map.Entry<Hash, ValidatedBlock> eldest) {
-          return size() > MAX_ENTRIES;
-        }
-      };
+  private final Map<Hash, ValidatedBlock> entries = new SizeLimitedMap<>(MAX_ENTRIES);
 
   /** Creates an empty cache. */
   public ValidatedBlockCache() {}
