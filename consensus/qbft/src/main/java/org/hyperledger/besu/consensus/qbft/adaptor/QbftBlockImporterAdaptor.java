@@ -51,7 +51,7 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
    * @param blockImporter The Besu block importer
    * @param blockHeaderValidator The header validator applied to blocks imported from the cache
    * @param context The protocol context
-   * @param validatedBlockCache The outputs of the blocks validated as proposals
+   * @param validatedBlockCache outputs of created and validated blocks
    */
   public QbftBlockImporterAdaptor(
       final BlockImporter blockImporter,
@@ -84,10 +84,9 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
   }
 
   /**
-   * Imports a block whose proposal was already processed, without executing it again. Validating
-   * the proposal saved the trie log of the block, so the head world state can be rolled forward
-   * from it once the block is appended, as {@link
-   * org.hyperledger.besu.ethereum.mainnet.MainnetBlockImporter} does after processing.
+   * Imports a block whose proposal was already processed, without executing it again. Block
+   * creation or validation saved its trie log, used to move the head world state after append, like
+   * {@link org.hyperledger.besu.ethereum.mainnet.MainnetBlockImporter}.
    *
    * <p>The proposal hash only matches the hash of the committed block in round 0, where the round
    * number is zero in both. A block committed in a later round is not found in the cache and is
@@ -122,7 +121,7 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
         LOG.warn("Unable to move the head world state to imported block {}", block.toLogString());
       }
     }
-    LOG.debug("Imported block {} from its proposal validation", block.toLogString());
+    LOG.debug("Imported block {} without executing it again", block.toLogString());
     return true;
   }
 

@@ -37,7 +37,7 @@ public class QbftBlockValidatorAdaptor implements QbftBlockValidator {
    *
    * @param blockValidator The Besu block validator
    * @param protocolContext The protocol context
-   * @param validatedBlockCache Where the outputs of successfully validated blocks are recorded
+   * @param validatedBlockCache outputs of created and validated blocks
    */
   public QbftBlockValidatorAdaptor(
       final BlockValidator blockValidator,
@@ -52,6 +52,13 @@ public class QbftBlockValidatorAdaptor implements QbftBlockValidator {
   public ValidationResult validateBlock(
       final QbftBlock block, final Optional<BlockAccessList> blockAccessList) {
     final Block besuBlock = AdaptorUtil.toBesuBlock(block);
+    // block already created or validated with same BAL, no need to execute it again
+    if (validatedBlockCache
+        .get(besuBlock.getHash())
+        .filter(validatedBlock -> validatedBlock.blockAccessList().equals(blockAccessList))
+        .isPresent()) {
+      return new ValidationResult(true, Optional.empty());
+    }
     final BlockProcessingResult blockProcessingResult =
         blockValidator.validateAndProcessBlock(
             protocolContext,

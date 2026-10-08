@@ -16,6 +16,7 @@ package org.hyperledger.besu.consensus.qbft.adaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockValidator;
@@ -27,6 +28,7 @@ import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockDataGenerator;
 import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
+import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
 import java.util.List;
@@ -126,5 +128,49 @@ class QbftBlockValidatorAdaptorTest {
         .validateBlock(new QbftBlockAdaptor(block), Optional.empty());
 
     assertThat(validatedBlockCache.take(block.getHash(), block.getHeader().getNumber())).isEmpty();
+  }
+
+  @Test
+  void doesNotExecuteBlockCreatedOrValidatedBefore() {
+    final Block block = new BlockDataGenerator().block();
+    final ValidatedBlockCache.ValidatedBlock validatedBlock =
+        new ValidatedBlockCache.ValidatedBlock(
+            block.getHeader().getNumber(), List.of(), Optional.empty());
+    validatedBlockCache.put(block.getHash(), validatedBlock);
+
+    final QbftBlockValidator.ValidationResult validationResult =
+        new QbftBlockValidatorAdaptor(blockValidator, protocolContext, validatedBlockCache)
+            .validateBlock(new QbftBlockAdaptor(block), Optional.empty());
+
+    assertThat(validationResult.success()).isTrue();
+    assertThat(validationResult.errorMessage()).isEmpty();
+    verifyNoInteractions(blockValidator);
+    assertThat(validatedBlockCache.take(block.getHash(), block.getHeader().getNumber()))
+        .contains(validatedBlock);
+  }
+
+  @Test
+  void executesBlockCreatedBeforeWhenBlockAccessListDiffers() {
+    final Block block = new BlockDataGenerator().block();
+    validatedBlockCache.put(
+        block.getHash(),
+        new ValidatedBlockCache.ValidatedBlock(
+            block.getHeader().getNumber(), List.of(), Optional.empty()));
+    final Optional<BlockAccessList> blockAccessList = Optional.of(new BlockAccessList(List.of()));
+    when(blockValidator.validateAndProcessBlock(
+            protocolContext,
+            block,
+            HeaderValidationMode.LIGHT,
+            HeaderValidationMode.FULL,
+            blockAccessList,
+            false))
+        .thenReturn(new BlockProcessingResult("failed"));
+
+    final QbftBlockValidator.ValidationResult validationResult =
+        new QbftBlockValidatorAdaptor(blockValidator, protocolContext, validatedBlockCache)
+            .validateBlock(new QbftBlockAdaptor(block), blockAccessList);
+
+    assertThat(validationResult.success()).isFalse();
+    assertThat(validationResult.errorMessage()).contains("failed");
   }
 }

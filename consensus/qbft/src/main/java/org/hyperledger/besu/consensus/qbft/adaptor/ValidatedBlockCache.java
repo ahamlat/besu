@@ -24,22 +24,21 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Keeps the outputs of a successful proposal validation so that importing the committed block does
- * not execute its transactions a second time.
+ * Outputs of blocks created or validated by this node, to not execute them again for validation or
+ * import.
  *
- * <p>Validating a proposal processes the block on a frozen copy of the parent world state, which
- * saves the block's trie log. Once the round commits, the importer only needs the receipts to
- * append the block and can move the head world state forward with that trie log.
+ * <p>Block creation and proposal validation both save the block trie log. On commit, the importer
+ * only needs the receipts, and moves the head world state with the trie log.
  */
 public class ValidatedBlockCache {
 
-  /** Proposals validated at the current height, plus a few left over from round changes. */
+  /** Blocks of current height, plus few from round changes. */
   private static final int MAX_ENTRIES = 4;
 
   /**
-   * The outputs of a validated block that the import needs.
+   * Outputs needed by the import.
    *
-   * @param blockNumber the number of the validated block
+   * @param blockNumber the block number
    * @param receipts the receipts produced by processing the block
    * @param blockAccessList the block access list produced by processing the block, if any
    */
@@ -60,13 +59,23 @@ public class ValidatedBlockCache {
   public ValidatedBlockCache() {}
 
   /**
-   * Records the outputs of a block that passed validation.
+   * Add outputs of a created or validated block.
    *
-   * @param blockHash the hash of the validated block
-   * @param validatedBlock the outputs of the validation
+   * @param blockHash the block hash
+   * @param validatedBlock the block outputs
    */
   public synchronized void put(final Hash blockHash, final ValidatedBlock validatedBlock) {
     entries.put(blockHash, validatedBlock);
+  }
+
+  /**
+   * Get outputs of a block, without removing them.
+   *
+   * @param blockHash the block hash
+   * @return outputs if the block was created or validated
+   */
+  public synchronized Optional<ValidatedBlock> get(final Hash blockHash) {
+    return Optional.ofNullable(entries.get(blockHash));
   }
 
   /**
@@ -75,7 +84,7 @@ public class ValidatedBlockCache {
    *
    * @param blockHash the hash of the block being imported
    * @param blockNumber the number of the block being imported
-   * @return the outputs recorded for the block, if it was validated
+   * @return outputs if the block was created or validated
    */
   public synchronized Optional<ValidatedBlock> take(final Hash blockHash, final long blockNumber) {
     final ValidatedBlock validatedBlock = entries.remove(blockHash);

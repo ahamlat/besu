@@ -44,7 +44,7 @@
 - `PoaQueryService` and `BftQueryService` are no longer deprecated. [#11376](https://github.com/besu-eth/besu/pull/11376)
 - Add `engine_newPayloadWithWitnessV5` whose VALID response also carries the EIP-8025 execution witness [#11181](https://github.com/besu-eth/besu/pull/11181)
 - Add `--include-bals` option to `besu blocks export`, writing a `<to>.bals` sidecar with BALs for each exported block. [#11042](https://github.com/besu-eth/besu/pull/11042)
-- QBFT validators import a committed block without executing it again when they validated it as a proposal, removing one block execution from the critical path of every block.
+- QBFT validators import a committed block without executing it again when they created it or validated it as a proposal, removing one block execution from the critical path of every block. A proposer no longer executes its own proposal again to validate it. [#11469](https://github.com/besu-eth/besu/pull/11469).
 - `callTracer` now honours the `withLog` tracer option. Each call frame that emitted logs carries a `logs` array of `{address, topics, data, position, index}`, where `index` equals the receipt `logIndex` of the same log and `position` is the number of subcalls the frame had made when the log was emitted. Logs of reverted frames are omitted, as specified in [execution-apis#855](https://github.com/ethereum/execution-apis/pull/855). [#11342](https://github.com/besu-eth/besu/pull/11342)
 
 ## 26.9.0

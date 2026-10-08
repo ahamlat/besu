@@ -29,18 +29,22 @@ public class QbftProtocolScheduleAdaptor implements QbftProtocolSchedule {
 
   private final ProtocolSchedule besuProtocolSchedule;
   private final ProtocolContext context;
-  private final ValidatedBlockCache validatedBlockCache = new ValidatedBlockCache();
+  private final ValidatedBlockCache validatedBlockCache;
 
   /**
    * Constructs a new Qbft protocol schedule.
    *
    * @param besuProtocolSchedule The Besu protocol schedule.
    * @param context The protocol context.
+   * @param validatedBlockCache outputs of created and validated blocks
    */
   public QbftProtocolScheduleAdaptor(
-      final ProtocolSchedule besuProtocolSchedule, final ProtocolContext context) {
+      final ProtocolSchedule besuProtocolSchedule,
+      final ProtocolContext context,
+      final ValidatedBlockCache validatedBlockCache) {
     this.besuProtocolSchedule = besuProtocolSchedule;
     this.context = context;
+    this.validatedBlockCache = validatedBlockCache;
   }
 
   @Override
