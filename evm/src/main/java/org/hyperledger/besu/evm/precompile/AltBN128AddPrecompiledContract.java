@@ -14,21 +14,17 @@
  */
 package org.hyperledger.besu.evm.precompile;
 
-import org.hyperledger.besu.crypto.altbn128.AltBn128Point;
-import org.hyperledger.besu.crypto.altbn128.Fq;
+import org.hyperledger.besu.crypto.altbn128.Bn254Add;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.nativelib.gnark.LibGnarkEIP196;
 
-import java.math.BigInteger;
-import java.util.Arrays;
 import java.util.Optional;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.validation.constraints.NotNull;
 import org.apache.tuweni.bytes.Bytes;
-import org.apache.tuweni.bytes.MutableBytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +93,7 @@ public class AltBN128AddPrecompiledContract extends AbstractAltBnPrecompiledCont
     } else {
       res =
           new PrecompileInputResultTuple(
-              enableResultCaching ? cachedInput.copy() : input, computeDefault(input));
+              enableResultCaching ? cachedInput.copy() : input, computeDefault(cachedInput));
     }
     if (cacheKey != null) {
       bnAddCache.put(cacheKey, res);
@@ -106,33 +102,12 @@ public class AltBN128AddPrecompiledContract extends AbstractAltBnPrecompiledCont
   }
 
   private static PrecompileContractResult computeDefault(final Bytes input) {
-    final BigInteger x1 = extractParameter(input, 0, 32);
-    final BigInteger y1 = extractParameter(input, 32, 32);
-    final BigInteger x2 = extractParameter(input, 64, 32);
-    final BigInteger y2 = extractParameter(input, 96, 32);
-
-    final AltBn128Point p1 = new AltBn128Point(Fq.create(x1), Fq.create(y1));
-    final AltBn128Point p2 = new AltBn128Point(Fq.create(x2), Fq.create(y2));
-    if (!p1.isOnCurve() || !p2.isOnCurve()) {
+    final byte[] result = new byte[64];
+    final byte[] raw = input.toArrayUnsafe();
+    if (!Bn254Add.ecAdd(raw, 0, raw.length, result)) {
       return PrecompileContractResult.halt(
           null, Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR));
     }
-    final AltBn128Point sum = p1.add(p2);
-    final Bytes x = sum.getX().toBytes();
-    final Bytes y = sum.getY().toBytes();
-    final MutableBytes result = MutableBytes.create(64);
-    x.copyTo(result, 32 - x.size());
-    y.copyTo(result, 64 - y.size());
-
-    return PrecompileContractResult.success(result.copy());
-  }
-
-  private static BigInteger extractParameter(
-      final Bytes input, final int offset, final int length) {
-    if (offset > input.size() || length == 0) {
-      return BigInteger.ZERO;
-    }
-    final byte[] raw = Arrays.copyOfRange(input.toArray(), offset, offset + length);
-    return new BigInteger(1, raw);
+    return PrecompileContractResult.success(Bytes.wrap(result));
   }
 }
