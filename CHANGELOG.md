@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Breaking Changes
+- `engine_getPayload` no longer waits for the in-progress block build when only the empty block has been built, as [execution-apis#958](https://github.com/ethereum/execution-apis/pull/958) requires. The default of `--Xpos-block-finalization-timeout-ms` changes from 800 to 0 and the option now accepts 0; set it to a positive value to restore the previous wait. [#11774](https://github.com/besu-eth/besu/pull/11774)
 - `eth_getProof` now rejects a request with more than 1024 storage keys with `Invalid storage keys params` (`-32602`), the same limit as geth, Nethermind and Erigon. [#11697](https://github.com/besu-eth/besu/pull/11697)
 - `eth_call`, `eth_estimateGas`, `eth_createAccessList`, `trace_call` and `trace_callMany` now reject a call that sets `maxFeePerBlobGas` without blob versioned hashes, or that sets an empty `blobVersionedHashes` list, with `Invalid blob count` (`-32602`) at every fork. Previously a `maxFeePerBlobGas` without hashes was accepted and the call ran without blobs, and a `maxFeePerBlobGas` of 0 also set the blob base fee the call saw to 0. An empty list failed with `Internal error` (`-32603`). Each call in a `trace_callMany` bundle gets the same rule. `debug_traceCall` and `eth_simulateV1` reject only an empty `blobVersionedHashes` list, and still accept a `maxFeePerBlobGas` without hashes. [#11556](https://github.com/besu-eth/besu/pull/11556)
 - `trace_filter` now matches a block reward's author against `toAddress` in range queries, as it already did for a single block, so a filter on an author's address returns its reward traces. [#11436](https://github.com/besu-eth/besu/pull/11436)
@@ -35,6 +36,8 @@
 - A peer that answers a header, body or sync block body request with malformed RLP is now disconnected for breach of protocol, as it already was for pooled transactions, receipts and block access lists. Previously the decoding failure was logged at ERROR as a server error and the peer stayed connected. [#11451](https://github.com/besu-eth/besu/pull/11451)
 - The layered transaction pool notifies a transaction as added before the evictions that make space for it. Previously, when the pool was full after adding a transaction and the eviction dropped the transaction itself, it was notified as dropped before it was notified as added. [#11688](https://github.com/besu-eth/besu/pull/11688)
 - The sequenced transaction pool notifies transaction added and dropped events in the order they happen. Previously a transaction could be notified as dropped before it was notified as added, when another thread replaced it right after it was added, or when it was evicted because the pool was full after adding it. A transaction removed by the timed eviction after it had already been dropped is no longer notified as dropped a second time. [#11685](https://github.com/besu-eth/besu/pull/11685)
+- Discovery no longer buffers unbounded memory for inbound DiscV5 packets: over-sized datagrams are dropped before they are copied for dispatch, and the dispatch queue is bounded. [#11672](https://github.com/besu-eth/besu/pull/11672)
+- On OpenTelemetry, a supplied metric created again, as by the world state download after a resync, now replaces the old one, as on Prometheus. Previously a labelled supplied gauge or counter threw `IllegalStateException` and a gauge kept reporting its first supplier. `debug_metrics` no longer fails on OpenTelemetry once a supplied counter is registered. [#11773](https://github.com/besu-eth/besu/pull/11773)
 
 ### Additions and Improvements
 - `trace_filter` accepts `mode`: `intersection`, the default, or `union`, which matches a trace in either `fromAddress` or `toAddress`. An unknown value is rejected with `-32602`. [#11436](https://github.com/besu-eth/besu/pull/11436)
@@ -49,6 +52,7 @@
 - Snap sync checks the flat database ranges of its heal stage in parallel, which shortens that stage on mainnet from about 3 h 40 min to 34 min. [#11495](https://github.com/besu-eth/besu/pull/11495)
 - Update the discovery library to 26.10.1 for faster discv5 secp256k1 verification and ECDH, with Netty, BouncyCastle, Guava, Log4j and Reactor raised to the versions it requires. [#11671](https://github.com/besu-eth/besu/pull/11671)
 - With `--Xevm-v2`, `MessageFrame.getMaybeUpdatedMemory` and `getMaybeUpdatedStorage` are recorded only while a tracer that traces operations runs. [#11690](https://github.com/besu-eth/besu/pull/11690)
+- Update besu-native to 2.1.0 and compute the secp256k1 ECDH key agreements of RLPx handshakes and DiscV5 natively, which removes about 2 MB of allocation per agreement. [#11648](https://github.com/besu-eth/besu/pull/11648)
 
 ## 26.10.1
 
