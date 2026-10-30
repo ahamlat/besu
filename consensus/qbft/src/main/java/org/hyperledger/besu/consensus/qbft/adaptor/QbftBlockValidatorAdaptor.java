@@ -22,6 +22,7 @@ import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
+import org.hyperledger.besu.ethereum.mainnet.inclusionlist.InclusionListTransactions;
 
 import java.util.Optional;
 
@@ -69,6 +70,7 @@ public class QbftBlockValidatorAdaptor implements QbftBlockValidator {
             HeaderValidationMode.LIGHT,
             HeaderValidationMode.FULL,
             blockAccessList,
+            InclusionListTransactions.EMPTY,
             false);
     if (blockProcessingResult.isSuccessful()) {
       blockProcessingResult

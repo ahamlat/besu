@@ -65,6 +65,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -709,6 +710,7 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
                 HeaderValidationMode.FULL,
                 HeaderValidationMode.NONE,
                 blockAccessList,
+                InclusionListTransactions.EMPTY,
                 false);
 
     return validationResult;
@@ -726,6 +728,8 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
                 HeaderValidationMode.FULL,
                 HeaderValidationMode.NONE,
                 blockAccessList,
+                // the inclusion list validation result is not used for a proposed block
+                InclusionListTransactions.EMPTY,
                 false,
                 false);
 
@@ -739,18 +743,32 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
 
   @Override
   public BlockProcessingResult rememberBlock(
-      final Block block, final Optional<BlockAccessList> blockAccessList) {
+      final Block block,
+      final Optional<BlockAccessList> blockAccessList,
+      final InclusionListTransactions inclusionListTransactions,
+      final Executor blockWriter) {
     LOG.atDebug().setMessage("Remember block {}").addArgument(block::toLogString).log();
     final var chain = protocolContext.getBlockchain();
-    final var validationResult = validateBlock(block, blockAccessList);
+    final var validationResult =
+        protocolSchedule
+            .getByBlockHeader(block.getHeader())
+            .getBlockValidator()
+            .validateAndProcessBlockDeferringTrieLog(
+                protocolContext,
+                block,
+                HeaderValidationMode.FULL,
+                HeaderValidationMode.NONE,
+                blockAccessList,
+                inclusionListTransactions);
     validationResult
         .getYield()
         .ifPresentOrElse(
             result ->
-                chain.storeBlock(
-                    block,
-                    result.getReceipts(),
-                    validationResult.getYield().flatMap(y -> y.getBlockAccessList())),
+                blockWriter.execute(
+                    () -> {
+                      result.getTrieLogWrite().run();
+                      chain.storeBlock(block, result.getReceipts(), result.getBlockAccessList());
+                    }),
             () -> LOG.debug("empty yield in blockProcessingResult"));
     return validationResult;
   }

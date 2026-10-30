@@ -30,6 +30,7 @@ import org.hyperledger.besu.ethereum.core.BlockDataGenerator;
 import org.hyperledger.besu.ethereum.core.TransactionReceipt;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
+import org.hyperledger.besu.ethereum.mainnet.inclusionlist.InclusionListTransactions;
 import org.hyperledger.besu.plugin.services.worldstate.MutableWorldState;
 
 import java.util.List;
@@ -57,6 +58,7 @@ class QbftBlockValidatorAdaptorTest {
             HeaderValidationMode.LIGHT,
             HeaderValidationMode.FULL,
             Optional.empty(),
+            InclusionListTransactions.EMPTY,
             false))
         .thenReturn(new BlockProcessingResult(Optional.empty()));
 
@@ -77,6 +79,7 @@ class QbftBlockValidatorAdaptorTest {
             HeaderValidationMode.LIGHT,
             HeaderValidationMode.FULL,
             Optional.empty(),
+            InclusionListTransactions.EMPTY,
             false))
         .thenReturn(new BlockProcessingResult("failed"));
 
@@ -99,6 +102,7 @@ class QbftBlockValidatorAdaptorTest {
             HeaderValidationMode.LIGHT,
             HeaderValidationMode.FULL,
             Optional.empty(),
+            InclusionListTransactions.EMPTY,
             false))
         .thenReturn(
             new BlockProcessingResult(
@@ -122,6 +126,7 @@ class QbftBlockValidatorAdaptorTest {
             HeaderValidationMode.LIGHT,
             HeaderValidationMode.FULL,
             Optional.empty(),
+            InclusionListTransactions.EMPTY,
             false))
         .thenReturn(new BlockProcessingResult("failed"));
 
@@ -164,6 +169,7 @@ class QbftBlockValidatorAdaptorTest {
             HeaderValidationMode.LIGHT,
             HeaderValidationMode.FULL,
             blockAccessList,
+            InclusionListTransactions.EMPTY,
             false))
         .thenReturn(new BlockProcessingResult("failed"));
 
@@ -193,6 +199,7 @@ class QbftBlockValidatorAdaptorTest {
             HeaderValidationMode.LIGHT,
             HeaderValidationMode.FULL,
             Optional.empty(),
+            InclusionListTransactions.EMPTY,
             false))
         .thenReturn(new BlockProcessingResult("failed"));
 
