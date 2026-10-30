@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
 import org.hyperledger.besu.ethereum.ProtocolContext;
+import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockBody;
@@ -57,6 +58,7 @@ class QbftBlockImporterAdaptorTest {
   @Mock private BlockHeaderValidator blockHeaderValidator;
   @Mock private ProtocolContext protocolContext;
   @Mock private MutableBlockchain blockchain;
+  @Mock private BadBlockManager badBlockManager;
   @Mock private PathBasedWorldStateProvider worldStateArchive;
   @Mock private BonsaiWorldStateKeyValueStorage worldStateStorage;
   @Mock private MutableWorldState headWorldState;
@@ -127,6 +129,7 @@ class QbftBlockImporterAdaptorTest {
     assertThat(newImporter().importBlock(block, Optional.empty())).isTrue();
 
     verify(blockchain).appendBlock(besuBlock, receipts, Optional.empty());
+    verify(badBlockManager).removeBadBlock(besuBlock.getHash());
     verify(worldStateArchive).getWorldState(any());
     verifyNoInteractions(blockImporter);
   }
@@ -249,6 +252,7 @@ class QbftBlockImporterAdaptorTest {
 
   private void stubFastPathPreconditions() {
     lenient().when(protocolContext.getBlockchain()).thenReturn(blockchain);
+    lenient().when(protocolContext.getBadBlockManager()).thenReturn(badBlockManager);
     lenient().when(protocolContext.getWorldStateArchive()).thenReturn(worldStateArchive);
     lenient().when(blockchain.getChainHeadHash()).thenReturn(parentBlock.getHash());
     lenient()

@@ -90,9 +90,9 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
    * creation or validation saved its trie log, used to move the head world state after append, like
    * {@link org.hyperledger.besu.ethereum.mainnet.MainnetBlockImporter}.
    *
-   * <p>The proposal hash only matches the hash of the committed block in round 0, where the round
-   * number is zero in both. A block committed in a later round is not found in the cache and is
-   * processed again.
+   * <p>Cache and trie log use the proposal hash, which includes the round, and the lookup uses the
+   * on-chain hash, which sets the round to 0. So only a block first proposed in round 0 is found,
+   * even when it is committed in a later round.
    *
    * @return false when the block must go through the regular import instead
    */
@@ -119,6 +119,8 @@ public class QbftBlockImporterAdaptor implements QbftBlockImporter {
       }
 
       blockchain.appendBlock(block, validatedBlock.receipts(), validatedBlock.blockAccessList());
+      // like MainnetBlockValidator: an imported block is not bad
+      context.getBadBlockManager().removeBadBlock(block.getHash());
       // result ignored like MainnetBlockImporter: if head world state can't move, the provider
       // logs why, and next import rolls it forward from the trie logs
       context.getWorldStateArchive().getWorldState(withBlockHeaderAndUpdateNodeHead(header));

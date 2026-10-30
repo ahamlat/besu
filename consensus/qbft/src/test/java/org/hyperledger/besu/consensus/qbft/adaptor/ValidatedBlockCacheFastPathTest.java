@@ -31,6 +31,7 @@ import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.blockcreation.BlockCreationTiming;
 import org.hyperledger.besu.ethereum.blockcreation.BlockCreator;
 import org.hyperledger.besu.ethereum.blockcreation.txselection.TransactionSelectionResults;
+import org.hyperledger.besu.ethereum.chain.BadBlockManager;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockBody;
@@ -64,6 +65,7 @@ class ValidatedBlockCacheFastPathTest {
   @Mock private BlockHeaderValidator blockHeaderValidator;
   @Mock private ProtocolContext protocolContext;
   @Mock private MutableBlockchain blockchain;
+  @Mock private BadBlockManager badBlockManager;
   @Mock private PathBasedWorldStateProvider worldStateArchive;
   @Mock private BonsaiWorldStateKeyValueStorage worldStateStorage;
 
@@ -127,6 +129,7 @@ class ValidatedBlockCacheFastPathTest {
     // importing the committed block uses the receipts from block creation
     when(protocolContext.getBlockchain()).thenReturn(blockchain);
     when(protocolContext.getWorldStateArchive()).thenReturn(worldStateArchive);
+    when(protocolContext.getBadBlockManager()).thenReturn(badBlockManager);
     when(blockchain.getChainHeadHash()).thenReturn(parentHeader.getHash());
     when(blockchain.getBlockHeader(parentHeader.getHash())).thenReturn(Optional.of(parentHeader));
     when(worldStateArchive.getWorldStateKeyValueStorage()).thenReturn(worldStateStorage);
@@ -141,6 +144,7 @@ class ValidatedBlockCacheFastPathTest {
                 .importBlock(sealed, Optional.empty()))
         .isTrue();
     verify(blockchain).appendBlock(sealedBlock, receipts, Optional.empty());
+    verify(badBlockManager).removeBadBlock(sealedBlock.getHash());
     verifyNoInteractions(blockImporter);
   }
 }
