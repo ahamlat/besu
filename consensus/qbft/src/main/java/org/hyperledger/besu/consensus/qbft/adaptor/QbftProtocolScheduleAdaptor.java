@@ -66,7 +66,10 @@ public class QbftProtocolScheduleAdaptor implements QbftProtocolSchedule {
   @Override
   public QbftBlockValidator getBlockValidator(final QbftBlockHeader header) {
     return new QbftBlockValidatorAdaptor(
-        getProtocolSpecByBlockHeader(header).getBlockValidator(), context, validatedBlockCache);
+        getProtocolSpecByBlockHeader(header).getBlockValidator(),
+        context,
+        bftExtraDataCodec,
+        validatedBlockCache);
   }
 
   private ProtocolSpec getProtocolSpecByBlockHeader(final QbftBlockHeader header) {
