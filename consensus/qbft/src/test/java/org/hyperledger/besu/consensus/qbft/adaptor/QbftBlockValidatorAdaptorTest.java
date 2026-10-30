@@ -45,8 +45,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class QbftBlockValidatorAdaptorTest {
   @Mock private BlockValidator blockValidator;
   @Mock private ProtocolContext protocolContext;
-  @Mock private Block besuBlock;
   @Mock private QbftBlockAdaptor qbftBlock;
+  private final Block besuBlock = new BlockDataGenerator().block();
   private final ValidatedBlockCache validatedBlockCache = new ValidatedBlockCache();
 
   @Test
@@ -134,6 +134,32 @@ class QbftBlockValidatorAdaptorTest {
         .validateBlock(new QbftBlockAdaptor(block), Optional.empty());
 
     assertThat(validatedBlockCache.take(block.getHash(), block.getHeader().getNumber())).isEmpty();
+  }
+
+  @Test
+  void validatingABlockDoesNotMakeConsensusOwnIt() {
+    // e.g. the prepared block of a round change: only proposals are claimed, by ProposalValidator
+    final BlockDataGenerator generator = new BlockDataGenerator();
+    final Block block = generator.block();
+    when(blockValidator.validateAndProcessBlock(
+            protocolContext,
+            block,
+            HeaderValidationMode.LIGHT,
+            HeaderValidationMode.FULL,
+            Optional.empty(),
+            InclusionListTransactions.EMPTY,
+            false))
+        .thenReturn(
+            new BlockProcessingResult(
+                Optional.of(
+                    new BlockProcessingOutputs(
+                        mock(MutableWorldState.class), generator.receipts(block)))));
+
+    new QbftBlockValidatorAdaptor(blockValidator, protocolContext, validatedBlockCache)
+        .validateBlock(new QbftBlockAdaptor(block), Optional.empty());
+
+    assertThat(validatedBlockCache.get(block.getHash())).isPresent();
+    assertThat(validatedBlockCache.isOwnedByConsensus(block.getHash())).isFalse();
   }
 
   @Test

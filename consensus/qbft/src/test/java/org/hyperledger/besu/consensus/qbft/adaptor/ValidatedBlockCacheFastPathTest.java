@@ -140,7 +140,11 @@ class ValidatedBlockCacheFastPathTest {
 
     assertThat(
             new QbftBlockImporterAdaptor(
-                    blockImporter, blockHeaderValidator, protocolContext, validatedBlockCache)
+                    blockImporter,
+                    blockHeaderValidator,
+                    protocolContext,
+                    codec,
+                    validatedBlockCache)
                 .importBlock(sealed, Optional.empty()))
         .isTrue();
     verify(blockchain).appendBlock(sealedBlock, receipts, Optional.empty());
