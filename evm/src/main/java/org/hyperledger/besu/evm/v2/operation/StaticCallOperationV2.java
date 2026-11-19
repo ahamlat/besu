@@ -75,6 +75,11 @@ public class StaticCallOperationV2 extends AbstractCallOperationV2 {
   }
 
   @Override
+  protected Address address(final MessageFrame frame, final Address to) {
+    return to;
+  }
+
+  @Override
   protected Address sender(final MessageFrame frame) {
     return frame.getRecipientAddress();
   }

@@ -138,6 +138,10 @@ public abstract class AbstractCallOperationV2 extends AbstractOperationV2 {
    */
   protected abstract Address address(MessageFrame frame);
 
+  protected Address address(final MessageFrame frame, final Address to) {
+    return address(frame);
+  }
+
   /**
    * Returns the account address the call operation is being sent from
    *
@@ -179,7 +183,7 @@ public abstract class AbstractCallOperationV2 extends AbstractOperationV2 {
     final long outputDataOffset = outputDataOffset(frame);
     final long outputDataLength = outputDataLength(frame);
     final Wei transferValue = value(frame);
-    final Address recipientAddress = address(frame);
+    final Address recipientAddress = address(frame, to);
 
     final long staticCost =
         gasCalculator()
@@ -230,28 +234,29 @@ public abstract class AbstractCallOperationV2 extends AbstractOperationV2 {
       return new OperationResult(cost, ExceptionalHaltReason.INSUFFICIENT_GAS);
     }
 
-    // Record the 7702 delegation target in the BAL once the gas checks have passed. getCode() does
-    // this on the success path, but it doesn't run on soft failures (insufficient balance, max
-    // depth) — record it here so the BAL stays accurate either way. Touching only after the gas
-    // checks ensures OOG calls don't add the delegation target to the BAL.
-    if (contract != null) {
+    // Record the 7702 delegation target in the BAL once the gas checks have passed. Only needed
+    // when an EIP-7928 access list is active!
+    final var eip7928AccessList = frame.getEip7928AccessList();
+    if (contract != null && eip7928AccessList.isPresent()) {
       final Bytes contractCode = contract.getCode();
       if (hasCodeDelegation(contractCode)) {
-        frame
-            .getEip7928AccessList()
-            .ifPresent(t -> t.addTouchedAccount(getTargetAddress(contractCode)));
+        eip7928AccessList.get().addTouchedAccount(getTargetAddress(contractCode));
       }
     }
 
     frame.clearReturnData();
 
-    final Account account = getAccount(frame.getRecipientAddress(), frame);
-
-    final Wei balance = account == null ? Wei.ZERO : account.getBalance();
-
     // If the call is sending more value than the account has or the message frame is too deep
-    // return a failed call
-    final boolean insufficientBalance = transferValue.compareTo(balance) > 0;
+    // return a failed call. Skip the sender account lookup when transferValue is zero (STATICCALL,
+    // DELEGATECALL, and 95%+ of CALLs).
+    final boolean insufficientBalance;
+    if (transferValue.isZero()) {
+      insufficientBalance = false;
+    } else {
+      final Account account = getAccount(frame.getRecipientAddress(), frame);
+      final Wei balance = account == null ? Wei.ZERO : account.getBalance();
+      insufficientBalance = transferValue.compareTo(balance) > 0;
+    }
     final boolean isFrameDepthTooDeep = frame.getDepth() >= 1024;
     if (insufficientBalance || isFrameDepthTooDeep) {
       // EIP-8037: no child frame runs, so no account is created — undo the charge above.
@@ -388,7 +393,10 @@ public abstract class AbstractCallOperationV2 extends AbstractOperationV2 {
     }
 
     final Hash codeHash = account.getCodeHash();
-    frame.getEip7928AccessList().ifPresent(t -> t.addTouchedAccount(account.getAddress()));
+    final var accessList = frame.getEip7928AccessList();
+    if (accessList.isPresent()) {
+      accessList.get().addTouchedAccount(account.getAddress());
+    }
     if (codeHash == null || Hash.EMPTY.getBytes().equals(codeHash.getBytes())) {
       return Code.EMPTY_CODE;
     }

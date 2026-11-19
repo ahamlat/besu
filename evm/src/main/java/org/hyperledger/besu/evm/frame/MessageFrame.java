@@ -44,9 +44,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Table;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.bytes.MutableBytes;
@@ -201,6 +199,7 @@ public class MessageFrame {
 
   // Global data fields.
   private final WorldUpdater worldUpdater;
+  private final boolean sharesParentWorldUpdater;
 
   // Metadata fields.
   private final Type type;
@@ -234,9 +233,9 @@ public class MessageFrame {
   // refunds and failures can unwind it separately.
   private long stateGasSpilled = 0L;
 
-  // Transaction state fields.
-  private final List<Log> logs = new ArrayList<>();
-  private final Map<Address, Wei> refunds = new HashMap<>();
+  // Transaction state fields (lazily allocated: empty for STATICCALL and non-logging frames).
+  private List<Log> logs;
+  private Map<Address, Wei> refunds;
 
   // Execution Environment fields.
   private final Address recipient;
@@ -277,6 +276,7 @@ public class MessageFrame {
       final boolean enableEvmV2,
       final Type type,
       final WorldUpdater worldUpdater,
+      final boolean sharesParentWorldUpdater,
       final long initialGas,
       final Address recipient,
       final Address contract,
@@ -295,6 +295,7 @@ public class MessageFrame {
     this.txValues = txValues;
     this.type = type;
     this.worldUpdater = worldUpdater;
+    this.sharesParentWorldUpdater = sharesParentWorldUpdater;
     this.gasRemaining = initialGas;
     this.stack = enableEvmV2 ? null : new OperandStack(txValues.maxStackSize());
     this.stackDepthV2 = txValues.messageFrameStack().size();
@@ -790,6 +791,19 @@ public class MessageFrame {
   }
 
   /**
+   * Computes Keccak-256 directly from EVM memory into the V2 stack.
+   *
+   * @param offset The offset in memory
+   * @param length The length of the bytes to hash
+   * @param stack The V2 stack array
+   * @param stackSlotOffset The destination limb offset in stack
+   */
+  public void keccak256MemoryToStackV2(
+      final long offset, final long length, final long[] stack, final int stackSlotOffset) {
+    memory.keccak256ToStackV2(offset, length, stack, stackSlotOffset);
+  }
+
+  /**
    * Read bytes in memory without expanding the word capacity.
    *
    * @param offset The offset in memory
@@ -995,6 +1009,9 @@ public class MessageFrame {
    * @param log The log to accumulate
    */
   public void addLog(final Log log) {
+    if (logs == null) {
+      logs = new ArrayList<>(4);
+    }
     logs.add(log);
   }
 
@@ -1004,12 +1021,20 @@ public class MessageFrame {
    * @param logs The logs to accumulate
    */
   public void addLogs(final List<Log> logs) {
+    if (logs.isEmpty()) {
+      return;
+    }
+    if (this.logs == null) {
+      this.logs = new ArrayList<>(logs.size());
+    }
     this.logs.addAll(logs);
   }
 
   /** Clear the accumulated logs. */
   public void clearLogs() {
-    logs.clear();
+    if (logs != null) {
+      logs.clear();
+    }
   }
 
   /**
@@ -1017,8 +1042,9 @@ public class MessageFrame {
    *
    * @return the accumulated logs
    */
+  @SuppressWarnings("MixedMutabilityReturnType")
   public List<Log> getLogs() {
-    return logs;
+    return logs == null ? List.of() : logs;
   }
 
   /**
@@ -1309,6 +1335,9 @@ public class MessageFrame {
    * @param amount the amount of the refund.
    */
   public void addRefund(final Address beneficiary, final Wei amount) {
+    if (refunds == null) {
+      refunds = new HashMap<>(2);
+    }
     refunds.put(beneficiary, amount);
   }
 
@@ -1317,8 +1346,19 @@ public class MessageFrame {
    *
    * @return the refunds map
    */
+  @SuppressWarnings("MixedMutabilityReturnType")
   public Map<Address, Wei> getRefunds() {
-    return refunds;
+    return refunds == null ? Map.of() : refunds;
+  }
+
+  /**
+   * Returns whether this frame shares its parent's WorldUpdater (true for child STATICCALL frames
+   * that reuse their parent's WorldUpdater without allocating a StackedUpdater).
+   *
+   * @return true if this frame must not commit/revert its worldUpdater on exit
+   */
+  public boolean sharesParentWorldUpdater() {
+    return sharesParentWorldUpdater;
   }
 
   /**
@@ -1350,7 +1390,40 @@ public class MessageFrame {
    * @return true if the storage slot was already warmed up
    */
   public boolean warmUpStorage(final Address address, final Bytes32 slot) {
-    return txValues.warmedUpStorage().put(address, slot, Boolean.TRUE) != null;
+    return !txValues.warmedUpStorage().add(new AddressStorageSlotKey(address, slot));
+  }
+
+  /**
+   * Zero-allocation fast lookup of a warm storage slot value for EVM v2 SLOAD. Returns {@code null}
+   * on cold/uncached slots or when EIP-7928 BAL tracking is active.
+   */
+  public UInt256 getWarmCachedStorageV2(
+      final long u3, final long u2, final long u1, final long u0) {
+    if (eip7928AccessList.isPresent()) {
+      return null;
+    }
+    return txValues.getWarmCachedStorage(recipient, u3, u2, u1, u0);
+  }
+
+  /** Caches the current value of a storage slot for the current transaction (revert-safe). */
+  public void putCachedStorageV2(
+      final Address address,
+      final long u3,
+      final long u2,
+      final long u1,
+      final long u0,
+      final UInt256 value) {
+    txValues.putCachedStorage(address, u3, u2, u1, u0, value);
+  }
+
+  /** Caches the current value of a storage slot for the current transaction (revert-safe). */
+  public void putCachedStorage(final Address address, final Bytes32 slot, final UInt256 value) {
+    txValues.putCachedStorage(address, slot, value);
+  }
+
+  /** Invalidates the per-tx storage cache (e.g. on SELFDESTRUCT / CREATE storage clear). */
+  public void invalidateStorageCache() {
+    txValues.invalidateStorageCache();
   }
 
   /**
@@ -1624,7 +1697,7 @@ public class MessageFrame {
    *
    * @return the warmed up storage
    */
-  public Table<Address, Bytes32, Boolean> getWarmedUpStorage() {
+  public org.hyperledger.besu.collections.undo.UndoSet<AddressStorageSlotKey> getWarmedUpStorage() {
     return txValues.warmedUpStorage();
   }
 
@@ -1737,7 +1810,7 @@ public class MessageFrame {
     private Map<String, Object> contextVariables;
     private Optional<Bytes> reason = Optional.empty();
     private Set<Address> eip2930AccessListWarmAddresses = emptySet();
-    private Multimap<Address, Bytes32> eip2930AccessListWarmStorage = HashMultimap.create();
+    private Multimap<Address, Bytes32> eip2930AccessListWarmStorage = null;
     private Optional<Eip7928AccessList> eip7928AccessList = Optional.empty();
 
     private Optional<List<VersionedHash>> versionedHashes = Optional.empty();
@@ -2096,6 +2169,7 @@ public class MessageFrame {
 
       WorldUpdater updater;
       boolean newStatic;
+      boolean sharesParentUpdater;
       TxValues newTxValues;
 
       if (parentMessageFrame == null) {
@@ -2115,10 +2189,18 @@ public class MessageFrame {
                 initialStateGasReservoir);
         updater = worldUpdater;
         newStatic = isStatic;
+        sharesParentUpdater = false;
       } else {
         newTxValues = parentMessageFrame.txValues;
-        updater = parentMessageFrame.getWorldUpdater().updater();
         newStatic = isStatic || parentMessageFrame.isStatic;
+        if (newStatic) {
+          // Static child frames cannot mutate state: reuse parent's WorldUpdater directly!
+          updater = parentMessageFrame.getWorldUpdater();
+          sharesParentUpdater = true;
+        } else {
+          updater = parentMessageFrame.getWorldUpdater().updater();
+          sharesParentUpdater = false;
+        }
         parentMessageFrame.warmUpAddress(contract);
       }
 
@@ -2127,6 +2209,7 @@ public class MessageFrame {
               enableEvmV2,
               type,
               updater,
+              sharesParentUpdater,
               initialGas,
               address,
               contract,
@@ -2146,8 +2229,10 @@ public class MessageFrame {
       for (Address a : eip2930AccessListWarmAddresses) {
         messageFrame.warmUpAddress(a);
       }
-      for (var e : eip2930AccessListWarmStorage.entries()) {
-        messageFrame.warmUpStorage(e.getKey(), e.getValue());
+      if (eip2930AccessListWarmStorage != null) {
+        for (var e : eip2930AccessListWarmStorage.entries()) {
+          messageFrame.warmUpStorage(e.getKey(), e.getValue());
+        }
       }
       return messageFrame;
     }

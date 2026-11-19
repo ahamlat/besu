@@ -17,7 +17,6 @@ package org.hyperledger.besu.evm.frame;
 import org.hyperledger.besu.collections.undo.UndoMap;
 import org.hyperledger.besu.collections.undo.UndoScalar;
 import org.hyperledger.besu.collections.undo.UndoSet;
-import org.hyperledger.besu.collections.undo.UndoTable;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.VersionedHash;
 import org.hyperledger.besu.datatypes.Wei;
@@ -31,22 +30,25 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
-import com.google.common.collect.TreeBasedTable;
 import org.apache.tuweni.bytes.Bytes32;
 
 /**
  * Transaction-lifetime values shared across all message frames of a transaction.
  *
  * <p>Holds the immutable per-transaction inputs (originator, gas price, block values, …) and the
- * mutable counters whose state must persist across frame boundaries: the {@link UndoScalar} /
- * {@link UndoSet} / {@link UndoTable} fields are rolled back on revert via {@link #undoChanges}.
+ * mutable counters whose state must persist across frame boundaries: the Undo collections stored as
+ * fields are rolled back on revert via {@link #undoChanges}.
  */
 public class TxValues {
 
   private final BlockHashLookup blockHashLookup;
   private final int maxStackSize;
   private final UndoSet<Address> warmedUpAddresses;
-  private final UndoTable<Address, Bytes32, Boolean> warmedUpStorage;
+  private final UndoSet<AddressStorageSlotKey> warmedUpStorage;
+  private final UndoMap<AddressStorageSlotKey, org.apache.tuweni.units.bigints.UInt256>
+      cachedStorageValues = new UndoMap<>(new HashMap<>());
+  private final AddressStorageSlotKey.Probe storageProbe = new AddressStorageSlotKey.Probe();
+  private boolean storageCacheInvalidated = false;
   private final Address originator;
   private final Wei gasPrice;
   private final Wei blobGasPrice;
@@ -65,7 +67,7 @@ public class TxValues {
       final BlockHashLookup blockHashLookup,
       final int maxStackSize,
       final UndoSet<Address> warmedUpAddresses,
-      final UndoTable<Address, Bytes32, Boolean> warmedUpStorage,
+      final UndoSet<AddressStorageSlotKey> warmedUpStorage,
       final Address originator,
       final Wei gasPrice,
       final Wei blobGasPrice,
@@ -130,7 +132,7 @@ public class TxValues {
         blockHashLookup,
         maxStackSize,
         warmedUpAddresses,
-        UndoTable.of(TreeBasedTable.create()),
+        UndoSet.of(new HashSet<>()),
         originator,
         gasPrice,
         blobGasPrice,
@@ -154,12 +156,51 @@ public class TxValues {
   public void undoChanges(final long mark) {
     warmedUpAddresses.undo(mark);
     warmedUpStorage.undo(mark);
+    cachedStorageValues.undo(mark);
     transientStorage.undo(mark);
     creates.undo(mark);
     selfDestructs.undo(mark);
     gasRefunds.undo(mark);
     stateGasUsed.undo(mark);
     stateGasReservoir.undo(mark);
+  }
+
+  /** Fast single-threaded lookup of a warm cached storage slot value (zero allocations). */
+  public org.apache.tuweni.units.bigints.UInt256 getWarmCachedStorage(
+      final Address address, final long u3, final long u2, final long u1, final long u0) {
+    if (storageCacheInvalidated || cachedStorageValues.isEmpty()) {
+      return null;
+    }
+    return cachedStorageValues.get(storageProbe.set(address, u3, u2, u1, u0));
+  }
+
+  /** Caches the current value of a storage slot (automatically rolled back on revert). */
+  public void putCachedStorage(
+      final Address address,
+      final long u3,
+      final long u2,
+      final long u1,
+      final long u0,
+      final org.apache.tuweni.units.bigints.UInt256 value) {
+    if (!storageCacheInvalidated) {
+      cachedStorageValues.put(new AddressStorageSlotKey(address, u3, u2, u1, u0), value);
+    }
+  }
+
+  /** Caches the current value of a storage slot by Bytes32 key (automatically rolled back). */
+  public void putCachedStorage(
+      final Address address,
+      final Bytes32 slot,
+      final org.apache.tuweni.units.bigints.UInt256 value) {
+    if (!storageCacheInvalidated) {
+      cachedStorageValues.put(new AddressStorageSlotKey(address, slot), value);
+    }
+  }
+
+  /** Disables the per-tx storage cache after clearStorage / SELFDESTRUCT. */
+  public void invalidateStorageCache() {
+    storageCacheInvalidated = true;
+    cachedStorageValues.clear();
   }
 
   /**
@@ -194,7 +235,7 @@ public class TxValues {
    *
    * @return the warmed-up storage slots
    */
-  public UndoTable<Address, Bytes32, Boolean> warmedUpStorage() {
+  public UndoSet<AddressStorageSlotKey> warmedUpStorage() {
     return warmedUpStorage;
   }
 

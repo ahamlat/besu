@@ -26,6 +26,8 @@ import org.hyperledger.besu.evm.account.AccountStorageEntry;
 import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.internal.CodeCache;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
@@ -63,8 +65,8 @@ public class UpdateTrackingAccount<A extends Account> implements MutableAccount 
   @Nullable private Code updatedCode; // Null if the underlying code has not been updated.
 
   // Only contains updated storage entries, but may contain entry with a value of 0 to signify
-  // deletion.
-  private final NavigableMap<UInt256, UInt256> updatedStorage;
+  // deletion. Lazily allocated as HashMap (O(1) lookup) on first write.
+  @Nullable private Map<UInt256, UInt256> updatedStorage;
   private boolean storageWasCleared = false;
   private boolean transactionBoundary = false;
 
@@ -85,7 +87,6 @@ public class UpdateTrackingAccount<A extends Account> implements MutableAccount 
     this.updatedCode = Code.EMPTY_CODE;
     this.oldCode = Code.EMPTY_CODE;
     this.oldCodeHash = Hash.EMPTY;
-    this.updatedStorage = new TreeMap<>();
   }
 
   /**
@@ -112,8 +113,6 @@ public class UpdateTrackingAccount<A extends Account> implements MutableAccount 
       // the parent may set its code again, so the code it has now is kept
       this.oldCode = parent.getOrCreateCachedCode();
     }
-
-    this.updatedStorage = new TreeMap<>();
 
     // if the original account to be tracked is a BonsaiAccount, we can use its code cache.
     final CodeCache codeCache = account.getCodeCache();
@@ -166,9 +165,10 @@ public class UpdateTrackingAccount<A extends Account> implements MutableAccount 
    * @return a map containing all entries that have been modified. This <b>may</b> contain entries
    *     with a value of 0 to signify deletion.
    */
+  @SuppressWarnings("MixedMutabilityReturnType")
   @Override
   public Map<UInt256, UInt256> getUpdatedStorage() {
-    return updatedStorage;
+    return updatedStorage == null ? Collections.emptyMap() : updatedStorage;
   }
 
   @Override
@@ -285,9 +285,11 @@ public class UpdateTrackingAccount<A extends Account> implements MutableAccount 
 
   @Override
   public UInt256 getStorageValue(final UInt256 key) {
-    final UInt256 value = updatedStorage.get(key);
-    if (value != null) {
-      return value;
+    if (updatedStorage != null) {
+      final UInt256 value = updatedStorage.get(key);
+      if (value != null) {
+        return value;
+      }
     }
     if (storageWasCleared) {
       return UInt256.ZERO;
@@ -318,10 +320,12 @@ public class UpdateTrackingAccount<A extends Account> implements MutableAccount 
     } else {
       entries = new TreeMap<>();
     }
-    updatedStorage.entrySet().stream()
-        .map(entry -> AccountStorageEntry.forKeyAndValue(entry.getKey(), entry.getValue()))
-        .filter(entry -> entry.getKeyHash().compareTo(startKeyHash) >= 0)
-        .forEach(entry -> entries.put(entry.getKeyHash(), entry));
+    if (updatedStorage != null) {
+      updatedStorage.entrySet().stream()
+          .map(entry -> AccountStorageEntry.forKeyAndValue(entry.getKey(), entry.getValue()))
+          .filter(entry -> entry.getKeyHash().compareTo(startKeyHash) >= 0)
+          .forEach(entry -> entries.put(entry.getKeyHash(), entry));
+    }
 
     while (entries.size() > limit) {
       entries.remove(entries.lastKey());
@@ -334,6 +338,9 @@ public class UpdateTrackingAccount<A extends Account> implements MutableAccount 
     if (immutable) {
       throw new ModificationNotAllowedException();
     }
+    if (updatedStorage == null) {
+      updatedStorage = new HashMap<>(4);
+    }
     updatedStorage.put(key, value);
   }
 
@@ -343,7 +350,9 @@ public class UpdateTrackingAccount<A extends Account> implements MutableAccount 
       throw new ModificationNotAllowedException();
     }
     storageWasCleared = true;
-    updatedStorage.clear();
+    if (updatedStorage != null) {
+      updatedStorage.clear();
+    }
   }
 
   @Override
@@ -371,8 +380,11 @@ public class UpdateTrackingAccount<A extends Account> implements MutableAccount 
 
   @Override
   public String toString() {
-    String storage = updatedStorage.isEmpty() ? "[not updated]" : updatedStorage.toString();
-    if (updatedStorage.isEmpty() && storageWasCleared) {
+    String storage =
+        (updatedStorage == null || updatedStorage.isEmpty())
+            ? "[not updated]"
+            : updatedStorage.toString();
+    if ((updatedStorage == null || updatedStorage.isEmpty()) && storageWasCleared) {
       storage = "[cleared]";
     }
     return String.format(

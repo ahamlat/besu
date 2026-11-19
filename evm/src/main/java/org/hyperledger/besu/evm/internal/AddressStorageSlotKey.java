@@ -42,8 +42,17 @@ import org.apache.tuweni.bytes.Bytes32;
  */
 public class AddressStorageSlotKey implements Comparable<AddressStorageSlotKey> {
 
-  private final byte[] address;
-  private final byte[] slot;
+  private static final VarHandle LONG_BE =
+      MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN);
+  private static final VarHandle LONG_VIEW =
+      MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
+
+  protected byte[] address;
+  protected long u3;
+  protected long u2;
+  protected long u1;
+  protected long u0;
+  protected int cachedHash;
 
   /**
    * The AddressStorageSlotKey constructor.
@@ -53,11 +62,42 @@ public class AddressStorageSlotKey implements Comparable<AddressStorageSlotKey> 
    */
   public AddressStorageSlotKey(final Address address, final Bytes32 slot) {
     this.address = address.getBytes().toArrayUnsafe();
-    this.slot = slot.toArrayUnsafe();
+    final byte[] s = slot.toArrayUnsafe();
+    this.u3 = (long) LONG_BE.get(s, 0);
+    this.u2 = (long) LONG_BE.get(s, 8);
+    this.u1 = (long) LONG_BE.get(s, 16);
+    this.u0 = (long) LONG_BE.get(s, 24);
+    this.cachedHash = computeHash(this.address, this.u3, this.u2, this.u1, this.u0);
   }
 
-  private static final VarHandle LONG_VIEW =
-      MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
+  /** Constructs a key directly from an address and the four big-endian limbs of a 256-bit slot. */
+  public AddressStorageSlotKey(
+      final Address address, final long u3, final long u2, final long u1, final long u0) {
+    this.address = address.getBytes().toArrayUnsafe();
+    this.u3 = u3;
+    this.u2 = u2;
+    this.u1 = u1;
+    this.u0 = u0;
+    this.cachedHash = computeHash(this.address, u3, u2, u1, u0);
+  }
+
+  /** Reusable single-threaded probe key for zero-allocation map lookups. */
+  public static final class Probe extends AddressStorageSlotKey {
+    public Probe() {
+      super(Address.ZERO, 0L, 0L, 0L, 0L);
+    }
+
+    public Probe set(
+        final Address address, final long u3, final long u2, final long u1, final long u0) {
+      this.address = address.getBytes().toArrayUnsafe();
+      this.u3 = u3;
+      this.u2 = u2;
+      this.u1 = u1;
+      this.u0 = u0;
+      this.cachedHash = computeHash(this.address, u3, u2, u1, u0);
+      return this;
+    }
+  }
 
   private static final long SEED_0;
   private static final long SEED_1;
@@ -82,19 +122,13 @@ public class AddressStorageSlotKey implements Comparable<AddressStorageSlotKey> 
     return (long) LONG_VIEW.get(bytes, offset);
   }
 
-  /**
-   * Dietzfelbinger based hash uses aligned byte reads as sizes are deterministic: Address is 20
-   * bytes and Slot is 32 bytes. In order to read aligned bytes for Address and not go out of bounds
-   * on the array we need to re-read bytes 12-16, inclusive - this does not invalidate the hashing
-   * algorithm.
-   */
-  @Override
-  public int hashCode() {
+  static int computeHash(
+      final byte[] address, final long u3, final long u2, final long u1, final long u0) {
     final long hash =
-        word(slot, 0) * SEED_0
-            + word(slot, 8) * SEED_1
-            + word(slot, 16) * SEED_2
-            + word(slot, 24) * SEED_3
+        u3 * SEED_0
+            + u2 * SEED_1
+            + u1 * SEED_2
+            + u0 * SEED_3
             + word(address, 0) * SEED_4
             + word(address, 8) * SEED_5
             + word(address, 12) * SEED_6;
@@ -102,11 +136,20 @@ public class AddressStorageSlotKey implements Comparable<AddressStorageSlotKey> 
   }
 
   @Override
+  public int hashCode() {
+    return cachedHash;
+  }
+
+  @Override
   public boolean equals(final Object obj) {
     if (this == obj) {
       return true;
     } else if (obj instanceof AddressStorageSlotKey other) {
-      return Arrays.equals(address, other.address) && Arrays.equals(slot, other.slot);
+      return u0 == other.u0
+          && u1 == other.u1
+          && u2 == other.u2
+          && u3 == other.u3
+          && Arrays.equals(address, other.address);
     }
     return false;
   }
@@ -120,6 +163,33 @@ public class AddressStorageSlotKey implements Comparable<AddressStorageSlotKey> 
       return 1;
     }
     int compare = Arrays.compare(address, other.address);
-    return compare != 0 ? compare : Arrays.compare(slot, other.slot);
+    if (compare != 0) return compare;
+    if (u3 != other.u3) return Long.compareUnsigned(u3, other.u3);
+    if (u2 != other.u2) return Long.compareUnsigned(u2, other.u2);
+    if (u1 != other.u1) return Long.compareUnsigned(u1, other.u1);
+    return Long.compareUnsigned(u0, other.u0);
+  }
+
+  /**
+   * Return the address part of this key.
+   *
+   * @return the address
+   */
+  public Address address() {
+    return Address.wrap(org.apache.tuweni.bytes.Bytes.wrap(address));
+  }
+
+  /**
+   * Return the slot part of this key.
+   *
+   * @return the slot
+   */
+  public Bytes32 slot() {
+    final byte[] s = new byte[32];
+    LONG_BE.set(s, 0, u3);
+    LONG_BE.set(s, 8, u2);
+    LONG_BE.set(s, 16, u1);
+    LONG_BE.set(s, 24, u0);
+    return Bytes32.wrap(s);
   }
 }

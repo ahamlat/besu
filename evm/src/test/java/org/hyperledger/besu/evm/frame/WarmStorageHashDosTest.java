@@ -130,7 +130,13 @@ class WarmStorageHashDosTest {
           });
 
       for (final Bytes32 slot : slots) {
-        assertThat(frame.getWarmedUpStorage().contains(Address.ZERO, slot)).isTrue();
+        assertThat(
+                frame
+                    .getWarmedUpStorage()
+                    .contains(
+                        new org.hyperledger.besu.evm.internal.AddressStorageSlotKey(
+                            Address.ZERO, slot)))
+            .isTrue();
       }
     }
   }

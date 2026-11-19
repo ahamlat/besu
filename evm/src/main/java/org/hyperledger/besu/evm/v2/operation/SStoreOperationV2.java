@@ -27,7 +27,6 @@ import org.hyperledger.besu.evm.gascalculator.StorageTransition;
 
 import java.util.function.Supplier;
 
-import com.google.common.base.Suppliers;
 import org.apache.tuweni.units.bigints.UInt256;
 
 /** The SStore operation. */
@@ -95,10 +94,18 @@ public class SStoreOperationV2 extends AbstractOperationV2 {
       return new OperationResult(accessCost, ExceptionalHaltReason.INSUFFICIENT_GAS);
     }
 
-    final Supplier<UInt256> currentValueSupplier =
-        Suppliers.memoize(() -> getStorageValue(account, key, frame));
+    final UInt256 currentValue = getStorageValue(account, key, frame);
+    final Supplier<UInt256> currentValueSupplier = () -> currentValue;
+    final UInt256[] cachedOriginal = new UInt256[1];
     final Supplier<UInt256> originalValueSupplier =
-        Suppliers.memoize(() -> account.getOriginalStorageValue(key));
+        () -> {
+          UInt256 v = cachedOriginal[0];
+          if (v == null) {
+            v = account.getOriginalStorageValue(key);
+            cachedOriginal[0] = v;
+          }
+          return v;
+        };
 
     final long cost =
         gasCalculator().slotAccessCost(newValue, currentValueSupplier, originalValueSupplier)
@@ -132,8 +139,12 @@ public class SStoreOperationV2 extends AbstractOperationV2 {
     frame.incrementRemainingGas(cost);
 
     account.setStorageValue(key, newValue);
+    frame.putCachedStorage(address, key, newValue);
     frame.storageWasUpdatedV2(key, newValue);
-    frame.getEip7928AccessList().ifPresent(t -> t.addSlotAccessForAccount(address, key));
+    final var accessList = frame.getEip7928AccessList();
+    if (accessList.isPresent()) {
+      accessList.get().addSlotAccessForAccount(address, key);
+    }
     return new OperationResult(cost, null);
   }
 }

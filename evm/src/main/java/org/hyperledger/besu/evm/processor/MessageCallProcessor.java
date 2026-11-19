@@ -27,7 +27,6 @@ import org.hyperledger.besu.evm.precompile.PrecompiledContract;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 
 import java.util.Collections;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -146,25 +145,29 @@ public class MessageCallProcessor extends AbstractMessageProcessor {
    * of the world state of this executor.
    */
   private void transferValue(final MessageFrame frame) {
+    if (frame.getValue().isZero()) {
+      // Static calls cannot create or mutate accounts. For non-static 0-value calls, if the
+      // recipient already exists and is non-empty (99.9%+ of contract calls), avoid wrapping
+      // sender & recipient in mutable UpdateTrackingAccounts (which otherwise pollutes
+      // StackedUpdater.updatedAccounts & commit). Empty/missing recipients still go through
+      // getOrCreate to preserve EIP-161 / forceDeleteAccountsWhenEmpty (RIPEMD160) semantics.
+      if (frame.isStatic()) {
+        return;
+      }
+      final var existingRecipient = frame.getWorldUpdater().get(frame.getRecipientAddress());
+      if (existingRecipient != null && !existingRecipient.isEmpty()) {
+        return;
+      }
+      frame.getWorldUpdater().getOrCreate(frame.getRecipientAddress());
+      return;
+    }
+
     final MutableAccount senderAccount = frame.getWorldUpdater().getSenderAccount(frame);
 
     // The yellow paper explicitly states that if the recipient account doesn't exist at this
-    // point, it is created. Even if the value is zero we are still creating an account with 0x!
+    // point, it is created.
     final MutableAccount recipientAccount =
         frame.getWorldUpdater().getOrCreate(frame.getRecipientAddress());
-
-    if (Objects.equals(frame.getValue(), Wei.ZERO)) {
-      // This is only here for situations where you are calling a public address from a private
-      // address. Without this guard clause we would attempt to get a mutable public address
-      // which isn't possible from a private address and an error would be thrown.
-      // If you are attempting to transfer value from a private address
-      // to public address an error will be thrown.
-      LOG.trace(
-          "Message call from {} to {} has zero value: no fund transferred",
-          frame.getSenderAddress(),
-          frame.getRecipientAddress());
-      return;
-    }
 
     if (frame.getRecipientAddress().equals(frame.getSenderAddress())) {
       LOG.trace("Message call of {} to itself: no fund transferred", frame.getSenderAddress());

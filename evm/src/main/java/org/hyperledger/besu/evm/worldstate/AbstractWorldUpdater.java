@@ -22,6 +22,7 @@ import org.hyperledger.besu.evm.internal.EvmConfiguration;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -44,10 +45,13 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
   private final EvmConfiguration evmConfiguration;
 
   /** The Updated accounts. */
-  protected Map<Address, UpdateTrackingAccount<A>> updatedAccounts = new ConcurrentHashMap<>();
+  protected Map<Address, UpdateTrackingAccount<A>> updatedAccounts;
 
   /** The Deleted accounts. */
-  protected Set<Address> deletedAccounts = Collections.synchronizedSet(new HashSet<>(Address.SIZE));
+  protected Set<Address> deletedAccounts;
+
+  /** Fast flag avoiding synchronizedSet lock on deletedAccounts.contains when empty. */
+  protected boolean hasDeletedAccounts = false;
 
   /**
    * Instantiates a new Abstract world updater.
@@ -56,8 +60,40 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
    * @param evmConfiguration the EVM Configuration parameters
    */
   protected AbstractWorldUpdater(final W world, final EvmConfiguration evmConfiguration) {
+    this(
+        world,
+        evmConfiguration,
+        new ConcurrentHashMap<>(),
+        Collections.synchronizedSet(new HashSet<>(Address.SIZE)));
+  }
+
+  /**
+   * Instantiates a new Abstract world updater with custom backing collections (e.g., single-thread
+   * non-concurrent maps for per-frame {@link StackedUpdater}).
+   */
+  protected AbstractWorldUpdater(
+      final W world,
+      final EvmConfiguration evmConfiguration,
+      final Map<Address, UpdateTrackingAccount<A>> updatedAccounts,
+      final Set<Address> deletedAccounts) {
     this.world = world;
     this.evmConfiguration = evmConfiguration;
+    this.updatedAccounts = updatedAccounts;
+    this.deletedAccounts = deletedAccounts;
+  }
+
+  protected Map<Address, UpdateTrackingAccount<A>> ensureUpdatedAccounts() {
+    if (updatedAccounts == null) {
+      updatedAccounts = new HashMap<>(4);
+    }
+    return updatedAccounts;
+  }
+
+  protected Set<Address> ensureDeletedAccounts() {
+    if (deletedAccounts == null) {
+      deletedAccounts = new HashSet<>(4);
+    }
+    return deletedAccounts;
   }
 
   /**
@@ -76,8 +112,10 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
    */
   protected UpdateTrackingAccount<A> track(final UpdateTrackingAccount<A> account) {
     final Address address = account.getAddress();
-    updatedAccounts.put(address, account);
-    deletedAccounts.remove(address);
+    ensureUpdatedAccounts().put(address, account);
+    if (hasDeletedAccounts && deletedAccounts != null) {
+      deletedAccounts.remove(address);
+    }
     return account;
   }
 
@@ -92,11 +130,13 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
   @Override
   public Account get(final Address address) {
     // We may have updated it already, so check that first.
-    final MutableAccount existing = updatedAccounts.get(address);
-    if (existing != null) {
-      return existing;
+    if (updatedAccounts != null && !updatedAccounts.isEmpty()) {
+      final MutableAccount existing = updatedAccounts.get(address);
+      if (existing != null) {
+        return existing;
+      }
     }
-    if (deletedAccounts.contains(address)) {
+    if (hasDeletedAccounts && deletedAccounts != null && deletedAccounts.contains(address)) {
       return null;
     }
     return getForMutation(address);
@@ -105,11 +145,13 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
   @Override
   public MutableAccount getAccount(final Address address) {
     // We may have updated it already, so check that first.
-    final MutableAccount existing = updatedAccounts.get(address);
-    if (existing != null) {
-      return existing;
+    if (updatedAccounts != null && !updatedAccounts.isEmpty()) {
+      final MutableAccount existing = updatedAccounts.get(address);
+      if (existing != null) {
+        return existing;
+      }
     }
-    if (deletedAccounts.contains(address)) {
+    if (hasDeletedAccounts && deletedAccounts != null && deletedAccounts.contains(address)) {
       return null;
     }
 
@@ -124,8 +166,11 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
 
   @Override
   public void deleteAccount(final Address address) {
-    deletedAccounts.add(address);
-    updatedAccounts.remove(address);
+    ensureDeletedAccounts().add(address);
+    hasDeletedAccounts = true;
+    if (updatedAccounts != null) {
+      updatedAccounts.remove(address);
+    }
   }
 
   /**
@@ -170,7 +215,7 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
    * @return The accounts modified in this updater.
    */
   public Collection<UpdateTrackingAccount<A>> getUpdatedAccounts() {
-    return updatedAccounts.values();
+    return updatedAccounts == null ? Collections.emptyList() : updatedAccounts.values();
   }
 
   /**
@@ -179,12 +224,17 @@ public abstract class AbstractWorldUpdater<W extends WorldView, A extends Accoun
    * @return The accounts deleted as part of this updater.
    */
   protected Collection<Address> getDeletedAccounts() {
-    return deletedAccounts;
+    return deletedAccounts == null ? Collections.emptySet() : deletedAccounts;
   }
 
   /** Reset. */
   protected void reset() {
-    updatedAccounts.clear();
-    deletedAccounts.clear();
+    if (updatedAccounts != null) {
+      updatedAccounts.clear();
+    }
+    if (deletedAccounts != null) {
+      deletedAccounts.clear();
+    }
+    hasDeletedAccounts = false;
   }
 }

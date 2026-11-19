@@ -39,17 +39,37 @@ public class StackedUpdater<W extends WorldView, A extends Account>
    */
   public StackedUpdater(
       final AbstractWorldUpdater<W, A> world, final EvmConfiguration evmConfiguration) {
-    super(world, evmConfiguration);
+    super(world, evmConfiguration, null, null);
+  }
+
+  @Override
+  public Account get(final Address address) {
+    if (updatedAccounts != null && !updatedAccounts.isEmpty()) {
+      final Account existing = updatedAccounts.get(address);
+      if (existing != null) {
+        return existing;
+      }
+    }
+    if (hasDeletedAccounts && deletedAccounts != null && deletedAccounts.contains(address)) {
+      return null;
+    }
+    // Read-only path: delegate directly to wrapped WorldUpdater.get(address) without wrapping
+    // unmodified accounts in UpdateTrackingAccount!
+    return wrappedWorldView().get(address);
   }
 
   @Override
   protected UpdateTrackingAccount<A> getForMutation(final Address address) {
     final AbstractWorldUpdater<W, A> wrapped = wrappedWorldView();
-    final UpdateTrackingAccount<A> wrappedTracker = wrapped.updatedAccounts.get(address);
-    if (wrappedTracker != null) {
-      return wrappedTracker;
+    if (wrapped.updatedAccounts != null && !wrapped.updatedAccounts.isEmpty()) {
+      final UpdateTrackingAccount<A> wrappedTracker = wrapped.updatedAccounts.get(address);
+      if (wrappedTracker != null) {
+        return wrappedTracker;
+      }
     }
-    if (wrapped.deletedAccounts.contains(address)) {
+    if (wrapped.hasDeletedAccounts
+        && wrapped.deletedAccounts != null
+        && wrapped.deletedAccounts.contains(address)) {
       return null;
     }
     // The wrapped one isn't tracking that account. We're creating a tracking "for him" (but
@@ -63,56 +83,73 @@ public class StackedUpdater<W extends WorldView, A extends Account>
   @SuppressWarnings("MixedMutabilityReturnType")
   @Override
   public Collection<? extends Account> getTouchedAccounts() {
-    if (getUpdatedAccounts().isEmpty()) {
+    if (updatedAccounts == null || updatedAccounts.isEmpty()) {
       return Collections.emptyList();
     }
-    return new ArrayList<>(getUpdatedAccounts());
+    return new ArrayList<>(updatedAccounts.values());
   }
 
+  @SuppressWarnings("MixedMutabilityReturnType")
   @Override
   public Collection<Address> getDeletedAccountAddresses() {
-    return new ArrayList<>(getDeletedAccounts());
+    if (!hasDeletedAccounts || deletedAccounts == null || deletedAccounts.isEmpty()) {
+      return Collections.emptyList();
+    }
+    return new ArrayList<>(deletedAccounts);
   }
 
   @Override
   public void revert() {
-    getDeletedAccounts().clear();
-    getUpdatedAccounts().clear();
+    reset();
   }
 
   @Override
   public void commit() {
+    final boolean hasUpdates = updatedAccounts != null && !updatedAccounts.isEmpty();
+    final boolean hasDeletes =
+        hasDeletedAccounts && deletedAccounts != null && !deletedAccounts.isEmpty();
+    if (!hasUpdates && !hasDeletes) {
+      return;
+    }
     final AbstractWorldUpdater<W, A> wrapped = wrappedWorldView();
-    // Our own updates should apply on top of the updates we're stacked on top, so our deletions
-    // may kill some of "their" updates, and our updates may review some of the account "they"
-    // deleted.
-    getDeletedAccounts().forEach(wrapped.updatedAccounts::remove);
-    getUpdatedAccounts().forEach(a -> wrapped.deletedAccounts.remove(a.getAddress()));
-
-    // Then push our deletes and updates to the stacked ones.
-    wrapped.deletedAccounts.addAll(getDeletedAccounts());
-
-    for (final UpdateTrackingAccount<UpdateTrackingAccount<A>> update : getUpdatedAccounts()) {
-      UpdateTrackingAccount<A> existing = wrapped.updatedAccounts.get(update.getAddress());
-      if (existing == null) {
-        // If we don't track this account, it's either a new one or getForMutation above had
-        // created a tracker to satisfy the type system above and we can reuse that now.
-        existing = update.getWrappedAccount();
-        if (existing == null) {
-          // Brand new account, create our own version
-          existing = new UpdateTrackingAccount<>(update.getAddress());
+    if (hasDeletes) {
+      if (wrapped.updatedAccounts != null) {
+        for (final Address deleted : deletedAccounts) {
+          wrapped.updatedAccounts.remove(deleted);
         }
-        wrapped.updatedAccounts.put(existing.getAddress(), existing);
       }
-      existing.setNonce(update.getNonce());
-      existing.setBalance(update.getBalance());
-      if (update.codeWasUpdated()) {
-        existing.setCode(update.getCode());
+      wrapped.ensureDeletedAccounts().addAll(deletedAccounts);
+      wrapped.hasDeletedAccounts = true;
+    }
+    if (hasUpdates) {
+      final var wrappedUpdated = wrapped.ensureUpdatedAccounts();
+      for (final UpdateTrackingAccount<UpdateTrackingAccount<A>> update :
+          updatedAccounts.values()) {
+        final Address addr = update.getAddress();
+        if (wrapped.hasDeletedAccounts && wrapped.deletedAccounts != null) {
+          wrapped.deletedAccounts.remove(addr);
+        }
+        UpdateTrackingAccount<A> existing = wrappedUpdated.get(addr);
+        if (existing == null) {
+          existing = update.getWrappedAccount();
+          if (existing == null) {
+            existing = new UpdateTrackingAccount<>(addr);
+          }
+          wrappedUpdated.put(addr, existing);
+        }
+        existing.setNonce(update.getNonce());
+        existing.setBalance(update.getBalance());
+        if (update.codeWasUpdated()) {
+          existing.setCode(update.getCode());
+        }
+        if (update.getStorageWasCleared()) {
+          existing.clearStorage();
+        }
+        final var storage = update.getUpdatedStorage();
+        if (!storage.isEmpty()) {
+          storage.forEach(existing::setStorageValue);
+        }
       }
-      if (update.getStorageWasCleared()) {
-        existing.clearStorage();
-      }
-      update.getUpdatedStorage().forEach(existing::setStorageValue);
     }
   }
 

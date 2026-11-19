@@ -14,21 +14,24 @@
  */
 package org.hyperledger.besu.evm.tracing;
 
+import org.hyperledger.besu.collections.undo.UndoSet;
 import org.hyperledger.besu.datatypes.AccessListEntry;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.MessageFrame;
+import org.hyperledger.besu.evm.internal.AddressStorageSlotKey;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
-import com.google.common.collect.Table;
 import org.apache.tuweni.bytes.Bytes32;
 
 /** The Access List Operation Tracer. */
 public class AccessListOperationTracer implements OperationTracer {
 
-  private Table<Address, Bytes32, Boolean> warmedUpStorage;
+  private UndoSet<AddressStorageSlotKey> warmedUpStorage;
 
   /** Default constructor. */
   private AccessListOperationTracer() {
@@ -47,15 +50,16 @@ public class AccessListOperationTracer implements OperationTracer {
    */
   public List<AccessListEntry> getAccessList() {
     if (warmedUpStorage != null && !warmedUpStorage.isEmpty()) {
-      final List<AccessListEntry> list = new ArrayList<>(warmedUpStorage.size());
-      warmedUpStorage
-          .rowMap()
-          .forEach(
-              (address, storageKeys) ->
-                  list.add(
-                      new AccessListEntry(
-                          address,
-                          new ArrayList<>(storageKeys.keySet().stream().sorted().toList()))));
+      final Map<Address, List<Bytes32>> byAddress = new TreeMap<>();
+      for (final AddressStorageSlotKey key : warmedUpStorage) {
+        byAddress.computeIfAbsent(key.address(), k -> new ArrayList<>()).add(key.slot());
+      }
+      final List<AccessListEntry> list = new ArrayList<>(byAddress.size());
+      byAddress.forEach(
+          (address, slots) -> {
+            slots.sort(Bytes32::compareTo);
+            list.add(new AccessListEntry(address, slots));
+          });
       return list;
     }
     return List.of();

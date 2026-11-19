@@ -112,34 +112,36 @@ public abstract class AbstractMessageProcessor {
   protected abstract void codeSuccess(MessageFrame frame, final OperationTracer operationTracer);
 
   private void clearAccumulatedStateBesidesGasAndOutput(final MessageFrame frame) {
-    final var worldUpdater = frame.getWorldUpdater();
-    final var touchedAccounts = worldUpdater.getTouchedAccounts();
+    if (!frame.sharesParentWorldUpdater()) {
+      final var worldUpdater = frame.getWorldUpdater();
+      final var touchedAccounts = worldUpdater.getTouchedAccounts();
 
-    if (touchedAccounts.isEmpty() || forceDeleteAccountsWhenEmpty.isEmpty()) {
-      // Fast path: no touched accounts or no force-delete targets.
-      // Just revert and commit without the stream pipeline overhead.
-      worldUpdater.revert();
-      worldUpdater.commit();
-    } else {
-      // Full path: find empty accounts that need force-deletion
-      ArrayList<Address> addresses = new ArrayList<>();
-      for (final Account account : touchedAccounts) {
-        if (account.isEmpty()) {
-          Address address = account.getAddress();
-          if (forceDeleteAccountsWhenEmpty.contains(address)) {
-            addresses.add(address);
+      if (touchedAccounts.isEmpty() || forceDeleteAccountsWhenEmpty.isEmpty()) {
+        // Fast path: no touched accounts or no force-delete targets.
+        // Just revert and commit without the stream pipeline overhead.
+        worldUpdater.revert();
+        worldUpdater.commit();
+      } else {
+        // Full path: find empty accounts that need force-deletion
+        ArrayList<Address> addresses = new ArrayList<>();
+        for (final Account account : touchedAccounts) {
+          if (account.isEmpty()) {
+            Address address = account.getAddress();
+            if (forceDeleteAccountsWhenEmpty.contains(address)) {
+              addresses.add(address);
+            }
           }
         }
-      }
 
-      // Clear any pending changes.
-      worldUpdater.revert();
+        // Clear any pending changes.
+        worldUpdater.revert();
 
-      // Force delete any requested accounts and commit the changes.
-      for (final Address address : addresses) {
-        worldUpdater.deleteAccount(address);
+        // Force delete any requested accounts and commit the changes.
+        for (final Address address : addresses) {
+          worldUpdater.deleteAccount(address);
+        }
+        worldUpdater.commit();
       }
-      worldUpdater.commit();
     }
 
     frame.clearLogs();
@@ -188,7 +190,9 @@ public abstract class AbstractMessageProcessor {
    * @param frame The message frame
    */
   private void completedSuccess(final MessageFrame frame) {
-    frame.getWorldUpdater().commit();
+    if (!frame.sharesParentWorldUpdater()) {
+      frame.getWorldUpdater().commit();
+    }
     traceFrameExit(frame, "SUCCESS");
     frame.getMessageFrameStack().removeFirst();
     frame.notifyCompletion();

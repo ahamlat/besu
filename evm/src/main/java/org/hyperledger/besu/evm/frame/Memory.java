@@ -249,6 +249,25 @@ public class Memory {
    * @return A fresh copy of the bytes from memory starting at {@code location} and extending {@code
    *     numBytes}.
    */
+  /**
+   * Computes Keccak-256 over {@code [location .. location + numBytes)} directly from the backing
+   * byte array into the EVM v2 stack, avoiding intermediate {@link MutableBytes} and {@code
+   * byte[32]} allocations.
+   */
+  public void keccak256ToStackV2(
+      final long location, final long numBytes, final long[] stack, final int stackSlotOffset) {
+    final int length = asByteLength(numBytes);
+    if (length == 0) {
+      org.hyperledger.besu.crypto.FastKeccak256.keccak256ToStack(
+          memBytes, 0, 0, stack, stackSlotOffset);
+      return;
+    }
+    final int start = asByteIndex(location);
+    ensureCapacityForBytes(start, length);
+    org.hyperledger.besu.crypto.FastKeccak256.keccak256ToStack(
+        memBytes, start, length, stack, stackSlotOffset);
+  }
+
   public MutableBytes getMutableBytes(final long location, final long numBytes) {
     // Note: if length == 0, we don't require any memory expansion, whatever location is. So
     // we must call asByteIndex(location) after this check so as it doesn't throw if the location

@@ -84,6 +84,8 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends Bonsa
       storageToUpdate = new ConcurrentHashMap<>();
 
   private final Map<UInt256, Hash> storageKeyHashLookup = new ConcurrentHashMap<>();
+  private Address lastStorageAddress;
+  private StorageConsumingMap<StorageSlotKey, BonsaiValue<UInt256>> lastStorageMap;
   protected boolean isAccumulatorStateChanged;
 
   public PathBasedWorldStateUpdateAccumulator(
@@ -505,6 +507,10 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends Bonsa
       }
       if (deletedStorageUpdates.isEmpty()) {
         storageToUpdate.remove(deletedAddress);
+        if (deletedAddress.equals(lastStorageAddress)) {
+          lastStorageAddress = null;
+          lastStorageMap = null;
+        }
       }
       accountValue.setUpdated(null);
       accountsToUpdate.preloadIfChanged(deletedAddress);
@@ -607,6 +613,10 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends Bonsa
 
     if (pendingStorageUpdates.isEmpty()) {
       storageToUpdate.remove(updatedAddress);
+      if (updatedAddress.equals(lastStorageAddress)) {
+        lastStorageAddress = null;
+        lastStorageMap = null;
+      }
     }
 
     if (tracked.getStorageWasCleared()) {
@@ -657,8 +667,31 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends Bonsa
     return loaded != null && loaded.getBytes() == code ? loaded : new Code(code, codeHash);
   }
 
+  private StorageConsumingMap<StorageSlotKey, BonsaiValue<UInt256>> getStorageMapCached(
+      final Address address) {
+    if (address.equals(lastStorageAddress)) {
+      return lastStorageMap;
+    }
+    final StorageConsumingMap<StorageSlotKey, BonsaiValue<UInt256>> map =
+        storageToUpdate.get(address);
+    if (map != null) {
+      lastStorageAddress = address;
+      lastStorageMap = map;
+    }
+    return map;
+  }
+
   @Override
   public UInt256 getStorageValue(final Address address, final UInt256 slotKey) {
+    final StorageConsumingMap<StorageSlotKey, BonsaiValue<UInt256>> localAccountStorage =
+        getStorageMapCached(address);
+    if (localAccountStorage != null) {
+      final BonsaiValue<UInt256> cached = localAccountStorage.getByRawSlot(slotKey);
+      if (cached != null) {
+        final UInt256 updated = cached.getUpdated();
+        return updated != null ? updated : UInt256.ZERO;
+      }
+    }
     StorageSlotKey storageSlotKey =
         new StorageSlotKey(hashAndSaveSlotPreImage(slotKey), Optional.of(slotKey));
     return getStorageValueByStorageSlotKey(address, storageSlotKey).orElse(UInt256.ZERO);
@@ -704,12 +737,15 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends Bonsa
   @Override
   public UInt256 getPriorStorageValue(final Address address, final UInt256 storageKey) {
     // TODO maybe log the read into the trie layer?
-    StorageSlotKey storageSlotKey =
-        new StorageSlotKey(hashAndSaveSlotPreImage(storageKey), Optional.of(storageKey));
-    final Map<StorageSlotKey, BonsaiValue<UInt256>> localAccountStorage =
+    final StorageConsumingMap<StorageSlotKey, BonsaiValue<UInt256>> localAccountStorage =
         storageToUpdate.get(address);
     if (localAccountStorage != null) {
-      final BonsaiValue<UInt256> value = localAccountStorage.get(storageSlotKey);
+      BonsaiValue<UInt256> value = localAccountStorage.getByRawSlot(storageKey);
+      if (value == null) {
+        final StorageSlotKey storageSlotKey =
+            new StorageSlotKey(hashAndSaveSlotPreImage(storageKey), Optional.of(storageKey));
+        value = localAccountStorage.get(storageSlotKey);
+      }
       if (value != null) {
         if (value.isLastStepCleared()) {
           return UInt256.ZERO;
@@ -1051,6 +1087,8 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends Bonsa
     updatedAccounts.clear();
     deletedAccounts.clear();
     storageKeyHashLookup.clear();
+    lastStorageAddress = null;
+    lastStorageMap = null;
   }
 
   protected Hash hashAndSaveAccountPreImage(final Address address) {

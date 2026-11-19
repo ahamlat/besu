@@ -55,10 +55,28 @@ public class SLoadOperationV2 extends AbstractOperationV2 {
 
   @Override
   public OperationResult execute(final MessageFrame frame, final EVM evm) {
-    final Account account = getAccount(frame.getRecipientAddress(), frame);
     if (!frame.stackHasItemsV2(1)) return underflowResponse;
     final long[] stack = frame.stackDataV2();
     final int top = frame.stackTopV2();
+    final int off = (top - 1) << 2;
+    final long u3 = stack[off];
+    final long u2 = stack[off + 1];
+    final long u1 = stack[off + 2];
+    final long u0 = stack[off + 3];
+
+    // Zero-allocation fast path: slot is already warm and its current value is cached in TxValues
+    // (automatically rolled back on REVERT/HALT via UndoMap).
+    final UInt256 cached = frame.getWarmCachedStorageV2(u3, u2, u1, u0);
+    if (cached != null) {
+      if (frame.getRemainingGas() < warmCost) {
+        return haltPopping(
+            frame, 1, new OperationResult(warmCost, ExceptionalHaltReason.INSUFFICIENT_GAS));
+      }
+      setBytes32(cached, stack, top - 1);
+      return warmSuccess;
+    }
+
+    final Account account = getAccount(frame.getRecipientAddress(), frame);
     final Address address = account.getAddress();
     final UInt256 key = UInt256.fromBytes(readBytes32At(stack, top, 0));
     final boolean slotIsWarm = frame.warmUpStorage(address, key);
@@ -67,7 +85,9 @@ public class SLoadOperationV2 extends AbstractOperationV2 {
       return haltPopping(
           frame, 1, new OperationResult(cost, ExceptionalHaltReason.INSUFFICIENT_GAS));
     }
-    setBytes32(getStorageValue(account, key, frame), stack, top - 1);
+    final UInt256 value = getStorageValue(account, key, frame);
+    frame.putCachedStorageV2(address, u3, u2, u1, u0, value);
+    setBytes32(value, stack, top - 1);
     return slotIsWarm ? warmSuccess : coldSuccess;
   }
 }

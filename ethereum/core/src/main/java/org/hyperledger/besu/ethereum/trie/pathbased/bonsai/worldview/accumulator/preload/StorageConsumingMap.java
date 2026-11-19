@@ -15,13 +15,16 @@
 package org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview.accumulator.preload;
 
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.StorageSlotKey;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.worldview.accumulator.BonsaiValue;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import com.google.common.collect.ForwardingMap;
 import jakarta.validation.constraints.NotNull;
+import org.apache.tuweni.units.bigints.UInt256;
 
 /**
  * The storage slots of an account in a block. The consumer preloads the trie path of a slot when
@@ -33,6 +36,7 @@ public class StorageConsumingMap<K, T extends BonsaiValue<?>> extends Forwarding
   private final Address address;
 
   private final ConcurrentMap<K, T> storages;
+  private final ConcurrentHashMap<UInt256, T> byRawSlot = new ConcurrentHashMap<>();
   private final Consumer<K> consumer;
 
   public StorageConsumingMap(
@@ -42,13 +46,54 @@ public class StorageConsumingMap<K, T extends BonsaiValue<?>> extends Forwarding
     this.consumer = consumer;
   }
 
+  public T getByRawSlot(final UInt256 rawSlotKey) {
+    return byRawSlot.get(rawSlotKey);
+  }
+
+  private void indexRawSlot(final K slotKey, final T value) {
+    if (slotKey instanceof StorageSlotKey ssk) {
+      final var raw = ssk.getSlotKey();
+      if (raw.isPresent()) {
+        byRawSlot.put(raw.get(), value);
+      }
+    }
+  }
+
   @Override
   public T put(@NotNull final K slotKey, @NotNull final T value) {
     final T previous = storages.put(slotKey, value);
+    indexRawSlot(slotKey, value);
     if (value.isChanged() && (previous == null || !previous.isChanged())) {
       consumer.process(address, slotKey);
     }
     return previous;
+  }
+
+  @Override
+  public T putIfAbsent(final K slotKey, final T value) {
+    final T previous = storages.putIfAbsent(slotKey, value);
+    if (previous == null) {
+      indexRawSlot(slotKey, value);
+    }
+    return previous;
+  }
+
+  @Override
+  public T remove(final Object key) {
+    final T removed = storages.remove(key);
+    if (removed != null && key instanceof StorageSlotKey ssk) {
+      final var raw = ssk.getSlotKey();
+      if (raw.isPresent()) {
+        byRawSlot.remove(raw.get());
+      }
+    }
+    return removed;
+  }
+
+  @Override
+  public void clear() {
+    storages.clear();
+    byRawSlot.clear();
   }
 
   /**
@@ -76,7 +121,9 @@ public class StorageConsumingMap<K, T extends BonsaiValue<?>> extends Forwarding
    * @return the previous value of the slot, or null
    */
   public T putLoaded(final K slotKey, final T value) {
-    return storages.put(slotKey, value);
+    final T previous = storages.put(slotKey, value);
+    indexRawSlot(slotKey, value);
+    return previous;
   }
 
   public Consumer<K> getConsumer() {

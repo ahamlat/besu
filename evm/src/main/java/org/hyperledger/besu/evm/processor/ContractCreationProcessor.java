@@ -159,6 +159,7 @@ public class ContractCreationProcessor extends AbstractMessageProcessor {
 
         contract.setNonce(initialContractNonce);
         contract.clearStorage();
+        frame.invalidateStorageCache();
         frame.setState(MessageFrame.State.CODE_EXECUTING);
       }
     } catch (final ModificationNotAllowedException ex) {
