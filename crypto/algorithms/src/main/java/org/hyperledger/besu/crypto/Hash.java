@@ -31,7 +31,6 @@ import org.apache.tuweni.bytes.Bytes32;
 public abstract class Hash {
   private Hash() {}
 
-  // Cloning a shared keccak digest copies its whole sponge state on every call.
   private static final ThreadLocal<MessageDigest> KECCAK256_DIGEST =
       ThreadLocal.withInitial(() -> messageDigest(KECCAK256_ALG));
   private static final ThreadLocal<MessageDigest> SHA256_DIGEST =
@@ -92,12 +91,16 @@ public abstract class Hash {
    * @return A digest.
    */
   public static Bytes32 keccak256(final Bytes input) {
+    final String pkg = input.getClass().getPackageName();
+    if (pkg.startsWith("org.apache.tuweni.") || pkg.startsWith("org.hyperledger.besu.datatypes")) {
+      final byte[] arr = input.toArrayUnsafe();
+      return Bytes32.wrap(FastKeccak256.keccak256(arr, 0, arr.length));
+    }
     final MessageDigest digest = KECCAK256_DIGEST.get();
     try {
       input.update(digest);
       return Bytes32.wrap(digest.digest());
     } catch (final Throwable t) {
-      // A digest left half-updated would corrupt every later hash on this thread.
       KECCAK256_DIGEST.remove();
       throw t;
     }
